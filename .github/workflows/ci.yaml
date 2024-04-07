@@ -18,3 +18,7 @@ jobs:
          swift --version
       - name: Swift tests
         run: swift test
+      - name: Integration tests
+        run: |
+         cd IntegrationTests
+         swift test
