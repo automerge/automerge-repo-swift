@@ -1,5 +1,5 @@
 import Automerge
-@testable import AutomergeRepo
+import AutomergeRepo
 import AutomergeUtilities
 import Foundation
 
