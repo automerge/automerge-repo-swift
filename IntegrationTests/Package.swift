@@ -7,7 +7,8 @@ let package = Package(
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [],
     dependencies: [
-        .package(url: "https://github.com/automerge/automerge-repo-swift.git", branch: "main"),
+        .package(path: "../"),
+        //.package(url: "https://github.com/automerge/automerge-repo-swift.git", branch: "main"),
         // Distributed Tracing
         // .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
         // Testing Tracing
