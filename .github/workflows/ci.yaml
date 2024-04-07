@@ -1,0 +1,20 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: macos-14
+    # runner images reference info:
+    # https://github.com/actions/runner-images/tree/main/images/macos
+    steps:
+      - uses: actions/checkout@v3
+      - name: get xcode information
+        run: |
+         xcodebuild -version
+         swift --version
+      - name: Swift tests
+        run: swift test
