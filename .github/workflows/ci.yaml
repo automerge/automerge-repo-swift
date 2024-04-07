@@ -10,13 +10,16 @@ jobs:
     runs-on: macos-14
     # runner images reference info:
     # https://github.com/actions/runner-images/tree/main/images/macos
+    services:
+      syncserver:
+        image: ghcr.io/heckj/automerge-repo-sync-server:main
+        ports:
+          - 3030:3030
     steps:
       - uses: actions/checkout@v3
       - name: get xcode information
         run: |
          xcodebuild -version
          swift --version
-      - name: Docker sync server
-        run: docker run -d ghcr.io/heckj/automerge-repo-sync-server:main
       - name: Swift tests
         run: swift test
