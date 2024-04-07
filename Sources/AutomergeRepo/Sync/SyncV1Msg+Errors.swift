@@ -14,7 +14,6 @@ public extension SyncV1Msg {
             public var errorDescription: String = "The websocket task was closed and/or nil"
         }
 
-        #warning("MOVE TO REPO ERRORS")
         public struct InvalidURL: Sendable, LocalizedError {
             public var urlString: String
             public var errorDescription: String? {

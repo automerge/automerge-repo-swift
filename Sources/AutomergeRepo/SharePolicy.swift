@@ -7,10 +7,9 @@ public protocol SharePolicy: Sendable {
     func share(peer: PEER_ID, docId: DocumentId) async -> Bool
 }
 
-#warning("REWORK THIS SETUP")
-// it's annoying as hell to have to specify the SharePolicies.agreeable kind of setup just to get
-// this. Seems better to make SharePolicy a struct, rename the protocol to allow for
-// generics/existential use, and add some static let variants onto the type itself.
+// it's annoying as hell to have to specify the SharePolicies.agreeable kind of setup
+// just to get this. Seems better to make SharePolicy a struct, rename the protocol to
+// allow for generics/existential use, and add some static let variants onto the type itself.
 public enum SharePolicies: Sendable {
     public static let agreeable = AlwaysPolicy()
     public static let readonly = NeverPolicy()
