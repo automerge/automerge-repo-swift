@@ -13,23 +13,17 @@
   - https://developer.apple.com/videos/play/wwdc2020/10110/
   */
 
-/*
- *
- * PENDING PORT TO REPO/NETWORK PROVIDER FOR PEER NETWORKING
- *
- */
-
 import CryptoKit
 import Network
 
 extension NWParameters {
     /// Returns listener and connection network parameters using default TLS for peer to peer connections.
-    static func peerSyncParameters(documentId: DocumentId) -> NWParameters {
+    static func peerSyncParameters(passcode: String) -> NWParameters {
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.enableKeepalive = true
         tcpOptions.keepaliveIdle = 2
 
-        let params = NWParameters(tls: tlsOptions(passcode: documentId.description), tcp: tcpOptions)
+        let params = NWParameters(tls: tlsOptions(passcode: passcode), tcp: tcpOptions)
         let syncOptions = NWProtocolFramer.Options(definition: P2PAutomergeSyncProtocol.definition)
         params.defaultProtocolStack.applicationProtocols.insert(syncOptions, at: 0)
 
