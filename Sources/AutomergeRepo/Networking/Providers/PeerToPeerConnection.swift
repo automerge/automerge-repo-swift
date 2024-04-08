@@ -235,9 +235,9 @@ public actor PeerToPeerConnection {
                 "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
             )
         if let bytes = rawMessageData.content?.count {
-            Logger.peerConnection.debug("  - received \(bytes) bytes")
+            Logger.peerConnection.trace("  - received \(bytes) bytes")
         } else {
-            Logger.peerConnection.debug("  - received no data with msg")
+            Logger.peerConnection.trace("  - received no data with msg")
         }
 
         if let err = rawMessageData.error {
@@ -262,89 +262,17 @@ public actor PeerToPeerConnection {
         guard let data = rawMessageData.content else {
             throw PeerProtocolError(msg: "Received message without content")
         }
-    
-        return self.handleProtocolMessage(content: data, message: protocolMessage, from: currentEndpoint)
-    }
 
-    func handleProtocolMessage(content data: Data, message _: NWProtocolFramer.Message, from _: NWEndpoint) -> SyncV1Msg {
-        return SyncV1Msg.decode(data)
-//        guard let document = DocumentSyncCoordinator.shared.documents[documentId]?.value else {
-//            Logger.syncConnection
-//                .warning(
-//                    "\(self.shortId, privacy: .public): received msg for unregistered document \(self.documentId,
-//                    privacy: .public) from \(endpoint.debugDescription, privacy: .public)"
-//                )
-//
-//            return
-//        }
-//        switch message.syncMessageType {
-//        case .unknown:
-//            Logger.syncConnection
-//                .error(
-//                    "\(self.shortId, privacy: .public): Invalid message received from \(endpoint.debugDescription,
-//                    privacy: .public)"
-//                )
-//        case .sync:
-//            guard let data else {
-//                Logger.syncConnection
-//                    .error(
-//                        "\(self.shortId, privacy: .public): Sync message received without data from
-//                        \(endpoint.debugDescription, privacy: .public)"
-//                    )
-//                return
-//            }
-//            do {
-//                // When we receive a complete sync message from the underlying transport,
-//                // update our automerge document, and the associated SyncState.
-//                let patches = try document.receiveSyncMessageWithPatches(
-//                    state: syncState,
-//                    message: data
-//                )
-//                Logger.syncConnection
-//                    .debug(
-//                        "\(self.shortId, privacy: .public): Received \(patches.count, privacy: .public) patches in
-//                        \(data.count, privacy: .public) bytes"
-//                    )
-//
-//                // Once the Automerge doc is updated, check (using the SyncState) to see if
-//                // we believe we need to send additional messages to the peer to keep it in sync.
-//                if let response = document.generateSyncMessage(state: syncState) {
-//                    sendSyncMsg(response)
-//                } else {
-//                    // When generateSyncMessage returns nil, the remote endpoint represented by
-//                    // SyncState should be up to date.
-//                    Logger.syncConnection
-//                        .debug(
-//                            "\(self.shortId, privacy: .public): Sync complete with \(endpoint.debugDescription,
-//                            privacy: .public)"
-//                        )
-//                }
-//            } catch {
-//                Logger.syncConnection
-//                    .error("\(self.shortId, privacy: .public): Error applying sync message: \(error, privacy:
-//                    .public)")
-//            }
-//        case .id:
-//            Logger.syncConnection.info("\(self.shortId, privacy: .public): received request for document ID")
-//            sendDocumentId(documentId)
-//        case .peer:
-//            break
-//        case .leave:
-//            break
-//        case .join:
-//            break
-//        case .request:
-//            break
-//        case .unavailable:
-//            break
-//        case .ephemeral:
-//            break
-//        case .syncerror:
-//            break
-//        case .remoteHeadsChanged:
-//            break
-//        case .remoteSubscriptionChange:
-//            break
-//        }
+        switch protocolMessage.syncMessageType {
+        case .unknown:
+            Logger.peerConnection
+                .warning(
+                    "received unknown msg \(data) from \(self.endpoint.debugDescription, privacy: .public)"
+                )
+            return SyncV1Msg.unknown(data)
+        case .syncV1data:
+            return SyncV1Msg.decode(data)
+        }
+
     }
 }

@@ -126,7 +126,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // extra
 
-    public func disconnect(_: PEER_ID) async {}
+    public func disconnect(_ peer: PEER_ID) async {}
 
     public func activate() {
         // if listener = true, set up a listener...
