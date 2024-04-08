@@ -23,16 +23,16 @@ struct ReceiveMessageData {
     let isComplete: Bool
     let error: NWError?
 }
+
 /// A peer to peer sync connection to receive and send sync messages.
 ///
 /// As soon as it is established, it attempts to commence a sync operation (send and expect to receive sync messages).
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
 public actor PeerToPeerConnection {
-    
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
     // for the connection
-    
+
     var connection: NWConnection
     /// A Boolean value that indicates this app initiated this connection.
 
@@ -40,11 +40,10 @@ public actor PeerToPeerConnection {
 
     let stateStream: AsyncStream<NWConnection.State>
     let stateContinuation: AsyncStream<NWConnection.State>.Continuation
-    var listenerStateUpdateTaskHandle: Task<(), Never>?
+    var listenerStateUpdateTaskHandle: Task<Void, Never>?
 
-    let messageStream: AsyncStream<ReceiveMessageData>
+    let messageDataStream: AsyncStream<ReceiveMessageData>
     let receiveMessageContinuation: AsyncStream<ReceiveMessageData>.Continuation
-    var receiveMessageTaskHandle: Task<(), Never>?
 
     /// Initiate a connection to a network endpoint to synchronise an Automerge Document.
     /// - Parameters:
@@ -74,12 +73,7 @@ public actor PeerToPeerConnection {
         // connect into the existing system by yielding the value
         // into the continuation that the stream provided on creation.
 
-        (messageStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
-        receiveMessageTaskHandle = Task {
-            for await msgData in messageStream {
-                await receiveMessageData(msgData)
-            }
-        }
+        (messageDataStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
 
         connection.stateUpdateHandler = { newState in
             self.stateContinuation.yield(newState)
@@ -87,7 +81,6 @@ public actor PeerToPeerConnection {
 
         // Start the connection establishment.
         connection.start(queue: .main)
-
     }
 
     /// Accepts and runs a connection from another network endpoint to synchronise an Automerge Document.
@@ -95,10 +88,9 @@ public actor PeerToPeerConnection {
     ///   - connection: The connection provided by a listener to accept.
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
     init(connection: NWConnection) async {
-        
         self.connection = connection
         endpoint = connection.endpoint
-        
+
         // AsyncStream as a queue to receive the updates
         let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
@@ -109,19 +101,12 @@ public actor PeerToPeerConnection {
         // connect into the existing system by yielding the value
         // into the continuation that the stream provided on creation.
 
-        (messageStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
-        receiveMessageTaskHandle = nil
+        (messageDataStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
 
         // connect into the existing system by yielding the value
         // into the continuation that the stream provided on creation.
         connection.stateUpdateHandler = { newState in
             self.stateContinuation.yield(newState)
-        }
-
-        receiveMessageTaskHandle = Task {
-            for await msgData in messageStream {
-                await receiveMessageData(msgData)
-            }
         }
 
         // Start the connection establishment.
@@ -131,8 +116,6 @@ public actor PeerToPeerConnection {
     /// Cancels the current connection.
     public func cancel() {
         connection.cancel()
-//        connectionState = .cancelled
-//        self.connection = nil
     }
 
     func handleConnectionStateUpdate(_ newState: NWConnection.State) async {
@@ -144,7 +127,6 @@ public actor PeerToPeerConnection {
                 )
             // When the connection is ready, start receiving messages.
             receiveNextMessage()
-
         case let .failed(error):
             Logger.syncConnection
                 .warning(
@@ -172,7 +154,7 @@ public actor PeerToPeerConnection {
                 .warning(
                     "connection to \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
                 )
-            
+
         case .preparing:
             Logger.syncConnection
                 .debug(
@@ -188,21 +170,54 @@ public actor PeerToPeerConnection {
             break
         }
     }
-    
+
     /// Receive a message from the sync protocol framing, deliver it to the delegate for processing, and continue
     /// receiving messages.
     private func receiveNextMessage() {
+        // schedules a single callback with the connection to provide the next, complete
+        // message. That goes into an async stream (queue) help by this actor, and is
+        // processed by an ongoing background task that calls `receiveMessageData`
         connection.receiveMessage { content, context, isComplete, error in
-            let data = ReceiveMessageData(content: content, contentContext: context, isComplete: isComplete, error: error)
+            let data = ReceiveMessageData(
+                content: content,
+                contentContext: context,
+                isComplete: isComplete,
+                error: error
+            )
             self.receiveMessageContinuation.yield(data)
         }
     }
+
+//    func receiveMessageData(_ data: ReceiveMessageData) async {
+//        Logger.syncConnection
+//            .debug(
+//                "Received a \(data.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+//            )
+//        if let bytes = data.content?.count {
+//            Logger.syncConnection.debug("  - received \(bytes) bytes")
+//        } else {
+//            Logger.syncConnection.debug("  - received no data with msg")
+//        }
+//        // Extract your message type from the received context.
+//        if let protocolMessage = data.contentContext?
+//            .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message,
+//           let currentEndpoint = endpoint
+//        {
+//            self.handleProtocolMessage(content: data.content, message: protocolMessage, from: currentEndpoint)
+//        }
+//        if data.error != nil {
+//            Logger.syncConnection.error("  - error on received message: \(data.error)")
+//            self.cancel()
+//        } else {
+//            self.receiveNextMessage()
+//        }
+//    }
 
     // MARK: Automerge data to Automerge Sync Protocol transforms
 
     /// Sends an Automerge sync data packet.
     /// - Parameter syncMsg: The data to send.
-    func sendMessage(_ syncMsg: Data) {
+    public func sendMessage(_ syncMsg: Data) {
         // Create a message object to hold the command type.
         let message = NWProtocolFramer.Message(syncMessageType: .sync)
         let context = NWConnection.ContentContext(
@@ -219,34 +234,48 @@ public actor PeerToPeerConnection {
         )
     }
 
-    func receiveMessageData(_ data: ReceiveMessageData) async {
+    public func receive() async throws -> Data {
+        receiveNextMessage()
+        var localIterator = messageDataStream.makeAsyncIterator()
+        guard let rawMessageData = await localIterator.next() else {
+            fatalError("EXPLAIN")
+        }
+
         Logger.syncConnection
             .debug(
-                "Received a \(data.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+                "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
             )
-        if let bytes = data.content?.count {
+        if let bytes = rawMessageData.content?.count {
             Logger.syncConnection.debug("  - received \(bytes) bytes")
         } else {
             Logger.syncConnection.debug("  - received no data with msg")
         }
+
+        if let err = rawMessageData.error {
+            Logger.syncConnection.error("  - error on received message: \(err.localizedDescription)")
+            self.cancel() // ???
+            throw err
+        }
+
         // Extract your message type from the received context.
-        if let protocolMessage = data.contentContext?
+        guard let protocolMessage = rawMessageData.contentContext?
             .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message,
-           let currentEndpoint = endpoint
-        {
-            self.handleProtocolMessage(content: data.content, message: protocolMessage, from: currentEndpoint)
+            let currentEndpoint = endpoint,
+            let data = rawMessageData.content
+        else {
+            fatalError("EXPLAIN HERE")
         }
-        if data.error != nil {
-            Logger.syncConnection.error("  - error on received message: \(data.error)")
-            self.cancel()
-        }
+
+        return self.handleProtocolMessage(content: data, message: protocolMessage, from: currentEndpoint)
     }
-    
-    func handleProtocolMessage(content data: Data?, message: NWProtocolFramer.Message, from endpoint: NWEndpoint) {
+
+    func handleProtocolMessage(content data: Data, message _: NWProtocolFramer.Message, from _: NWEndpoint) -> Data {
+        data
 //        guard let document = DocumentSyncCoordinator.shared.documents[documentId]?.value else {
 //            Logger.syncConnection
 //                .warning(
-//                    "\(self.shortId, privacy: .public): received msg for unregistered document \(self.documentId, privacy: .public) from \(endpoint.debugDescription, privacy: .public)"
+//                    "\(self.shortId, privacy: .public): received msg for unregistered document \(self.documentId,
+//                    privacy: .public) from \(endpoint.debugDescription, privacy: .public)"
 //                )
 //
 //            return
@@ -255,13 +284,15 @@ public actor PeerToPeerConnection {
 //        case .unknown:
 //            Logger.syncConnection
 //                .error(
-//                    "\(self.shortId, privacy: .public): Invalid message received from \(endpoint.debugDescription, privacy: .public)"
+//                    "\(self.shortId, privacy: .public): Invalid message received from \(endpoint.debugDescription,
+//                    privacy: .public)"
 //                )
 //        case .sync:
 //            guard let data else {
 //                Logger.syncConnection
 //                    .error(
-//                        "\(self.shortId, privacy: .public): Sync message received without data from \(endpoint.debugDescription, privacy: .public)"
+//                        "\(self.shortId, privacy: .public): Sync message received without data from
+//                        \(endpoint.debugDescription, privacy: .public)"
 //                    )
 //                return
 //            }
@@ -274,7 +305,8 @@ public actor PeerToPeerConnection {
 //                )
 //                Logger.syncConnection
 //                    .debug(
-//                        "\(self.shortId, privacy: .public): Received \(patches.count, privacy: .public) patches in \(data.count, privacy: .public) bytes"
+//                        "\(self.shortId, privacy: .public): Received \(patches.count, privacy: .public) patches in
+//                        \(data.count, privacy: .public) bytes"
 //                    )
 //
 //                // Once the Automerge doc is updated, check (using the SyncState) to see if
@@ -286,12 +318,14 @@ public actor PeerToPeerConnection {
 //                    // SyncState should be up to date.
 //                    Logger.syncConnection
 //                        .debug(
-//                            "\(self.shortId, privacy: .public): Sync complete with \(endpoint.debugDescription, privacy: .public)"
+//                            "\(self.shortId, privacy: .public): Sync complete with \(endpoint.debugDescription,
+//                            privacy: .public)"
 //                        )
 //                }
 //            } catch {
 //                Logger.syncConnection
-//                    .error("\(self.shortId, privacy: .public): Error applying sync message: \(error, privacy: .public)")
+//                    .error("\(self.shortId, privacy: .public): Error applying sync message: \(error, privacy:
+//                    .public)")
 //            }
 //        case .id:
 //            Logger.syncConnection.info("\(self.shortId, privacy: .public): received request for document ID")

@@ -1,33 +1,33 @@
-//import Automerge
-//import Combine
-//import Foundation
-//import Network
-//import OSLog
-//#if os(iOS)
-//import UIKit // for UIDevice.name access
-//#endif
+// import Automerge
+// import Combine
+// import Foundation
+// import Network
+// import OSLog
+// #if os(iOS)
+// import UIKit // for UIDevice.name access
+// #endif
 //
-///*
+/// *
 // *
 // * DEPRECATED - TO BE REMOVED
 // *
 // */
 //
 ///// A collection of User Default keys for the app.
-//public enum SynchronizerDefaultKeys: Sendable {
+// public enum SynchronizerDefaultKeys: Sendable {
 //    /// The key to the string that the app broadcasts to represent you when sharing and syncing Automerge Documents.
 //    public static let publicPeerName = "sharingIdentity"
-//}
+// }
 //
 ///// A global actor for safely isolating the state updates for the DocumentSyncCoordinator
-//@globalActor
-//public actor SyncController {
+// @globalActor
+// public actor SyncController {
 //    public static let shared = SyncController()
-//}
+// }
 //
 ///// A application-shared sync controller that supports coordinates documents and network connections with peers.
-//@MainActor
-//public final class DocumentSyncCoordinator: ObservableObject {
+// @MainActor
+// public final class DocumentSyncCoordinator: ObservableObject {
 //    public static let shared = DocumentSyncCoordinator()
 //
 //    var documents: [DocumentId: WeakDocumentRef] = [:]
@@ -125,10 +125,12 @@
 //
 //    // MARK: NWBrowser
 //
-//    public func attemptToConnectToPeer(_ endpoint: NWEndpoint, forPeer peerId: String, withDoc documentId: DocumentId) {
+//    public func attemptToConnectToPeer(_ endpoint: NWEndpoint, forPeer peerId: String, withDoc documentId: DocumentId)
+//    {
 //        Logger.syncController
 //            .debug(
-//                "Attempting to establish connection to \(peerId, privacy: .public) through \(endpoint.debugDescription, privacy: .public) "
+//                "Attempting to establish connection to \(peerId, privacy: .public) through
+//                \(endpoint.debugDescription, privacy: .public) "
 //            )
 //        if connections.filter({ conn in
 //            conn.peerId == peerId
@@ -152,7 +154,8 @@
 //            let delay = Int.random(in: 250 ... 1000)
 //            Logger.syncController
 //                .info(
-//                    "Delaying \(delay, privacy: .public) ms before attempting connect to \(peerId, privacy: .public) at \(endpoint.debugDescription, privacy: .public)"
+//                    "Delaying \(delay, privacy: .public) ms before attempting connect to \(peerId, privacy: .public)
+//                    at \(endpoint.debugDescription, privacy: .public)"
 //                )
 //            try await Task.sleep(until: .now + .milliseconds(delay), clock: .continuous)
 //            self.attemptToConnectToPeer(endpoint, forPeer: peerId, withDoc: documentId)
@@ -199,7 +202,8 @@
 //            for res in results {
 //                Logger.syncController
 //                    .debug(
-//                        "  \(res.endpoint.debugDescription, privacy: .public) \(res.metadata.debugDescription, privacy: .public)"
+//                        "  \(res.endpoint.debugDescription, privacy: .public) \(res.metadata.debugDescription,
+//                        privacy: .public)"
 //                    )
 //            }
 //            guard let self else {
@@ -316,7 +320,8 @@
 //            listener.newConnectionHandler = { @MainActor [weak self] newConnection in
 //                Logger.syncController
 //                    .debug(
-//                        "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
+//                        "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy:
+//                        .public)"
 //                    )
 //                Logger.syncController
 //                    .debug(
@@ -329,7 +334,8 @@
 //                }).isEmpty {
 //                    Logger.syncController
 //                        .info(
-//                            "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
+//                            "Endpoint not yet recorded, accepting connection from
+//                            \(newConnection.endpoint.debugDescription, privacy: .public)"
 //                        )
 //                    let peerConnection = BonjourSyncConnection(
 //                        connection: newConnection,
@@ -340,7 +346,8 @@
 //                } else {
 //                    Logger.syncController
 //                        .info(
-//                            "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
+//                            "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy:
+//                            .public), cancelling the connection request."
 //                        )
 //                    // If we already have a connection to that endpoint, don't add another
 //                    newConnection.cancel()
@@ -358,7 +365,8 @@
 //        } catch {
 //            Logger.syncController
 //                .critical(
-//                    "Failed to create bonjour listener for document id \(documentId, privacy: .public): \(error, privacy: .public)"
+//                    "Failed to create bonjour listener for document id \(documentId, privacy: .public): \(error,
+//                    privacy: .public)"
 //                )
 //            listenerSetupError = error
 //        }
@@ -388,7 +396,8 @@
 //                )
 //                Logger.syncController
 //                    .debug(
-//                        "Updated bonjour network listener to name \(name, privacy: .public) for document id \(documentId, privacy: .public)"
+//                        "Updated bonjour network listener to name \(name, privacy: .public) for document id
+//                        \(documentId, privacy: .public)"
 //                    )
 //            } else {
 //                Logger.syncController
@@ -398,7 +407,7 @@
 //            }
 //        }
 //    }
-//}
+// }
 //
 //// public extension DocumentSyncCoordinator {
 ////    static let shared = DocumentSyncCoordinator()

@@ -1,6 +1,6 @@
-//import class Automerge.Document
+// import class Automerge.Document
 //
-///*
+/// *
 // *
 // * DEPRECATED - TO BE REMOVED
 // *
@@ -10,10 +10,10 @@
 /////
 ///// Allow a global singleton keep references to documents without incurring memory leaks as Documents are opened and
 ///// closed.
-//final class WeakDocumentRef {
+// final class WeakDocumentRef {
 //    weak var value: Automerge.Document?
 //
 //    init(_ value: Automerge.Document? = nil) {
 //        self.value = value
 //    }
-//}
+// }

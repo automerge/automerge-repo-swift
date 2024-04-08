@@ -1,36 +1,44 @@
-///*
+/// *
 // Copyright © 2022 Apple Inc.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+// Software.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // WWDC Video references aligned with this code:
 // - https://developer.apple.com/videos/play/wwdc2019/713/
 // - https://developer.apple.com/videos/play/wwdc2020/10110/
 // */
 //
-///*
+/// *
 // *
 // * PENDING PORT TO REPO/NETWORK PROVIDER FOR PEER NETWORKING
 // *
 // */
 //
-//import Automerge
-//import Combine
-//import Foundation
-//import Network
-//import OSLog
+// import Automerge
+// import Combine
+// import Foundation
+// import Network
+// import OSLog
 //
 ///// A peer to peer sync connection to receive and send sync messages.
 /////
 ///// As soon as it is established, it attempts to commence a sync operation (send and expect to receive sync messages).
-///// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
+///// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks
+/// off
 ///// another attempt to sync the relevant Automerge document.
-//@MainActor
-//public final class BonjourSyncConnection: ObservableObject {
+// @MainActor
+// public final class BonjourSyncConnection: ObservableObject {
 //    /// A unique identifier to track the connections for comparison against existing connections.
 //    var connectionId = UUID()
 //    public var shortId: String {
@@ -78,7 +86,8 @@
 //        self.peerId = peerId
 //        Logger.syncConnection
 //            .debug(
-//                "\(self.shortId, privacy: .public): Initiating connection to \(endpoint.debugDescription, privacy: .public)"
+//                "\(self.shortId, privacy: .public): Initiating connection to \(endpoint.debugDescription, privacy:
+//                .public)"
 //            )
 //
 //        startConnection(trigger)
@@ -95,7 +104,8 @@
 //        syncState = SyncState()
 //        Logger.syncConnection
 //            .info(
-//                "\(self.shortId, privacy: .public): Receiving connection from \(connection.endpoint.debugDescription, privacy: .public)"
+//                "\(self.shortId, privacy: .public): Receiving connection from \(connection.endpoint.debugDescription,
+//                privacy: .public)"
 //            )
 //
 //        startConnection(trigger)
@@ -108,12 +118,14 @@
 //            if let peerId {
 //                Logger.syncConnection
 //                    .debug(
-//                        "\(self.shortId, privacy: .public): Cancelling outbound connection to peer \(peerId, privacy: .public)"
+//                        "\(self.shortId, privacy: .public): Cancelling outbound connection to peer \(peerId, privacy:
+//                        .public)"
 //                    )
 //            } else {
 //                Logger.syncConnection
 //                    .debug(
-//                        "\(self.shortId, privacy: .public): Cancelling inbound connection from endpoint \(connection.endpoint.debugDescription, privacy: .public)"
+//                        "\(self.shortId, privacy: .public): Cancelling inbound connection from endpoint
+//                        \(connection.endpoint.debugDescription, privacy: .public)"
 //                    )
 //            }
 //            connection.cancel()
@@ -135,7 +147,8 @@
 //            {
 //                Logger.syncConnection
 //                    .info(
-//                        "\(self.shortId, privacy: .public): Syncing \(syncData.count, privacy: .public) bytes to \(connection.endpoint.debugDescription, privacy: .public)"
+//                        "\(self.shortId, privacy: .public): Syncing \(syncData.count, privacy: .public) bytes to
+//                        \(connection.endpoint.debugDescription, privacy: .public)"
 //                    )
 //                self.sendSyncMsg(syncData)
 //            }
@@ -151,7 +164,8 @@
 //                if let endpoint = self.connection?.endpoint {
 //                    Logger.syncConnection
 //                        .debug(
-//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy: .public) ready."
+//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy:
+//                            .public) ready."
 //                        )
 //                } else {
 //                    Logger.syncConnection.warning("\(shortId, privacy: .public): connection ready (no endpoint)")
@@ -162,7 +176,8 @@
 //            case let .failed(error):
 //                Logger.syncConnection
 //                    .warning(
-//                        "\(shortId, privacy: .public): FAILED \(String(describing: connection), privacy: .public) : \(error, privacy: .public)"
+//                        "\(shortId, privacy: .public): FAILED \(String(describing: connection), privacy: .public) :
+//                        \(error, privacy: .public)"
 //                    )
 //                // Cancel the connection upon a failure.
 //                connection.cancel()
@@ -173,7 +188,8 @@
 //            case .cancelled:
 //                Logger.syncConnection
 //                    .debug(
-//                        "\(shortId, privacy: .public): CANCEL \(endpoint.debugDescription, privacy: .public) connection."
+//                        "\(shortId, privacy: .public): CANCEL \(endpoint.debugDescription, privacy: .public)
+//                        connection."
 //                    )
 //                syncTriggerCancellable?.cancel()
 //                DocumentSyncCoordinator.shared.removeConnection(connectionId)
@@ -191,7 +207,8 @@
 //                if let endpoint = self.connection?.endpoint {
 //                    Logger.syncConnection
 //                        .warning(
-//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
+//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy:
+//                            .public) waiting: \(nWError.debugDescription, privacy: .public)."
 //                        )
 //                } else {
 //                    Logger.syncConnection.debug("\(shortId, privacy: .public): connection waiting (no endpoint)")
@@ -201,7 +218,8 @@
 //                if let endpoint = self.connection?.endpoint {
 //                    Logger.syncConnection
 //                        .debug(
-//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy: .public) preparing."
+//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy:
+//                            .public) preparing."
 //                        )
 //                } else {
 //                    Logger.syncConnection.debug("\(shortId, privacy: .public): connection preparing (no endpoint)")
@@ -211,7 +229,8 @@
 //                if let endpoint = self.connection?.endpoint {
 //                    Logger.syncConnection
 //                        .debug(
-//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy: .public) in setup."
+//                            "\(shortId, privacy: .public): connection to \(endpoint.debugDescription, privacy:
+//                            .public) in setup."
 //                        )
 //                } else {
 //                    Logger.syncConnection.debug("\(shortId, privacy: .public): connection setup (no endpoint)")
@@ -235,7 +254,8 @@
 //        connection.receiveMessage { content, context, isComplete, error in
 //            Logger.syncConnection
 //                .debug(
-//                    "\(self.shortId, privacy: .public): Received a \(isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+//                    "\(self.shortId, privacy: .public): Received a \(isComplete ? "complete" : "incomplete", privacy:
+//                    .public) msg on connection"
 //                )
 //            if let content {
 //                Logger.syncConnection.debug("  - received \(content.count) bytes")
@@ -310,11 +330,13 @@
 //        )
 //    }
 //
-//    @MainActor func receivedMessage(content data: Data?, message: NWProtocolFramer.Message, from endpoint: NWEndpoint) {
+//    @MainActor func receivedMessage(content data: Data?, message: NWProtocolFramer.Message, from endpoint: NWEndpoint)
+//    {
 //        guard let document = DocumentSyncCoordinator.shared.documents[documentId]?.value else {
 //            Logger.syncConnection
 //                .warning(
-//                    "\(self.shortId, privacy: .public): received msg for unregistered document \(self.documentId, privacy: .public) from \(endpoint.debugDescription, privacy: .public)"
+//                    "\(self.shortId, privacy: .public): received msg for unregistered document \(self.documentId,
+//                    privacy: .public) from \(endpoint.debugDescription, privacy: .public)"
 //                )
 //
 //            return
@@ -323,13 +345,15 @@
 //        case .unknown:
 //            Logger.syncConnection
 //                .error(
-//                    "\(self.shortId, privacy: .public): Invalid message received from \(endpoint.debugDescription, privacy: .public)"
+//                    "\(self.shortId, privacy: .public): Invalid message received from \(endpoint.debugDescription,
+//                    privacy: .public)"
 //                )
 //        case .sync:
 //            guard let data else {
 //                Logger.syncConnection
 //                    .error(
-//                        "\(self.shortId, privacy: .public): Sync message received without data from \(endpoint.debugDescription, privacy: .public)"
+//                        "\(self.shortId, privacy: .public): Sync message received without data from
+//                        \(endpoint.debugDescription, privacy: .public)"
 //                    )
 //                return
 //            }
@@ -342,7 +366,8 @@
 //                )
 //                Logger.syncConnection
 //                    .debug(
-//                        "\(self.shortId, privacy: .public): Received \(patches.count, privacy: .public) patches in \(data.count, privacy: .public) bytes"
+//                        "\(self.shortId, privacy: .public): Received \(patches.count, privacy: .public) patches in
+//                        \(data.count, privacy: .public) bytes"
 //                    )
 //
 //                // Once the Automerge doc is updated, check (using the SyncState) to see if
@@ -354,12 +379,14 @@
 //                    // SyncState should be up to date.
 //                    Logger.syncConnection
 //                        .debug(
-//                            "\(self.shortId, privacy: .public): Sync complete with \(endpoint.debugDescription, privacy: .public)"
+//                            "\(self.shortId, privacy: .public): Sync complete with \(endpoint.debugDescription,
+//                            privacy: .public)"
 //                        )
 //                }
 //            } catch {
 //                Logger.syncConnection
-//                    .error("\(self.shortId, privacy: .public): Error applying sync message: \(error, privacy: .public)")
+//                    .error("\(self.shortId, privacy: .public): Error applying sync message: \(error, privacy:
+//                    .public)")
 //            }
 //        case .id:
 //            Logger.syncConnection.info("\(self.shortId, privacy: .public): received request for document ID")
@@ -384,6 +411,6 @@
 //            break
 //        }
 //    }
-//}
+// }
 //
-//extension BonjourSyncConnection: Identifiable {}
+// extension BonjourSyncConnection: Identifiable {}

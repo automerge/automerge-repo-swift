@@ -6,7 +6,6 @@ import OSLog
 import UIKit // for UIDevice.name access
 #endif
 
-
 public actor PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
@@ -15,14 +14,16 @@ public actor PeerToPeerProvider: NetworkProvider {
         let listening: Bool
         let autoconnect: Bool
         let peerName: String
+        let passcode: String
 
-        public static let `default` = PeerToPeerProviderConfiguration(
-            reconnectOnError: true,
-            listening: true,
-            peerName: nil
-        )
-        
-        init(reconnectOnError: Bool, listening: Bool, peerName: String?, autoconnect: Bool? = nil) {
+//        public static let `default` = PeerToPeerProviderConfiguration(
+//            reconnectOnError: true,
+//            listening: true,
+//            peerName: nil,
+//            passcode: <#String#>
+//        )
+
+        init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) {
             self.reconnectOnError = reconnectOnError
             self.listening = listening
             if let auto = autoconnect {
@@ -39,10 +40,11 @@ public actor PeerToPeerProvider: NetworkProvider {
             } else {
                 self.peerName = Self.defaultSharingIdentity()
             }
+            self.passcode = passcode
         }
-        
+
         // MARK: default sharing identity
-        
+
         public static func defaultSharingIdentity() -> String {
             let defaultName: String
             #if os(iOS)
@@ -53,7 +55,6 @@ public actor PeerToPeerProvider: NetworkProvider {
             return UserDefaults.standard
                 .string(forKey: UserDefaultKeys.publicPeerName) ?? defaultName
         }
-
     }
 
     public var peeredConnections: [PeerConnection]
@@ -69,18 +70,18 @@ public actor PeerToPeerProvider: NetworkProvider {
     var browser: NWBrowser?
     var listener: NWListener?
     var txtRecord: NWTXTRecord
-    
+
     // listener tasks to process/react to callbacks
     // from NWListener and NWNBrowser
     let stateStream: AsyncStream<NWListener.State>
     let stateContinuation: AsyncStream<NWListener.State>.Continuation
-    var listenerStateUpdateTaskHandle: Task<(), Never>?
-    
+    var listenerStateUpdateTaskHandle: Task<Void, Never>?
+
     let newConnectionStream: AsyncStream<NWConnection>
     let newConnectionContinuation: AsyncStream<NWConnection>.Continuation
-    var newConnectionTaskHandle: Task<(), Never>?
+    var newConnectionTaskHandle: Task<Void, Never>?
 
-    public init(_ config: PeerToPeerProviderConfiguration = .default) {
+    public init(_ config: PeerToPeerProviderConfiguration) {
         self.config = config
         connections = []
         peeredConnections = []
@@ -93,14 +94,14 @@ public actor PeerToPeerProvider: NetworkProvider {
         record[TXTRecordKeys.name] = config.peerName
         record[TXTRecordKeys.peer_id] = "UNCONFIGURED"
         self.txtRecord = record
-        
+
         // AsyncStream as a queue to receive the updates
         let (stateStream, stateContinuation) = AsyncStream<NWListener.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
         self.stateStream = stateStream
         self.stateContinuation = stateContinuation
         self.listenerStateUpdateTaskHandle = nil
-        
+
         // The system calls this when a new connection arrives at the listener.
         // Start the connection to accept it, or cancel to reject it.
         let (newConnectionStream, newConnectionContinuation) = AsyncStream<NWConnection>.makeStream()
@@ -108,9 +109,8 @@ public actor PeerToPeerProvider: NetworkProvider {
         self.newConnectionStream = newConnectionStream
         self.newConnectionContinuation = newConnectionContinuation
         self.newConnectionTaskHandle = nil
-
     }
-    
+
     deinit {
         newConnectionTaskHandle?.cancel()
         listenerStateUpdateTaskHandle?.cancel()
@@ -135,19 +135,17 @@ public actor PeerToPeerProvider: NetworkProvider {
     public func setDelegate(_: any NetworkEventReceiver, as _: PEER_ID, with _: PeerMetadata?) async {
         fatalError("Not Yet Implemented")
     }
-    
+
     // extra
-    
-    public func disconnect(_ peer: PEER_ID) async {
-        
-    }
-    
+
+    public func disconnect(_: PEER_ID) async {}
+
     public func activate() {
         // if listener = true, set up a listener...
     }
-    
+
     // MARK: NWBrowser
-    
+
     // MARK: NWListener handlers
 
     private func reactToNWListenerStateUpdate(_ newState: NWListener.State) async {
@@ -177,7 +175,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
         case .setup:
             break
-        case .waiting(_):
+        case .waiting:
             break
         case .cancelled:
             break
@@ -185,7 +183,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             break
         }
     }
-    
+
     private func handleNewConnection(_ newConnection: NWConnection) async {
         Logger.syncController
             .debug(
@@ -223,19 +221,15 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // Start listening and advertising.
     fileprivate func setupBonjourListener() {
-        guard let peerId = peerId else {
-            // LOG ERROR? THROW ERROR?
-            return
-        }
         do {
             // Create the listener object.
-            let listener = try NWListener(using: NWParameters.peerSyncParameters(passcode: peerId))
+            let listener = try NWListener(using: NWParameters.peerSyncParameters(passcode: config.passcode))
             // Set the service to advertise.
             listener.service = NWListener.Service(
                 type: P2PAutomergeSyncProtocol.bonjourType,
                 txtRecord: txtRecord
             )
-            
+
             listenerStateUpdateTaskHandle = Task {
                 for await newState in stateStream {
                     await reactToNWListenerStateUpdate(newState)
@@ -277,7 +271,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     // Update the advertised name on the network.
-    fileprivate func resetName(_ name: String) {
+    fileprivate func resetName(_: String) {
 //        for documentId in documents.keys {
 //            if var txtRecord = txtRecords[documentId] {
 //                txtRecord[TXTRecordKeys.name] = name
@@ -290,7 +284,8 @@ public actor PeerToPeerProvider: NetworkProvider {
 //                )
 //                Logger.syncController
 //                    .debug(
-//                        "Updated bonjour network listener to name \(name, privacy: .public) for document id \(documentId, privacy: .public)"
+//                        "Updated bonjour network listener to name \(name, privacy: .public) for document id
+//                        \(documentId, privacy: .public)"
 //                    )
 //            } else {
 //                Logger.syncController
@@ -300,5 +295,4 @@ public actor PeerToPeerProvider: NetworkProvider {
 //            }
 //        }
     }
-    
 }

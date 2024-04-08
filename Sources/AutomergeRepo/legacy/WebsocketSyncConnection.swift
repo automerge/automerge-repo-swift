@@ -1,18 +1,18 @@
-//import Automerge
-//import Combine
-//import Foundation
-//import OSLog
-//import PotentCBOR
+// import Automerge
+// import Combine
+// import Foundation
+// import OSLog
+// import PotentCBOR
 //
-///*
+/// *
 // *
 // * DEPRECATED - TO BE REMOVED
 // *
 // */
 //
 ///// A class that provides a WebSocket connection to sync an Automerge document.
-//@MainActor
-//public final class WebsocketSyncConnection: ObservableObject, Identifiable {
+// @MainActor
+// public final class WebsocketSyncConnection: ObservableObject, Identifiable {
 //    private var webSocketTask: URLSessionWebSocketTask?
 //    /// This connections "peer identifier"
 //    private let senderId: String
@@ -28,7 +28,8 @@
 //    /// A handle on an unstructured task that accepts and processes WebSocket messages
 //    private var receiveHandler: Task<Void, any Error>?
 //
-//    /// A handle to a cancellable Combine pipeline that watches a document for updates and attempts to start a sync when
+//    /// A handle to a cancellable Combine pipeline that watches a document for updates and attempts to start a sync
+//    /when
 //    /// it changes.
 //    private var syncTrigger: (any Cancellable)?
 //
@@ -98,7 +99,8 @@
 //            try Task.checkCancellation()
 //            Logger.webSocket
 //                .trace(
-//                    "sync in progress, !cancelled - state is: \(websocketconnection.protocolState.rawValue, privacy: .public)"
+//                    "sync in progress, !cancelled - state is: \(websocketconnection.protocolState.rawValue, privacy:
+//                    .public)"
 //                )
 //            // Race a timeout against receiving a Peer message from the other side
 //            // of the WebSocket connection. If we fail that race, shut down the connection
@@ -181,7 +183,8 @@
 //                    let decodeAttempted = SyncV1Msg.decode(raw_data)
 //                    Logger.webSocket
 //                        .warning(
-//                            "Decoding websocket message, expecting peer only - and it wasn't a peer message. RECEIVED MSG: \(decodeAttempted.debugDescription)"
+//                            "Decoding websocket message, expecting peer only - and it wasn't a peer message. RECEIVED
+//                            MSG: \(decodeAttempted.debugDescription)"
 //                        )
 //                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: decodeAttempted)
 //                }
@@ -436,7 +439,8 @@
 //
 //            Logger.webSocket
 //                .trace(
-//                    "Receive Handler: Task not cancelled, awaiting next message, state is \(self.protocolState.rawValue, privacy: .public)"
+//                    "Receive Handler: Task not cancelled, awaiting next message, state is
+//                    \(self.protocolState.rawValue, privacy: .public)"
 //                )
 //
 //            let webSocketMessage = try await webSocketTask.receive()
@@ -470,7 +474,8 @@
 //                // In the handshake phase and received anything other than a valid peer message
 //                Logger.webSocket
 //                    .warning(
-//                        "FAILED TO PEER - RECEIVED MSG: \(msg.debugDescription, privacy: .public), shutting down WebSocket"
+//                        "FAILED TO PEER - RECEIVED MSG: \(msg.debugDescription, privacy: .public), shutting down
+//                        WebSocket"
 //                    )
 //                await disconnect()
 //            }
@@ -493,7 +498,9 @@
 //                else {
 //                    Logger.webSocket
 //                        .warning(
-//                            "Sync message target and document Id don't match expected values. Received: \(syncMsg.debugDescription), targetId expected: \(self.senderId), documentId expected: \(documentId.description)"
+//                            "Sync message target and document Id don't match expected values. Received:
+//                            \(syncMsg.debugDescription), targetId expected: \(self.senderId), documentId expected:
+//                            \(documentId.description)"
 //                        )
 //                    return
 //                }
@@ -530,9 +537,11 @@
 //                } catch {
 //                    Logger.webSocket
 //                        .error(
-//                            "Error while applying sync message \(error.localizedDescription, privacy: .public), DISCONNECTING!"
+//                            "Error while applying sync message \(error.localizedDescription, privacy: .public),
+//                            DISCONNECTING!"
 //                        )
-//                    Logger.webSocket.error("sync data raw bytes: \(syncMsg.data.hexEncodedString(), privacy: .public)")
+//                    Logger.webSocket.error("sync data raw bytes: \(syncMsg.data.hexEncodedString(), privacy:
+//                    .public)")
 //                    await disconnect()
 //                }
 //            case let .ephemeral(msg):
@@ -575,4 +584,4 @@
 //            await disconnect()
 //        }
 //    }
-//}
+// }
