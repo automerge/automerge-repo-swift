@@ -60,32 +60,6 @@ public indirect enum SyncV1Msg: Sendable {
     // fall-through scenario - unknown message
     case unknown(Data)
 
-    var peerMessageType: P2PSyncMessageType {
-        switch self {
-        case .peer:
-            P2PSyncMessageType.peer
-        case .join:
-            P2PSyncMessageType.join
-        case .leave:
-            P2PSyncMessageType.leave
-        case .error:
-            P2PSyncMessageType.syncerror
-        case .request:
-            P2PSyncMessageType.request
-        case .sync:
-            P2PSyncMessageType.sync
-        case .unavailable:
-            P2PSyncMessageType.unavailable
-        case .ephemeral:
-            P2PSyncMessageType.ephemeral
-        case .remoteSubscriptionChange:
-            P2PSyncMessageType.remoteSubscriptionChange
-        case .remoteHeadsChanged:
-            P2PSyncMessageType.remoteHeadsChanged
-        case .unknown:
-            P2PSyncMessageType.unknown
-        }
-    }
 }
 
 extension SyncV1Msg: CustomDebugStringConvertible {

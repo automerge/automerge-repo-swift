@@ -143,21 +143,21 @@ public actor PeerToPeerProvider: NetworkProvider {
         switch newState {
         case .ready:
             if let port = listener.port {
-                Logger.syncController
+                Logger.peerProtocol
                     .info("Bonjour listener ready on \(port.rawValue, privacy: .public)")
             } else {
-                Logger.syncController
+                Logger.peerProtocol
                     .info("Bonjour listener ready (no port listed)")
             }
         case let .failed(error):
             if error == NWError.dns(DNSServiceErrorType(kDNSServiceErr_DefunctConnection)) {
-                Logger.syncController
+                Logger.peerProtocol
                     .warning("Bonjour listener failed with \(error, privacy: .public), restarting.")
                 listener.cancel()
                 self.listener = nil
                 self.setupBonjourListener()
             } else {
-                Logger.syncController
+                Logger.peerProtocol
                     .error("Bonjour listener failed with \(error, privacy: .public), stopping.")
                 listener.cancel()
             }
@@ -173,11 +173,11 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     private func handleNewConnection(_ newConnection: NWConnection) async {
-        Logger.syncController
+        Logger.peerProtocol
             .debug(
                 "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
             )
-        Logger.syncController
+        Logger.peerProtocol
             .debug(
                 "  Connection details: \(newConnection.debugDescription, privacy: .public)"
             )
@@ -189,7 +189,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
         }
         if connectionEndpoint.isEmpty {
-            Logger.syncController
+            Logger.peerProtocol
                 .info(
                     "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
                 )
@@ -198,7 +198,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             )
             connections.append(peerConnection)
         } else {
-            Logger.syncController
+            Logger.peerProtocol
                 .info(
                     "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
                 )
@@ -243,11 +243,11 @@ public actor PeerToPeerProvider: NetworkProvider {
             // Start listening, and request updates on the main queue.
             listener.start(queue: .main)
             self.listener = listener
-            Logger.syncController
+            Logger.peerProtocol
                 .debug("Starting bonjour network listener")
 
         } catch {
-            Logger.syncController
+            Logger.peerProtocol
                 .critical("Failed to create bonjour listener")
         }
     }
