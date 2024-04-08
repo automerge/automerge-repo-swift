@@ -26,17 +26,7 @@ import OSLog
 /// The type of sync message for the Automerge network sync protocol.
 enum P2PSyncMessageType: UInt32 {
     case unknown = 0 // msg isn't a recognized type
-    case sync = 1 // msg is generated sync data to merge into an Automerge document
-    case id = 2 // msg is a unique for the source/master of a document to know if they've been cloned
-    case peer = 3
-    case join = 4
-    case request = 5
-    case unavailable = 6
-    case ephemeral = 7
-    case syncerror = 8
-    case remoteHeadsChanged = 9
-    case remoteSubscriptionChange = 10
-    case leave = 11
+    case syncV1data = 1 // msg is generated sync data to merge into an Automerge document
 }
 
 /// The definition of the Automerge network sync protocol.
@@ -77,7 +67,7 @@ class P2PAutomergeSyncProtocol: NWProtocolFramerImplementation {
         do {
             try framer.writeOutputNoCopy(length: messageLength)
         } catch {
-            Logger.syncController.error("Error writing protocol data into frame: \(error, privacy: .public)")
+            Logger.peerProtocol.error("Error writing protocol data into frame: \(error, privacy: .public)")
         }
     }
 

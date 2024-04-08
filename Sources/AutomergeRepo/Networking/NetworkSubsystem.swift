@@ -14,6 +14,9 @@ import PotentCBOR
 /// is
 /// the responsibility of the network provider instance.
 public actor NetworkSubsystem {
+    // TODO: When swift allows, switch this to a class that's locked to the same local actor
+    // as Repo
+
     // a list of documents with a pending request for a documentId
     var requestedDocuments: [DocumentId: [PEER_ID]] = [:]
 

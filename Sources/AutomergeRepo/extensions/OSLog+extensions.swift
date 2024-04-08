@@ -15,10 +15,10 @@ extension Logger {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     /// Logs updates and interaction related to watching for external peer systems.
-    static let syncController = Logger(subsystem: subsystem, category: "SyncController")
+    static let peerProtocol = Logger(subsystem: subsystem, category: "SyncController")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
-    static let syncConnection = Logger(subsystem: subsystem, category: "SyncConnection")
+    static let peerConnection = Logger(subsystem: subsystem, category: "SyncConnection")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
     static let webSocket = Logger(subsystem: subsystem, category: "WebSocket")

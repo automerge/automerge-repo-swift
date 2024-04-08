@@ -24,51 +24,9 @@ public extension SyncV1Msg {
         switch msgType {
         case .unknown:
             return .unknown(data)
-        case .sync:
-            if let msgData = attemptSync(data) {
-                return .sync(msgData)
-            }
-        case .id:
-            return .unknown(data)
-
-        case .leave:
-            if let msgData = attemptLeave(data) {
-                return .leave(msgData)
-            }
-        case .peer:
-            if let msgData = attemptPeer(data) {
-                return .peer(msgData)
-            }
-        case .join:
-            if let msgData = attemptJoin(data) {
-                return .join(msgData)
-            }
-        case .request:
-            if let msgData = attemptRequest(data) {
-                return .request(msgData)
-            }
-        case .unavailable:
-            if let msgData = attemptUnavailable(data) {
-                return .unavailable(msgData)
-            }
-        case .ephemeral:
-            if let msgData = attemptEphemeral(data) {
-                return .ephemeral(msgData)
-            }
-        case .syncerror:
-            if let msgData = attemptError(data) {
-                return .error(msgData)
-            }
-        case .remoteHeadsChanged:
-            if let msgData = attemptRemoteHeadsChanged(data) {
-                return .remoteHeadsChanged(msgData)
-            }
-        case .remoteSubscriptionChange:
-            if let msgData = attemptRemoteSubscriptionChange(data) {
-                return .remoteSubscriptionChange(msgData)
-            }
+        case .syncV1data:
+            return decode(data)
         }
-        return .unknown(data)
     }
 
     /// Exhaustively attempt to decode incoming data as V1 protocol messages.
