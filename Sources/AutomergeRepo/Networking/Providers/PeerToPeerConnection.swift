@@ -17,19 +17,27 @@ import Foundation
 import Network
 import OSLog
 
-struct ReceiveMessageData {
-    let content: Data?
-    let contentContext: NWConnection.ContentContext?
-    let isComplete: Bool
-    let error: NWError?
-}
-
 /// A peer to peer sync connection to receive and send sync messages.
 ///
 /// As soon as it is established, it attempts to commence a sync operation (send and expect to receive sync messages).
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
 public actor PeerToPeerConnection {
+
+    struct ReceiveMessageData: Sendable {
+        let content: Data?
+        let contentContext: NWConnection.ContentContext?
+        let isComplete: Bool
+        let error: NWError?
+    }
+
+    public struct PeerProtocolError: Sendable, LocalizedError {
+        public var msg: String
+        public var errorDescription: String? {
+            "PeerProtocolError: \(msg)"
+        }
+    }
+
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
     // for the connection
 
@@ -78,6 +86,12 @@ public actor PeerToPeerConnection {
         connection.stateUpdateHandler = { newState in
             self.stateContinuation.yield(newState)
         }
+        
+        listenerStateUpdateTaskHandle = Task {
+            for await newState in stateStream {
+                await handleConnectionStateUpdate(newState)
+            }
+        }
 
         // Start the connection establishment.
         connection.start(queue: .main)
@@ -125,8 +139,6 @@ public actor PeerToPeerConnection {
                 .debug(
                     "connection to \(self.connection.endpoint.debugDescription, privacy: .public) ready."
                 )
-            // When the connection is ready, start receiving messages.
-            receiveNextMessage()
         case let .failed(error):
             Logger.syncConnection
                 .warning(
@@ -171,48 +183,6 @@ public actor PeerToPeerConnection {
         }
     }
 
-    /// Receive a message from the sync protocol framing, deliver it to the delegate for processing, and continue
-    /// receiving messages.
-    private func receiveNextMessage() {
-        // schedules a single callback with the connection to provide the next, complete
-        // message. That goes into an async stream (queue) help by this actor, and is
-        // processed by an ongoing background task that calls `receiveMessageData`
-        connection.receiveMessage { content, context, isComplete, error in
-            let data = ReceiveMessageData(
-                content: content,
-                contentContext: context,
-                isComplete: isComplete,
-                error: error
-            )
-            self.receiveMessageContinuation.yield(data)
-        }
-    }
-
-//    func receiveMessageData(_ data: ReceiveMessageData) async {
-//        Logger.syncConnection
-//            .debug(
-//                "Received a \(data.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
-//            )
-//        if let bytes = data.content?.count {
-//            Logger.syncConnection.debug("  - received \(bytes) bytes")
-//        } else {
-//            Logger.syncConnection.debug("  - received no data with msg")
-//        }
-//        // Extract your message type from the received context.
-//        if let protocolMessage = data.contentContext?
-//            .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message,
-//           let currentEndpoint = endpoint
-//        {
-//            self.handleProtocolMessage(content: data.content, message: protocolMessage, from: currentEndpoint)
-//        }
-//        if data.error != nil {
-//            Logger.syncConnection.error("  - error on received message: \(data.error)")
-//            self.cancel()
-//        } else {
-//            self.receiveNextMessage()
-//        }
-//    }
-
     // MARK: Automerge data to Automerge Sync Protocol transforms
 
     /// Sends an Automerge sync data packet.
@@ -235,38 +205,61 @@ public actor PeerToPeerConnection {
     }
 
     public func receive() async throws -> Data {
-        receiveNextMessage()
-        var localIterator = messageDataStream.makeAsyncIterator()
-        guard let rawMessageData = await localIterator.next() else {
-            fatalError("EXPLAIN")
-        }
+        // schedules a single callback with the connection to provide the next, complete
+        // message. That goes into an async stream (queue) help by this actor, and is
+        // processed by an ongoing background task that calls `receiveMessageData`
 
-        Logger.syncConnection
-            .debug(
-                "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+        let (queue, continuation) = AsyncStream<ReceiveMessageData>.makeStream()
+        
+        connection.receiveMessage { content, context, isComplete, error in
+            // packages up the callback details into a ReceiveMessageData struct
+            // and yields it to the queue
+            let data = ReceiveMessageData(
+                content: content,
+                contentContext: context,
+                isComplete: isComplete,
+                error: error
             )
-        if let bytes = rawMessageData.content?.count {
-            Logger.syncConnection.debug("  - received \(bytes) bytes")
-        } else {
-            Logger.syncConnection.debug("  - received no data with msg")
+            continuation.yield(data)
         }
+        
+        for await rawMessageData in queue {
+            Logger.syncConnection
+                .debug(
+                    "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+                )
+            if let bytes = rawMessageData.content?.count {
+                Logger.syncConnection.debug("  - received \(bytes) bytes")
+            } else {
+                Logger.syncConnection.debug("  - received no data with msg")
+            }
 
-        if let err = rawMessageData.error {
-            Logger.syncConnection.error("  - error on received message: \(err.localizedDescription)")
-            self.cancel() // ???
-            throw err
+            if let err = rawMessageData.error {
+                Logger.syncConnection.error("  - error on received message: \(err.localizedDescription)")
+                // Kind of an open-question of if we should terminate the connection
+                // on an error - I think so.
+                self.cancel()
+                // propagate the error back up to the caller
+                throw err
+            }
+
+            // Extract your message type from the received context.
+            guard let protocolMessage = rawMessageData.contentContext?
+                .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message else {
+                throw PeerProtocolError(msg: "Unable to read context of peer protocol message")
+            }
+            
+            guard let currentEndpoint = endpoint else {
+                throw PeerProtocolError(msg: "Received message with endpoint unset")
+            }
+            
+            guard let data = rawMessageData.content else {
+                throw PeerProtocolError(msg: "Received message without content")
+            }
+        
+            return self.handleProtocolMessage(content: data, message: protocolMessage, from: currentEndpoint)
         }
-
-        // Extract your message type from the received context.
-        guard let protocolMessage = rawMessageData.contentContext?
-            .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message,
-            let currentEndpoint = endpoint,
-            let data = rawMessageData.content
-        else {
-            fatalError("EXPLAIN HERE")
-        }
-
-        return self.handleProtocolMessage(content: data, message: protocolMessage, from: currentEndpoint)
+        throw PeerProtocolError(msg: "queue of messages to receive after requesting was terminated")
     }
 
     func handleProtocolMessage(content data: Data, message _: NWProtocolFramer.Message, from _: NWEndpoint) -> Data {

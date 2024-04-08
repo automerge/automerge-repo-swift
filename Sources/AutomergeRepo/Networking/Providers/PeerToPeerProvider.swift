@@ -16,13 +16,6 @@ public actor PeerToPeerProvider: NetworkProvider {
         let peerName: String
         let passcode: String
 
-//        public static let `default` = PeerToPeerProviderConfiguration(
-//            reconnectOnError: true,
-//            listening: true,
-//            peerName: nil,
-//            passcode: <#String#>
-//        )
-
         init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) {
             self.reconnectOnError = reconnectOnError
             self.listening = listening
@@ -77,7 +70,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     let stateContinuation: AsyncStream<NWListener.State>.Continuation
     var listenerStateUpdateTaskHandle: Task<Void, Never>?
 
-    let newConnectionStream: AsyncStream<NWConnection>
+    let newConnectionQueue: AsyncStream<NWConnection>
     let newConnectionContinuation: AsyncStream<NWConnection>.Continuation
     var newConnectionTaskHandle: Task<Void, Never>?
 
@@ -96,18 +89,13 @@ public actor PeerToPeerProvider: NetworkProvider {
         self.txtRecord = record
 
         // AsyncStream as a queue to receive the updates
-        let (stateStream, stateContinuation) = AsyncStream<NWListener.State>.makeStream()
+        (stateStream, stateContinuation) = AsyncStream<NWListener.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
-        self.stateStream = stateStream
-        self.stateContinuation = stateContinuation
         self.listenerStateUpdateTaskHandle = nil
 
         // The system calls this when a new connection arrives at the listener.
         // Start the connection to accept it, or cancel to reject it.
-        let (newConnectionStream, newConnectionContinuation) = AsyncStream<NWConnection>.makeStream()
-        // task handle to have some async process accepting and dealing with the results
-        self.newConnectionStream = newConnectionStream
-        self.newConnectionContinuation = newConnectionContinuation
+        (newConnectionQueue, newConnectionContinuation) = AsyncStream<NWConnection>.makeStream()
         self.newConnectionTaskHandle = nil
     }
 
@@ -237,7 +225,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
 
             newConnectionTaskHandle = Task {
-                for await newConnection in newConnectionStream {
+                for await newConnection in newConnectionQueue {
                     await handleNewConnection(newConnection)
                 }
             }
