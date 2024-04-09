@@ -13,7 +13,7 @@ public actor WebSocketProvider: NetworkProvider {
     var peerId: PEER_ID?
     var peerMetadata: PeerMetadata?
     var webSocketTask: URLSessionWebSocketTask?
-    var backgroundWebSocketReceiveTask: Task<Void, any Error>?
+    var ongoingReceiveMessageTask: Task<Void, any Error>?
     var config: WebSocketProviderConfiguration
     // reconnection logic variables
     var endpoint: URL?
@@ -26,7 +26,7 @@ public actor WebSocketProvider: NetworkProvider {
         peerId = nil
         peerMetadata = nil
         webSocketTask = nil
-        backgroundWebSocketReceiveTask = nil
+        ongoingReceiveMessageTask = nil
         peered = false
     }
 
@@ -51,9 +51,9 @@ public actor WebSocketProvider: NetworkProvider {
         // If we have an existing task there, looping over messages, it means there was
         // one previously set up, and there was a connection failure - at which point
         // a reconnect was created to re-establish the webSocketTask.
-        if backgroundWebSocketReceiveTask == nil {
+        if ongoingReceiveMessageTask == nil {
             // infinitely loop and receive messages, but "out of band"
-            backgroundWebSocketReceiveTask = Task.detached {
+            ongoingReceiveMessageTask = Task.detached {
                 try await self.ongoingReceiveWebSocketMessages()
             }
         }
@@ -62,8 +62,8 @@ public actor WebSocketProvider: NetworkProvider {
     public func disconnect() async {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
-        backgroundWebSocketReceiveTask?.cancel()
-        backgroundWebSocketReceiveTask = nil
+        ongoingReceiveMessageTask?.cancel()
+        ongoingReceiveMessageTask = nil
         endpoint = nil
 
         if let connectedPeer = peeredConnections.first {

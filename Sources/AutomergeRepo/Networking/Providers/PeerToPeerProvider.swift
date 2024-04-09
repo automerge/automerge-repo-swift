@@ -50,15 +50,34 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    struct ConnectionHolder {
+        var connection: PeerToPeerConnection
+        var peered: Bool
+        var endpoint: NWEndpoint?
+        
+        init(connection: PeerToPeerConnection, peered: Bool, endpoint: NWEndpoint?) {
+            self.connection = connection
+            self.peered = peered
+            self.endpoint = endpoint
+        }
+    }
+    
+    // can we remove this and use the set of existing connections?
     public var peeredConnections: [PeerConnection]
-    var connections: [PeerToPeerConnection]
+    
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID?
     var peerMetadata: PeerMetadata?
     // var webSocketTask: URLSessionWebSocketTask?
     // var backgroundWebSocketReceiveTask: Task<Void, any Error>?
     var config: PeerToPeerProviderConfiguration
-    var endpoint: NWEndpoint?
+    
+    // holds the tasks that manage receiving messages for initiated connections
+    // (to external endpoints) - along with the retry logic to re-establish on
+    // failure
+    var ongoingReceiveMessageTasks: [Task<Void, any Error>]
+    var initiatedConnections: [ConnectionHolder]
+    // reconnection logic variables - only used/relevant on outgoing connections
 
     var browser: NWBrowser?
     var listener: NWListener?
@@ -76,13 +95,14 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     public init(_ config: PeerToPeerProviderConfiguration) {
         self.config = config
-        connections = []
+        initiatedConnections = []
         peeredConnections = []
         delegate = nil
         peerId = nil
         peerMetadata = nil
         listener = nil
         browser = nil
+        ongoingReceiveMessageTasks = []
         var record = NWTXTRecord()
         record[TXTRecordKeys.name] = config.peerName
         record[TXTRecordKeys.peer_id] = "UNCONFIGURED"
@@ -108,8 +128,26 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // MARK: NetworkProvider Methods
 
-    public func connect(to _: NWEndpoint) async throws {
-        fatalError("Not Yet Implemented")
+    public func connect(to destination: NWEndpoint) async throws {
+        if initiatedConnections.contains(where: { ch in
+            ch.endpoint == destination && ch.peered == true
+        }) {
+            throw Errors.NetworkProviderError(msg: "attempting to connect while already peered")
+        }
+
+        guard peerId != nil, delegate != nil else {
+            throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
+        }
+
+        if let connectionHolder: ConnectionHolder = try await attemptConnect(to: destination) {
+            self.initiatedConnections.append(connectionHolder)
+            let receiveAndRetry = Task.detached {
+                try await self.ongoingReceivePeerMessages(endpoint: destination)
+            }
+            ongoingReceiveMessageTasks.append(receiveAndRetry)
+        } else {
+            throw Errors.NetworkProviderError(msg: "Unable to connect to \(destination.debugDescription)")
+        }
     }
 
     public func disconnect() async {
@@ -132,6 +170,150 @@ public actor PeerToPeerProvider: NetworkProvider {
         // if listener = true, set up a listener...
     }
 
+    // MARK: Outgoing connection functions
+    
+    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
+    // OR throws an error (log the error, but can retry)
+    // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
+    func attemptConnect(to destination: NWEndpoint?) async throws -> ConnectionHolder? {
+        guard let destination,
+              let peerId,
+              let delegate
+        else {
+            return nil
+        }
+
+        // establish the peer to peer connection
+        let connection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
+        var holder = ConnectionHolder(connection: connection, peered: false, endpoint: destination)
+        
+        Logger.peerProtocol.trace("Activating peer connection to \(destination.debugDescription, privacy: .public)")
+
+        // since we initiated the WebSocket, it's on us to send an initial 'join'
+        // protocol message to start the handshake phase of the protocol
+        let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
+        
+        try await connection.send(.join(joinMessage))
+        
+        Logger.peerProtocol.trace("SEND: \(joinMessage.debugDescription)")
+
+        do {
+            // Race a timeout against receiving a Peer message from the other side
+            // of the connection. If we fail that race, shut down the connection
+            // and move into a .closed connectionState
+            let nextMessage: SyncV1Msg = try await connection.receive(withTimeout: .seconds(3.5))
+
+            // Now that we have the WebSocket message, figure out if we got what we expected.
+            // For the sync protocol handshake phase, it's essentially "peer or die" since
+            // we were the initiating side of the connection.
+            
+            guard case let .peer(peerMsg) = nextMessage else {
+                throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage)
+            }
+
+            let newPeerConnection = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)
+            peeredConnections.append(newPeerConnection)
+            
+            holder.peered = true
+            await delegate.receiveEvent(event: .ready(payload: newPeerConnection))
+            Logger.peerProtocol.trace("Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+        } catch {
+            // if there's an error, disconnect anything that's lingering and cancel it down.
+            // an error here means we contacted the server successfully, but were unable to
+            // peer, so we don't want to continue to attempt to reconnect. Because the "should
+            // we reconnect" is a constant in the config, we can erase the URL endpoint instead
+            // which will force us to fail reconnects.
+            Logger.webSocket
+                .error(
+                    "Failed to peer with \(destination.debugDescription, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+            await disconnect()
+            throw error
+        }
+
+        return holder
+    }
+
+    /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
+    /// received.
+    private func ongoingReceivePeerMessages(endpoint: NWEndpoint) async throws {
+        // state needed for reconnect logic:
+        // - should we reconnect on a receive() error/failure
+        //   - let config.reconnectOnError: Bool
+        // - where do we reconnect to?
+        //   - var endpoint: URL?
+        // - are we currently "peered" (authenticated), or does that need to be done before we
+        //   cycle into listen and process mode?
+        //   - var peered: Bool
+
+        // local logic:
+        // - how many times have we reconnected (to compute backoff/delay between
+        //   reconnect attempts)
+        var reconnectAttempts: UInt = 0
+
+        while true {
+            try Task.checkCancellation()
+
+            guard let holder = initiatedConnections.first(where: { holder in
+                holder.endpoint == endpoint
+            }) else {
+                break
+            }
+            
+            // if we're not currently peered, attempt to reconnect
+            // (if we're configured to do so)
+            if !holder.peered, config.reconnectOnError {
+                initiatedConnections.removeAll { holder in
+                    holder.endpoint == endpoint
+                }
+                let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
+                try await Task.sleep(for: .seconds(waitBeforeReconnect))
+                // if endpoint is nil, this returns nil
+                if let newHolder = try await attemptConnect(to: endpoint) {
+                    reconnectAttempts += 1
+                    initiatedConnections.append(newHolder)
+                } else {
+                    break
+                }
+            }
+
+            guard let holder = initiatedConnections.first(where: { holder in
+                holder.endpoint == endpoint
+            }) else {
+                break
+            }
+
+            try Task.checkCancellation()
+
+            do {
+                let msg = try await holder.connection.receive()
+                await handleMessage(msg: msg)
+            } catch {
+                // error scenario with the WebSocket connection
+                Logger.webSocket.warning("Error reading websocket: \(error.localizedDescription)")
+            }
+
+        }
+        Logger.webSocket.log("receive and reconnect loop terminated")
+    }
+
+    func handleMessage(msg: SyncV1Msg) async {
+        // - .peer and .join messages should be handled here locally, and aren't expected
+        //   in this method (all handling of them should happen before getting here)
+        // - .leave invokes the disconnect, and associated messages to the delegate
+        // - otherwise forward the message to the delegate to work with
+        switch msg {
+        case let .leave(msg):
+            Logger.webSocket.trace("\(msg.senderId) requests to kill the connection")
+            await disconnect()
+        case let .join(msg):
+            Logger.webSocket.error("Unexpected message received: \(msg.debugDescription)")
+        case let .peer(msg):
+            Logger.webSocket.error("Unexpected message received: \(msg.debugDescription)")
+        default:
+            await delegate?.receiveEvent(event: .message(payload: msg))
+        }
+    }
     // MARK: NWBrowser
 
     // MARK: NWListener handlers
