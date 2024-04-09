@@ -1,21 +1,21 @@
-///*
+/// *
 // *
 // * DEPRECATED - TO BE REMOVED
 // *
 // */
 //
-//import Automerge
-//import AutomergeRepo
-//import AutomergeUtilities
-//import OSLog
-//import XCTest
+// import Automerge
+// import AutomergeRepo
+// import AutomergeUtilities
+// import OSLog
+// import XCTest
 //
 //// NOTE(heckj): This integration test expects that you have a websocket server with the
 //// Automerge-repo sync protocol running at localhost:3030. If you're testing from the local
 //// repository, run the `./scripts/interop.sh` script to start up a local instance to
 //// respond.
 //
-//final class WebSocketSyncIntegrationTests: XCTestCase {
+// final class WebSocketSyncIntegrationTests: XCTestCase {
 //    private static let subsystem = Bundle.main.bundleIdentifier!
 //
 //    static let test = Logger(subsystem: subsystem, category: "WebSocketSyncIntegrationTests")
@@ -108,4 +108,4 @@
 //            XCTFail()
 //        }
 //    }
-//}
+// }

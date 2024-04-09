@@ -1,6 +1,13 @@
 import Foundation
 
 enum Errors: Sendable {
+    public struct NetworkProviderError: Sendable, LocalizedError {
+        public var msg: String
+        public var errorDescription: String? {
+            "NetworkProviderError: \(msg)"
+        }
+    }
+
     public struct Unavailable: Sendable, LocalizedError {
         let id: DocumentId
         public var errorDescription: String? {
