@@ -23,19 +23,11 @@ import OSLog
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
 public actor PeerToPeerConnection {
-
     struct ReceiveMessageData: Sendable {
         let content: Data?
         let contentContext: NWConnection.ContentContext?
         let isComplete: Bool
         let error: NWError?
-    }
-
-    public struct PeerProtocolError: Sendable, LocalizedError {
-        public var msg: String
-        public var errorDescription: String? {
-            "PeerProtocolError: \(msg)"
-        }
     }
 
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
@@ -86,7 +78,7 @@ public actor PeerToPeerConnection {
         connection.stateUpdateHandler = { newState in
             self.stateContinuation.yield(newState)
         }
-        
+
         listenerStateUpdateTaskHandle = Task {
             for await newState in stateStream {
                 await handleConnectionStateUpdate(newState)
@@ -205,9 +197,9 @@ public actor PeerToPeerConnection {
                 completion: .idempotent
             )
         } catch {
-            Logger.peerConnection.error("Unable to encode message to send: \(error.localizedDescription, privacy: .public)")
+            Logger.peerConnection
+                .error("Unable to encode message to send: \(error.localizedDescription, privacy: .public)")
         }
-
     }
 
     public func receive() async throws -> SyncV1Msg {
@@ -216,20 +208,20 @@ public actor PeerToPeerConnection {
         // processed by an ongoing background task that calls `receiveMessageData`
 
         let rawMessageData = await withCheckedContinuation { continuation in
-                // Hazard: Are you using the appropriate quality of service queue?
-                connection.receiveMessage { content, context, isComplete, error in
-                    // packages up the callback details into a ReceiveMessageData struct
-                    // and yields it to the queue
-                    let data = ReceiveMessageData(
-                        content: content,
-                        contentContext: context,
-                        isComplete: isComplete,
-                        error: error
-                    )
-                    continuation.resume(returning: data)
-                }
+            // Hazard: Are you using the appropriate quality of service queue?
+            connection.receiveMessage { content, context, isComplete, error in
+                // packages up the callback details into a ReceiveMessageData struct
+                // and yields it to the queue
+                let data = ReceiveMessageData(
+                    content: content,
+                    contentContext: context,
+                    isComplete: isComplete,
+                    error: error
+                )
+                continuation.resume(returning: data)
             }
-        
+        }
+
         Logger.peerConnection
             .debug(
                 "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
@@ -251,16 +243,17 @@ public actor PeerToPeerConnection {
 
         // Extract your message type from the received context.
         guard let protocolMessage = rawMessageData.contentContext?
-            .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message else {
-            throw PeerProtocolError(msg: "Unable to read context of peer protocol message")
+            .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message
+        else {
+            throw Errors.NetworkProviderError(msg: "Unable to read context of peer protocol message")
         }
-        
+
         guard let currentEndpoint = endpoint else {
-            throw PeerProtocolError(msg: "Received message with endpoint unset")
+            throw Errors.NetworkProviderError(msg: "Received message with endpoint unset")
         }
-        
+
         guard let data = rawMessageData.content else {
-            throw PeerProtocolError(msg: "Received message without content")
+            throw Errors.NetworkProviderError(msg: "Received message without content")
         }
 
         switch protocolMessage.syncMessageType {
@@ -273,6 +266,5 @@ public actor PeerToPeerConnection {
         case .syncV1data:
             return SyncV1Msg.decode(data)
         }
-
     }
 }

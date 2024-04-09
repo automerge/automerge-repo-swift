@@ -23,9 +23,9 @@ public extension SyncV1Msg {
     internal static func decode(_ data: Data, as msgType: P2PSyncMessageType) -> SyncV1Msg {
         switch msgType {
         case .unknown:
-            return .unknown(data)
+            .unknown(data)
         case .syncV1data:
-            return decode(data)
+            decode(data)
         }
     }
 

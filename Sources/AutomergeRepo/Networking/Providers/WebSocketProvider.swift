@@ -15,7 +15,9 @@ public actor WebSocketProvider: NetworkProvider {
     var webSocketTask: URLSessionWebSocketTask?
     var backgroundWebSocketReceiveTask: Task<Void, any Error>?
     var config: WebSocketProviderConfiguration
+    // reconnection logic variables
     var endpoint: URL?
+    var peered: Bool
 
     public init(_ config: WebSocketProviderConfiguration = .default) {
         self.config = config
@@ -25,66 +27,26 @@ public actor WebSocketProvider: NetworkProvider {
         peerMetadata = nil
         webSocketTask = nil
         backgroundWebSocketReceiveTask = nil
+        peered = false
     }
 
     // MARK: NetworkProvider Methods
 
     public func connect(to url: URL) async throws {
-        // TODO: refactor the connection logic to separate connecting and handling the peer/join
-        // messaging, from setting up the ongoing looping to allow for multiple retry attempts
-        // that return a concrete value of "good/no-good" separate from a protocol failure.
-        //  ... something like
-        // func attemptConnect(to url: URL) async throws -> URLSessionWebSocketTask?
-        guard let peerId,
-              let delegate
-        else {
-            fatalError("Attempting to connect before connected to a delegate")
+        if peered {
+            throw Errors.NetworkProviderError(msg: "attempting to connect while already peered")
         }
 
-        // establish the WebSocket connection
-        endpoint = url
-        let request = URLRequest(url: url)
-        webSocketTask = URLSession.shared.webSocketTask(with: request)
-        guard let webSocketTask else {
-            #if DEBUG
-            fatalError("Attempting to configure and join a nil webSocketTask")
-            #else
-            return
-            #endif
+        guard peerId != nil, delegate != nil else {
+            throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
         }
 
-        Logger.webSocket.trace("Activating websocket to \(url, privacy: .public)")
-        // start the websocket processing things
-        webSocketTask.resume()
-
-        // since we initiated the WebSocket, it's on us to send an initial 'join'
-        // protocol message to start the handshake phase of the protocol
-        let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
-        let data = try SyncV1Msg.encode(joinMessage)
-        try await webSocketTask.send(.data(data))
-        Logger.webSocket.trace("SEND: \(joinMessage.debugDescription)")
-
-        do {
-            // Race a timeout against receiving a Peer message from the other side
-            // of the WebSocket connection. If we fail that race, shut down the connection
-            // and move into a .closed connectionState
-            let websocketMsg = try await nextMessage(withTimeout: .seconds(3.5))
-
-            // Now that we have the WebSocket message, figure out if we got what we expected.
-            // For the sync protocol handshake phase, it's essentially "peer or die" since
-            // we were the initiating side of the connection.
-            guard case let .peer(peerMsg) = try attemptToDecode(websocketMsg, peerOnly: true) else {
-                throw SyncV1Msg.Errors.UnexpectedMsg(msg: websocketMsg)
-            }
-            let newPeerConnection = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)
-            peeredConnections = [newPeerConnection]
-            await delegate.receiveEvent(event: .ready(payload: newPeerConnection))
-            Logger.webSocket.trace("Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
-        } catch {
-            // if there's an error, disconnect anything that's lingering and cancel it down.
-            await disconnect()
-            throw error
+        if let websocket = try await attemptConnect(to: url) {
+            endpoint = url
+            webSocketTask = websocket
         }
+
+        assert(peered == true)
 
         // If we have an existing task there, looping over messages, it means there was
         // one previously set up, and there was a connection failure - at which point
@@ -92,7 +54,7 @@ public actor WebSocketProvider: NetworkProvider {
         if backgroundWebSocketReceiveTask == nil {
             // infinitely loop and receive messages, but "out of band"
             backgroundWebSocketReceiveTask = Task.detached {
-                try await self.ongoingRecieveWebSocketMessage()
+                try await self.ongoingReceiveWebSocketMessages()
             }
         }
     }
@@ -178,13 +140,84 @@ public actor WebSocketProvider: NetworkProvider {
         }
     }
 
+    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
+    // OR throws an error (log the error, but can retry)
+    // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
+    func attemptConnect(to url: URL?) async throws -> URLSessionWebSocketTask? {
+        precondition(peered == false)
+        guard let url,
+              let peerId,
+              let delegate
+        else {
+            return nil
+        }
+
+        // establish the WebSocket connection
+
+        let request = URLRequest(url: url)
+        let webSocketTask = URLSession.shared.webSocketTask(with: request)
+        Logger.webSocket.trace("Activating websocket to \(url, privacy: .public)")
+        // start the websocket processing things
+        webSocketTask.resume()
+
+        // since we initiated the WebSocket, it's on us to send an initial 'join'
+        // protocol message to start the handshake phase of the protocol
+        let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
+        let data = try SyncV1Msg.encode(joinMessage)
+        try await webSocketTask.send(.data(data))
+        Logger.webSocket.trace("SEND: \(joinMessage.debugDescription)")
+
+        do {
+            // Race a timeout against receiving a Peer message from the other side
+            // of the WebSocket connection. If we fail that race, shut down the connection
+            // and move into a .closed connectionState
+            let websocketMsg = try await nextMessage(withTimeout: .seconds(3.5))
+
+            // Now that we have the WebSocket message, figure out if we got what we expected.
+            // For the sync protocol handshake phase, it's essentially "peer or die" since
+            // we were the initiating side of the connection.
+            guard case let .peer(peerMsg) = try attemptToDecode(websocketMsg, peerOnly: true) else {
+                throw SyncV1Msg.Errors.UnexpectedMsg(msg: websocketMsg)
+            }
+
+            let newPeerConnection = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)
+            peeredConnections = [newPeerConnection]
+            peered = true
+            await delegate.receiveEvent(event: .ready(payload: newPeerConnection))
+            Logger.webSocket.trace("Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+        } catch {
+            // if there's an error, disconnect anything that's lingering and cancel it down.
+            // an error here means we contacted the server successfully, but were unable to
+            // peer, so we don't want to continue to attempt to reconnect. Because the "should
+            // we reconnect" is a constant in the config, we can erase the URL endpoint instead
+            // which will force us to fail reconnects.
+            Logger.webSocket
+                .error(
+                    "Failed to peer with \(url.absoluteString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+            await disconnect()
+            throw error
+        }
+
+        return webSocketTask
+    }
+
     // throw error on timeout
     // throw error on cancel
     // otherwise return the msg
     private func nextMessage(
         withTimeout: ContinuousClock.Instant
-            .Duration = .seconds(3.5)
+            .Duration?
     ) async throws -> URLSessionWebSocketTask.Message {
+        // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
+        // the signature that _demands_ a timeout in the face of the developer (me)
+        // who otherwise forgets its there.
+        let timeout: ContinuousClock.Instant.Duration = if let providedTimeout = withTimeout {
+            providedTimeout
+        } else {
+            .seconds(3.5)
+        }
+
         // Co-operatively check to see if we're cancelled, and if so - we can bail out before
         // going into the receive loop.
         try Task.checkCancellation()
@@ -207,7 +240,7 @@ public actor WebSocketProvider: NetworkProvider {
 
             group.addTask {
                 // Race against the receive call with a continuous timer
-                try await Task.sleep(for: withTimeout)
+                try await Task.sleep(for: timeout)
                 throw SyncV1Msg.Errors.Timeout()
             }
 
@@ -223,12 +256,45 @@ public actor WebSocketProvider: NetworkProvider {
 
     /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
     /// received.
-    private func ongoingRecieveWebSocketMessage() async throws {
+    private func ongoingReceiveWebSocketMessages() async throws {
+        // state needed for reconnect logic:
+        // - should we reconnect on a receive() error/failure
+        //   - let config.reconnectOnError: Bool
+        // - where do we reconnect to?
+        //   - var endpoint: URL?
+        // - are we currently "peered" (authenticated), or does that need to be done before we
+        //   cycle into listen and process mode?
+        //   - var peered: Bool
+
         var msgFromWebSocket: URLSessionWebSocketTask.Message?
+        // local logic:
+        // - how many times have we reconnected (to compute backoff/delay between
+        //   reconnect attempts)
+        var reconnectAttempts: UInt = 0
+
         while true {
+            msgFromWebSocket = nil
+            try Task.checkCancellation()
+
+            // if we're not currently peered, attempt to reconnect
+            // (if we're configured to do so)
+            if !peered, config.reconnectOnError {
+                let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
+                try await Task.sleep(for: .seconds(waitBeforeReconnect))
+                // if endpoint is nil, this returns nil
+                if let newWebSocketTask = try await attemptConnect(to: endpoint) {
+                    reconnectAttempts += 1
+                    webSocketTask = newWebSocketTask
+                    peered = true
+                } else {
+                    webSocketTask = nil
+                    peered = false
+                }
+            }
+
             guard let webSocketTask else {
                 Logger.webSocket.warning("Receive Handler: webSocketTask is nil, terminating handler loop")
-                break
+                break // terminates the while loop - no more reconnect attempts
             }
 
             try Task.checkCancellation()
@@ -236,29 +302,30 @@ public actor WebSocketProvider: NetworkProvider {
             do {
                 msgFromWebSocket = try await webSocketTask.receive()
             } catch {
-                if config.reconnectOnError, let endpoint {
-                    // TODO: add in some jitter/backoff logic, and potentially refactor to attempt to retry multiple times
-                    try await connect(to: endpoint)
-                } else {
-                    throw error
-                }
+                // error scenario with the WebSocket connection
+                Logger.webSocket.warning("Error reading websocket: \(error.localizedDescription)")
             }
 
-            do {
-                if let encodedMessage = msgFromWebSocket {
+            if let encodedMessage = msgFromWebSocket {
+                do {
                     let msg = try attemptToDecode(encodedMessage)
                     await handleMessage(msg: msg)
+                } catch {
+                    // catch decode failures, but don't terminate the whole shebang
+                    // on a failure
+                    Logger.webSocket
+                        .warning("Unable to decode websocket message: \(error.localizedDescription, privacy: .public)")
                 }
-            } catch {
-                // catch decode failures, but don't terminate the whole shebang
-                // on a failure
-                Logger.webSocket
-                    .warning("Unable to decode websocket message: \(error.localizedDescription, privacy: .public)")
             }
         }
+        Logger.webSocket.log("receive and reconnect loop terminated")
     }
 
     func handleMessage(msg: SyncV1Msg) async {
+        // - .peer and .join messages should be handled here locally, and aren't expected
+        //   in this method (all handling of them should happen before getting here)
+        // - .leave invokes the disconnect, and associated messages to the delegate
+        // - otherwise forward the message to the delegate to work with
         switch msg {
         case let .leave(msg):
             Logger.webSocket.trace("\(msg.senderId) requests to kill the connection")

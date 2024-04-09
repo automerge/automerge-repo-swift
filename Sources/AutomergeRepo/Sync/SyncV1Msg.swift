@@ -59,7 +59,6 @@ public indirect enum SyncV1Msg: Sendable {
     case remoteHeadsChanged(RemoteHeadsChangedMsg)
     // fall-through scenario - unknown message
     case unknown(Data)
-
 }
 
 extension SyncV1Msg: CustomDebugStringConvertible {

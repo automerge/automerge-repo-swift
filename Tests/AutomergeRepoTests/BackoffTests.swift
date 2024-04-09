@@ -16,10 +16,9 @@ final class BackoffTests: XCTestCase {
     func testWithJitterBackoff() throws {
         XCTAssertEqual(0, Backoff.delay(0, withJitter: true))
         XCTAssertEqual(1, Backoff.delay(1, withJitter: true))
-        for i: UInt in 2...50 {
+        for i: UInt in 2 ... 50 {
             XCTAssertTrue(Backoff.delay(i, withJitter: true) <= 987)
             print(Backoff.delay(i, withJitter: true))
         }
     }
-
 }
