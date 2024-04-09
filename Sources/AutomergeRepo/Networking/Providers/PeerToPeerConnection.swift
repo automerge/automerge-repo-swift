@@ -51,18 +51,18 @@ public actor PeerToPeerConnection {
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
     ///   - trigger: A publisher that provides a recurring signal to trigger a sync request.
     ///   - docId: The document Id to use as a pre-shared key in TLS establishment of the connection.
-    init(
-        endpoint: NWEndpoint,
+    init(to
+        destination: NWEndpoint,
         passcode: String
     ) async {
         let connection = NWConnection(
-            to: endpoint,
+            to: destination,
             using: NWParameters.peerSyncParameters(passcode: passcode)
         )
         self.connection = connection
-        self.endpoint = endpoint
+        self.endpoint = destination
         Logger.peerConnection
-            .debug("Initiating connection to \(endpoint.debugDescription, privacy: .public)")
+            .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
         // AsyncStream as a queue to receive the updates
         let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
@@ -89,10 +89,6 @@ public actor PeerToPeerConnection {
         connection.start(queue: .main)
     }
 
-    /// Accepts and runs a connection from another network endpoint to synchronise an Automerge Document.
-    /// - Parameters:
-    ///   - connection: The connection provided by a listener to accept.
-    ///   - delegate: A delegate that can process Automerge sync protocol messages.
     init(connection: NWConnection) async {
         self.connection = connection
         endpoint = connection.endpoint
@@ -179,7 +175,7 @@ public actor PeerToPeerConnection {
 
     /// Sends an Automerge sync data packet.
     /// - Parameter syncMsg: The data to send.
-    public func sendMessage(_ msg: SyncV1Msg) {
+    public func send(_ msg: SyncV1Msg) throws {
         // Create a message object to hold the command type.
         let message = NWProtocolFramer.Message(syncMessageType: .syncV1data)
         let context = NWConnection.ContentContext(
@@ -187,19 +183,57 @@ public actor PeerToPeerConnection {
             metadata: [message]
         )
 
-        do {
-            let encodedMsg = try SyncV1Msg.encode(msg)
-            // Send the app content along with the message.
-            connection.send(
-                content: encodedMsg,
-                contentContext: context,
-                isComplete: true,
-                completion: .idempotent
-            )
-        } catch {
-            Logger.peerConnection
-                .error("Unable to encode message to send: \(error.localizedDescription, privacy: .public)")
+        let encodedMsg = try SyncV1Msg.encode(msg)
+        // Send the app content along with the message.
+        connection.send(
+            content: encodedMsg,
+            contentContext: context,
+            isComplete: true,
+            completion: .idempotent
+        )
+    }
+
+    
+    // throw error on timeout
+    // throw error on cancel
+    // otherwise return the msg
+    public func receive(withTimeout: ContinuousClock.Instant.Duration?) async throws -> SyncV1Msg {
+        // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
+        // the signature that _demands_ a timeout in the face of the developer (me)
+        // who otherwise forgets its there.
+        let timeout: ContinuousClock.Instant.Duration = if let providedTimeout = withTimeout {
+            providedTimeout
+        } else {
+            .seconds(3.5)
         }
+
+        // Co-operatively check to see if we're cancelled, and if so - we can bail out before
+        // going into the receive loop.
+        try Task.checkCancellation()
+
+        // Race a timeout against receiving a Peer message from the other side
+        // of the WebSocket connection. If we fail that race, shut down the connection
+        // and move into a .closed connectionState
+        let msg = try await withThrowingTaskGroup(of: SyncV1Msg.self) { group in
+            group.addTask {
+                // retrieve the next websocket message
+                try await self.receive()
+            }
+
+            group.addTask {
+                // Race against the receive call with a continuous timer
+                try await Task.sleep(for: timeout)
+                throw SyncV1Msg.Errors.Timeout()
+            }
+
+            guard let msg = try await group.next() else {
+                throw CancellationError()
+            }
+            // cancel all ongoing tasks (the websocket receive request, in this case)
+            group.cancelAll()
+            return msg
+        }
+        return msg
     }
 
     public func receive() async throws -> SyncV1Msg {
