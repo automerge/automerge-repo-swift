@@ -51,8 +51,9 @@ public actor PeerToPeerConnection {
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
     ///   - trigger: A publisher that provides a recurring signal to trigger a sync request.
     ///   - docId: The document Id to use as a pre-shared key in TLS establishment of the connection.
-    init(to
-        destination: NWEndpoint,
+    init(
+        to destination: NWEndpoint,
+
         passcode: String
     ) async {
         let connection = NWConnection(
@@ -193,7 +194,6 @@ public actor PeerToPeerConnection {
         )
     }
 
-    
     // throw error on timeout
     // throw error on cancel
     // otherwise return the msg
