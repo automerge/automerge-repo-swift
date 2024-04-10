@@ -35,7 +35,7 @@ public actor PeerToPeerConnection {
 
     var connection: NWConnection
     var endpoint: NWEndpoint? {
-        return connection.endpoint
+        connection.endpoint
     }
 
     let stateStream: AsyncStream<NWConnection.State>
@@ -60,7 +60,7 @@ public actor PeerToPeerConnection {
             using: NWParameters.peerSyncParameters(passcode: passcode)
         )
         self.connection = connection
-        
+
         Logger.peerConnection
             .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
         // AsyncStream as a queue to receive the updates
@@ -278,10 +278,6 @@ public actor PeerToPeerConnection {
             .protocolMetadata(definition: P2PAutomergeSyncProtocol.definition) as? NWProtocolFramer.Message
         else {
             throw Errors.NetworkProviderError(msg: "Unable to read context of peer protocol message")
-        }
-
-        guard endpoint != nil else {
-            throw Errors.NetworkProviderError(msg: "Received message with endpoint unset")
         }
 
         guard let data = rawMessageData.content else {

@@ -404,7 +404,12 @@ public actor PeerToPeerProvider: NetworkProvider {
             let peerConnection = await PeerToPeerConnection(
                 connection: newConnection
             )
-            let holder = ConnectionHolder(connection: peerConnection, initiated: false, peered: false, endpoint: newConnection.endpoint)
+            let holder = ConnectionHolder(
+                connection: peerConnection,
+                initiated: false,
+                peered: false,
+                endpoint: newConnection.endpoint
+            )
             connections[newConnection.endpoint] = holder
         } else {
             Logger.peerProtocol
