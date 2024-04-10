@@ -27,7 +27,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 
         // Combine replacement for OSS
-        // .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         // Distributed Tracing
         .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
         // Testing Tracing
@@ -45,7 +45,7 @@ let package = Package(
                 .product(name: "Base58Swift", package: "Base58Swift"),
 
                 // Combine replacement for OSS
-                // .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
 
                 // Distributed Tracing
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
