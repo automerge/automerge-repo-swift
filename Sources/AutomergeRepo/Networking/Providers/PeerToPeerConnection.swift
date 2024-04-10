@@ -34,9 +34,9 @@ public actor PeerToPeerConnection {
     // for the connection
 
     var connection: NWConnection
-    /// A Boolean value that indicates this app initiated this connection.
-
-    var endpoint: NWEndpoint?
+    var endpoint: NWEndpoint? {
+        return connection.endpoint
+    }
 
     let stateStream: AsyncStream<NWConnection.State>
     let stateContinuation: AsyncStream<NWConnection.State>.Continuation
@@ -51,9 +51,8 @@ public actor PeerToPeerConnection {
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
     ///   - trigger: A publisher that provides a recurring signal to trigger a sync request.
     ///   - docId: The document Id to use as a pre-shared key in TLS establishment of the connection.
-    init(
+    public init(
         to destination: NWEndpoint,
-
         passcode: String
     ) async {
         let connection = NWConnection(
@@ -61,7 +60,7 @@ public actor PeerToPeerConnection {
             using: NWParameters.peerSyncParameters(passcode: passcode)
         )
         self.connection = connection
-        self.endpoint = destination
+        
         Logger.peerConnection
             .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
         // AsyncStream as a queue to receive the updates
@@ -90,9 +89,8 @@ public actor PeerToPeerConnection {
         connection.start(queue: .main)
     }
 
-    init(connection: NWConnection) async {
+    public init(connection: NWConnection) async {
         self.connection = connection
-        endpoint = connection.endpoint
 
         // AsyncStream as a queue to receive the updates
         let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
