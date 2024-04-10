@@ -282,7 +282,7 @@ public actor PeerToPeerConnection {
             throw Errors.NetworkProviderError(msg: "Unable to read context of peer protocol message")
         }
 
-        guard let currentEndpoint = endpoint else {
+        guard endpoint != nil else {
             throw Errors.NetworkProviderError(msg: "Received message with endpoint unset")
         }
 
