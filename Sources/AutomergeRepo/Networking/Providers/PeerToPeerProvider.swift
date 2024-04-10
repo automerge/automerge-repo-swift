@@ -9,56 +9,15 @@ import UIKit // for UIDevice.name access
 public actor PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
-    public struct PeerToPeerProviderConfiguration: Sendable {
-        let reconnectOnError: Bool
-        let listening: Bool
-        let autoconnect: Bool
-        let peerName: String
-        let passcode: String
-
-        init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) {
-            self.reconnectOnError = reconnectOnError
-            self.listening = listening
-            if let auto = autoconnect {
-                self.autoconnect = auto
-            } else {
-                #if os(iOS)
-                self.autoconnect = true
-                #elseif os(macOS)
-                self.autoconnect = false
-                #endif
-            }
-            if let name = peerName {
-                self.peerName = name
-            } else {
-                self.peerName = Self.defaultSharingIdentity()
-            }
-            self.passcode = passcode
-        }
-
-        // MARK: default sharing identity
-
-        public static func defaultSharingIdentity() -> String {
-            let defaultName: String
-            #if os(iOS)
-            defaultName = UIDevice().name
-            #elseif os(macOS)
-            defaultName = Host.current().localizedName ?? "Automerge User"
-            #endif
-            return UserDefaults.standard
-                .string(forKey: UserDefaultKeys.publicPeerName) ?? defaultName
-        }
-    }
-
     /// A wrapper around PeerToPeer connection that holds additional metadata about the connection
     /// relevant for the PeerToPeer provider, exposing a copy of its endpoint and latest updated Peering
     /// state so that it can be used from synchronous calls inside this actor.
     struct ConnectionHolder: Sendable {
         var connection: PeerToPeerConnection
-        var initiated: Bool
-        var peered: Bool
+        var initiated: Bool // is this an outgoing/initiated connection
         var endpoint: NWEndpoint
-        var peerId: PEER_ID?
+        var peered: Bool // has the connection advanced to being peered and ready to go
+        var peerId: PEER_ID? // if peered, should be non-nil
         var peerMetadata: PeerMetadata?
 
         init(
@@ -93,11 +52,12 @@ public actor PeerToPeerProvider: NetworkProvider {
     var peerMetadata: PeerMetadata? // this providers peer metadata
 
     var config: PeerToPeerProviderConfiguration
+    let supportedProtocolVersion = "1"
 
     // holds the tasks that manage receiving messages for initiated connections
     // (to external endpoints) - along with the retry logic to re-establish on
     // failure
-    var ongoingReceiveMessageTasks: [Task<Void, any Error>]
+    var ongoingReceiveMessageTasks: [NWEndpoint: Task<Void, any Error>]
     var connections: [NWEndpoint: ConnectionHolder]
 
     var browser: NWBrowser?
@@ -126,7 +86,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         peerMetadata = nil
         listener = nil
         browser = nil
-        ongoingReceiveMessageTasks = []
+        ongoingReceiveMessageTasks = [:]
         var record = NWTXTRecord()
         record[TXTRecordKeys.name] = config.peerName
         record[TXTRecordKeys.peer_id] = "UNCONFIGURED"
@@ -167,18 +127,54 @@ public actor PeerToPeerProvider: NetworkProvider {
             let receiveAndRetry = Task.detached {
                 try await self.ongoingReceivePeerMessages(endpoint: destination)
             }
-            ongoingReceiveMessageTasks.append(receiveAndRetry)
+            ongoingReceiveMessageTasks[destination] = receiveAndRetry
         } else {
             throw Errors.NetworkProviderError(msg: "Unable to connect to \(destination.debugDescription)")
         }
     }
 
     public func disconnect() async {
-        fatalError("Not Yet Implemented")
+        for receivingTasks in ongoingReceiveMessageTasks {
+            receivingTasks.value.cancel()
+        }
+
+        for holder in connections.values {
+            await holder.connection.cancel()
+        }
+        connections.removeAll()
     }
 
-    public func send(message _: SyncV1Msg, to _: PEER_ID?) async {
-        fatalError("Not Yet Implemented")
+    public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
+        if let peerId = peer {
+            let holdersWithPeer: [ConnectionHolder] = connections.values.filter { h in
+                h.peerId == peerId
+            }
+            for holder in holdersWithPeer {
+                do {
+                    try await holder.connection.send(message)
+                } catch {
+                    Logger.peerProtocol
+                        .warning(
+                            "error encoding message \(message.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
+                        )
+                }
+            }
+        } else {
+            // nil peerId means send to everyone...
+            for holder in connections.values {
+                // only send to connections with a set PeerId
+                if let peerId = holder.peerId {
+                    do {
+                        try await holder.connection.send(message)
+                    } catch {
+                        Logger.peerProtocol
+                            .warning(
+                                "error encoding message \(message.debugDescription, privacy: .public). Unable to send to endpoint \(peerId)"
+                            )
+                    }
+                }
+            }
+        }
     }
 
     public func setDelegate(
@@ -193,13 +189,31 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // extra
 
-    public func disconnect(_: PEER_ID) async {
-        fatalError("Not Yet Implemented")
+    /// Cancels and removes the connection for a given peerId
+    /// - Parameter peerId: the peer Id to disconnect from either receiving or initiated connection
+    public func disconnect(peerId: PEER_ID) async {
+        let holdersWithPeer: [ConnectionHolder] = connections.values.filter { h in
+            h.peerId == peerId
+        }
+        for holder in holdersWithPeer {
+            // terminate the receive/message processing concurrent task
+            if let receivingTask = ongoingReceiveMessageTasks[holder.endpoint] {
+                receivingTask.cancel()
+            }
+            // cancel the connection itself
+            await holder.connection.cancel()
+            // remove the connection from our collection
+            connections.removeValue(forKey: holder.endpoint)
+        }
     }
 
-    public func activate() {
+    public func activateListener() {
         // if listener = true, set up a listener...
-        fatalError("Not Yet Implemented")
+        if config.listening {
+            if listener == nil {
+                self.setupBonjourListener()
+            }
+        }
     }
 
     // MARK: Outgoing connection functions
@@ -270,7 +284,8 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
+    /// Infinitely loops over incoming messages from the peer connection and updates the state machine based on the
+    /// messages
     /// received.
     private func ongoingReceivePeerMessages(endpoint: NWEndpoint) async throws {
         // state needed for reconnect logic:
@@ -351,6 +366,9 @@ public actor PeerToPeerProvider: NetworkProvider {
     // MARK: NWListener handlers
 
     private func reactToNWListenerStateUpdate(_ newState: NWListener.State) async {
+        // nothing external here, but there could be - this is primarily for logging
+        // status while debugging at the moment, and to provide the capability to
+        // recreate the listener in case it fails
         guard let listener = self.listener else {
             return
         }
@@ -383,41 +401,6 @@ public actor PeerToPeerProvider: NetworkProvider {
             break
         @unknown default:
             break
-        }
-    }
-
-    private func handleNewConnection(_ newConnection: NWConnection) async {
-        Logger.peerProtocol
-            .debug(
-                "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
-            )
-        Logger.peerProtocol
-            .debug(
-                "  Connection details: \(newConnection.debugDescription, privacy: .public)"
-            )
-
-        if connections[newConnection.endpoint] != nil {
-            Logger.peerProtocol
-                .info(
-                    "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
-                )
-            let peerConnection = await PeerToPeerConnection(
-                connection: newConnection
-            )
-            let holder = ConnectionHolder(
-                connection: peerConnection,
-                initiated: false,
-                peered: false,
-                endpoint: newConnection.endpoint
-            )
-            connections[newConnection.endpoint] = holder
-        } else {
-            Logger.peerProtocol
-                .info(
-                    "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
-                )
-            // If we already have a connection to that endpoint, don't add another
-            newConnection.cancel()
         }
     }
 
@@ -466,6 +449,150 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    private func handleNewConnection(_ newConnection: NWConnection) async {
+        guard let delegate = self.delegate else {
+            // if there's no delegate, we're unconfigured and not yet ready
+            // to handle any new connections
+            return
+        }
+        Logger.peerProtocol
+            .debug(
+                "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
+            )
+        Logger.peerProtocol
+            .debug(
+                "  Connection details: \(newConnection.debugDescription, privacy: .public)"
+            )
+
+        let peerConnection = await PeerToPeerConnection(
+            connection: newConnection
+        )
+
+        // check to see if there's already a connection with this endpoint, if there is
+        // on recorded (even if it's not yet peered), don't accept the incoming connection.
+        if connections[newConnection.endpoint] != nil {
+            Logger.peerProtocol
+                .info(
+                    "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
+                )
+            let holder = ConnectionHolder(
+                connection: peerConnection,
+                initiated: false,
+                peered: false,
+                endpoint: newConnection.endpoint
+            )
+            connections[newConnection.endpoint] = holder
+
+            do {
+                if let peerConnectionDetails = try await attemptToPeer(holder) {
+                    let receiveAndRetry = Task.detached {
+                        try await self.ongoingListenerReceivePeerMessages(endpoint: holder.endpoint)
+                    }
+                    ongoingReceiveMessageTasks[holder.endpoint] = receiveAndRetry
+
+                    await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
+                }
+            } catch {
+                // error thrown during peering
+                await holder.connection.cancel()
+                connections.removeValue(forKey: holder.endpoint)
+            }
+            // SET UP THE ATTEMPT TO PEER AND RECURRING READ HERE
+        } else {
+            Logger.peerProtocol
+                .info(
+                    "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
+                )
+            // If we already have a connection to that endpoint, don't add another
+            newConnection.cancel()
+        }
+    }
+
+    // MARK: Incoming connection functions
+
+    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
+    // OR throws an error (terminate on error - no retry)
+    // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
+    private func attemptToPeer(_ holder: ConnectionHolder) async throws -> PeerConnection? {
+        // can't/shouldn't peer if we're not yet fully configured
+        guard let peerId,
+              let delegate
+        else {
+            return nil
+        }
+
+        var holderCopy = holder
+        // Race a timeout against receiving a Join message from the other side
+        // of the connection. If we fail that race, shut down the connection
+        // and move into a .closed connectionState
+        let nextMessage: SyncV1Msg = try await holderCopy.connection.receive(withTimeout: .seconds(3.5))
+
+        // Now that we have the WebSocket message, figure out if we got what we expected.
+        // For the sync protocol handshake phase, it's essentially "peer or die" since
+        // we were the initiating side of the connection.
+
+        guard case let .join(joinMsg) = nextMessage else {
+            throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage)
+        }
+
+        // send the peer candidate information
+        let peerConnectionDetails = PeerConnection(peerId: joinMsg.senderId, peerMetadata: joinMsg.peerMetadata)
+        await delegate.receiveEvent(event: .peerCandidate(payload: peerConnectionDetails))
+
+        // check to verify the requested protocol version matches what we're expecting
+        if joinMsg.supportedProtocolVersions != supportedProtocolVersion {
+            throw Errors.UnsupportedProtocolError(msg: joinMsg.supportedProtocolVersions)
+        }
+
+        // update the reference to the connection with a peered version
+        holderCopy.peerId = joinMsg.senderId
+        holderCopy.peerMetadata = joinMsg.peerMetadata
+        holderCopy.peered = true
+        connections[holderCopy.endpoint] = holderCopy
+
+        Logger.peerProtocol
+            .trace("Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
+
+        // reply with the corresponding "peer" message
+        let peerMessage = SyncV1Msg.PeerMsg(
+            senderId: peerId,
+            targetId: joinMsg.senderId,
+            storageId: self.peerMetadata?.storageId,
+            ephemeral: self.peerMetadata?.isEphemeral ?? true
+        )
+
+        try await holderCopy.connection.send(.peer(peerMessage))
+        Logger.peerProtocol.trace("SEND: \(peerMessage.debugDescription)")
+        return peerConnectionDetails
+    }
+
+    /// Infinitely loops over incoming messages from the peer connection and updates the state machine based on the
+    /// messages
+    /// received.
+    private func ongoingListenerReceivePeerMessages(endpoint: NWEndpoint) async throws {
+        while true {
+            try Task.checkCancellation()
+
+            guard let holder = connections[endpoint],
+                  let peerId = holder.peerId,
+                  holder.peered == true
+            else {
+                break
+            }
+
+            do {
+                let msg = try await holder.connection.receive()
+                await handleMessage(msg: msg)
+            } catch {
+                // error scenario with the PeerToPeer connection
+                Logger.peerProtocol.warning("Error reading connection: \(error.localizedDescription)")
+                await disconnect(peerId: peerId)
+                break
+            }
+        }
+        Logger.peerProtocol.warning("receive and reconnect loop for \(endpoint.debugDescription) terminated")
+    }
+
     // Stop all listeners.
     fileprivate func stopListening() {
         listener?.cancel()
@@ -473,28 +600,14 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     // Update the advertised name on the network.
-    fileprivate func resetName(_: String) {
-//        for documentId in documents.keys {
-//            if var txtRecord = txtRecords[documentId] {
-//                txtRecord[TXTRecordKeys.name] = name
-//                txtRecords[documentId] = txtRecord
-//
-//                // Reset the service to advertise.
-//                listeners[documentId]?.service = NWListener.Service(
-//                    type: P2PAutomergeSyncProtocol.bonjourType,
-//                    txtRecord: txtRecord
-//                )
-//                Logger.syncController
-//                    .debug(
-//                        "Updated bonjour network listener to name \(name, privacy: .public) for document id
-//                        \(documentId, privacy: .public)"
-//                    )
-//            } else {
-//                Logger.syncController
-//                    .error(
-//                        "Unable to find TXTRecord for the registered Document: \(documentId, privacy: .public)"
-//                    )
-//            }
-//        }
+    fileprivate func resetName(_ name: String) {
+        txtRecord[TXTRecordKeys.name] = name
+
+        // Reset the service to advertise.
+        listener?.service = NWListener.Service(
+            type: P2PAutomergeSyncProtocol.bonjourType,
+            txtRecord: txtRecord
+        )
+        Logger.peerProtocol.info("Updated bonjour network listener to advertise name \(name, privacy: .public)")
     }
 }

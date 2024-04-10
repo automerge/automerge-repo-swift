@@ -8,6 +8,13 @@ enum Errors: Sendable {
         }
     }
 
+    public struct UnsupportedProtocolError: Sendable, LocalizedError {
+        public var msg: String
+        public var errorDescription: String? {
+            "Unsupported protocol requested: \(msg)"
+        }
+    }
+
     public struct Unavailable: Sendable, LocalizedError {
         let id: DocumentId
         public var errorDescription: String? {
