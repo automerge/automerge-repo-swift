@@ -14,8 +14,8 @@ jobs:
       - uses: actions/checkout@v3
 
       # default Xcode for macOS 14 image is v15.0.1
-      - name: Select Xcode 15.2
-        run: sudo xcode-select -s /Applications/Xcode_15.2.app
+      - name: Select Xcode 15.3
+        run: sudo xcode-select -s /Applications/Xcode_15.3.app
 
       - name: get xcode information
         run: |
@@ -36,11 +36,15 @@ jobs:
       - name: Show Build SDK
         run: xcodebuild -showsdks
       # iOS 17.0.1, iOS 17.2, macOS 13.3 on macOS-13 w/ Xcode 15.2
+      # iOS 17.0.1, iOS 17.4 on macOS-14 w/ Xcode 15.3
 
       - name: Show Destinations
         run: xcodebuild -showdestinations -scheme 'automerge-repo'
 
       - name: iOS build for MeetingNotes
-        # Xcode 15.2 settings
-        run: xcodebuild clean build -scheme 'automerge-repo' -destination 'platform=iOS Simulator,OS=17.0.1,name=iPhone 14' -sdk iphonesimulator17.2
+        # Xcode 15.3 settings
+        run: xcodebuild clean build -scheme 'automerge-repo' -destination 'platform=iOS Simulator,OS=17.0.1,name=iPhone 14' -sdk iphonesimulator17.4
+
+
+
 
