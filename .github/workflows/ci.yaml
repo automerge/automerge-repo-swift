@@ -38,9 +38,9 @@ jobs:
       # iOS 17.0.1, iOS 17.2, macOS 13.3 on macOS-13 w/ Xcode 15.2
 
       - name: Show Destinations
-        run: xcodebuild -showdestinations -scheme 'AutomergeRepo'
+        run: xcodebuild -showdestinations -scheme 'automerge-repo'
 
       - name: iOS build for MeetingNotes
         # Xcode 15.2 settings
-        run: xcodebuild clean build -scheme 'AutomergeRepo' -destination 'platform=iOS Simulator,OS=17.0.1,name=iPhone 14' -sdk iphonesimulator17.2
+        run: xcodebuild clean build -scheme 'automerge-repo' -destination 'platform=iOS Simulator,OS=17.0.1,name=iPhone 14' -sdk iphonesimulator17.2
 
