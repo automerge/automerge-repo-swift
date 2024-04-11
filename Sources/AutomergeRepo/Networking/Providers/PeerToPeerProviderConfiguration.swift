@@ -10,7 +10,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     let peerName: String
     let passcode: String
 
-    init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) {
+    init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) async {
         self.reconnectOnError = reconnectOnError
         self.listening = listening
         if let auto = autoconnect {
@@ -25,17 +25,19 @@ public struct PeerToPeerProviderConfiguration: Sendable {
         if let name = peerName {
             self.peerName = name
         } else {
-            self.peerName = Self.defaultSharingIdentity()
+            self.peerName = await Self.defaultSharingIdentity()
         }
         self.passcode = passcode
     }
 
     // MARK: default sharing identity
 
-    public static func defaultSharingIdentity() -> String {
+    public static func defaultSharingIdentity() async -> String {
         let defaultName: String
         #if os(iOS)
-        defaultName = UIDevice().name
+        defaultName = await MainActor.run(body: {
+            UIDevice().name
+        })
         #elseif os(macOS)
         defaultName = Host.current().localizedName ?? "Automerge User"
         #endif

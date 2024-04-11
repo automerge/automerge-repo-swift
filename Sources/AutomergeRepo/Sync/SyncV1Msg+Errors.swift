@@ -19,12 +19,20 @@ public extension SyncV1Msg {
             public var errorDescription: String? {
                 "Invalid URL: \(urlString)"
             }
+
+            public init(urlString: String) {
+                self.urlString = urlString
+            }
         }
 
-        public struct UnexpectedMsg<MSG: Sendable>: Sendable, LocalizedError {
-            public var msg: MSG
+        public struct UnexpectedMsg: Sendable, LocalizedError {
+            public var msg: String
             public var errorDescription: String? {
                 "Received an unexpected message: \(msg)"
+            }
+
+            public init(msg: String) {
+                self.msg = msg
             }
         }
 
