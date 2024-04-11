@@ -3,10 +3,6 @@ import Foundation
 import Network
 import OSLog
 
-#if os(iOS)
-import UIKit // for UIDevice.name access
-#endif
-
 public actor PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
 

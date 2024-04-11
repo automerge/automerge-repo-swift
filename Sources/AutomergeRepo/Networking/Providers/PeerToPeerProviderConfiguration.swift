@@ -1,4 +1,7 @@
 import Foundation
+#if os(iOS)
+import UIKit // for UIDevice.name access
+#endif
 
 public struct PeerToPeerProviderConfiguration: Sendable {
     let reconnectOnError: Bool
