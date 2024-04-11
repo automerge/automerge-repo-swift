@@ -4,22 +4,28 @@ public extension SyncV1Msg {
     enum Errors: Sendable {
         public struct Timeout: Sendable, LocalizedError {
             public var errorDescription: String = "Task timed out before completion"
-            public init(errorDescription: String) {
-                self.errorDescription = errorDescription
+            public init(errorDescription: String? = nil) {
+                if let errorDescription {
+                    self.errorDescription = errorDescription
+                }
             }
         }
 
         public struct SyncComplete: Sendable, LocalizedError {
             public var errorDescription: String = "The synchronization process is complete"
-            public init(errorDescription: String) {
-                self.errorDescription = errorDescription
+            public init(errorDescription: String? = nil) {
+                if let errorDescription {
+                    self.errorDescription = errorDescription
+                }
             }
         }
 
         public struct ConnectionClosed: Sendable, LocalizedError {
             public var errorDescription: String = "The websocket task was closed and/or nil"
-            public init(errorDescription: String) {
-                self.errorDescription = errorDescription
+            public init(errorDescription: String? = nil) {
+                if let errorDescription {
+                    self.errorDescription = errorDescription
+                }
             }
         }
 
