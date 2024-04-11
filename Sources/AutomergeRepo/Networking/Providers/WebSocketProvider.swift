@@ -6,6 +6,10 @@ public actor WebSocketProvider: NetworkProvider {
         let reconnectOnError: Bool
 
         public static let `default` = WebSocketProviderConfiguration(reconnectOnError: true)
+
+        public init(reconnectOnError: Bool) {
+            self.reconnectOnError = reconnectOnError
+        }
     }
 
     public var peeredConnections: [PeerConnection]
