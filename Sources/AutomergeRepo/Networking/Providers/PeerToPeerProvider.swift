@@ -53,6 +53,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID? // this providers peer Id
     var peerMetadata: PeerMetadata? // this providers peer metadata
+    public var peerName: String // the human-readable name to advertise on Bonjour alongside peerId
 
     var config: PeerToPeerProviderConfiguration
     let supportedProtocolVersion = "1"
@@ -105,9 +106,10 @@ public actor PeerToPeerProvider: NetworkProvider {
         peerMetadata = nil
         listener = nil
         browser = nil
+        peerName = ""
         ongoingReceiveMessageTasks = [:]
         var record = NWTXTRecord()
-        record[TXTRecordKeys.name] = config.peerName
+        record[TXTRecordKeys.name] = peerName
         record[TXTRecordKeys.peer_id] = "UNCONFIGURED"
         self.txtRecord = record
 
@@ -215,6 +217,10 @@ public actor PeerToPeerProvider: NetworkProvider {
 
         // if listener = true, set up a listener...
         if config.listening {
+            if peerName.isEmpty {
+                let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
+                resetName(defaultName)
+            }
             if listener == nil {
                 self.setupBonjourListener()
             }
@@ -728,6 +734,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // Update the advertised name on the network.
     fileprivate func resetName(_ name: String) {
+        self.peerName = name
         txtRecord[TXTRecordKeys.name] = name
 
         // Reset the service to advertise.
