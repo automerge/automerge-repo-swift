@@ -115,14 +115,14 @@ public actor WebSocketProvider: NetworkProvider {
                     let decodeAttempted = SyncV1Msg.decode(raw_data)
                     Logger.webSocket
                         .warning(
-                            "Decoding websocket message, expecting peer only - and it wasn't a peer message. RECEIVED MSG: \(decodeAttempted.debugDescription)"
+                            "Decoding websocket message, expecting peer only - and it wasn't a peer message. RECEIVED MSG: \(String(describing: decodeAttempted))"
                         )
-                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: decodeAttempted)
+                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: decodeAttempted))
                 }
             } else {
                 let decodedMsg = SyncV1Msg.decode(raw_data)
                 if case .unknown = decodedMsg {
-                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: decodedMsg)
+                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: decodedMsg.debugDescription)
                 }
                 return decodedMsg
             }
@@ -131,12 +131,12 @@ public actor WebSocketProvider: NetworkProvider {
             // In the handshake phase and received anything other than a valid peer message
             Logger.webSocket
                 .warning("Unknown websocket message received: .string(\(string))")
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: msg)
+            throw SyncV1Msg.Errors.UnexpectedMsg(msg: string)
         @unknown default:
             // In the handshake phase and received anything other than a valid peer message
             Logger.webSocket
                 .error("Unknown websocket message received: \(String(describing: msg))")
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: msg)
+            throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: msg))
         }
     }
 
@@ -177,7 +177,7 @@ public actor WebSocketProvider: NetworkProvider {
             // For the sync protocol handshake phase, it's essentially "peer or die" since
             // we were the initiating side of the connection.
             guard case let .peer(peerMsg) = try attemptToDecode(websocketMsg, peerOnly: true) else {
-                throw SyncV1Msg.Errors.UnexpectedMsg(msg: websocketMsg)
+                throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: websocketMsg))
             }
 
             let newPeerConnection = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)

@@ -281,7 +281,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             // we were the initiating side of the connection.
 
             guard case let .peer(peerMsg) = nextMessage else {
-                throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage)
+                throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
             }
 
             holder.peerId = peerMsg.senderId
@@ -659,7 +659,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         // we were the initiating side of the connection.
 
         guard case let .join(joinMsg) = nextMessage else {
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage)
+            throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
         }
 
         // send the peer candidate information
