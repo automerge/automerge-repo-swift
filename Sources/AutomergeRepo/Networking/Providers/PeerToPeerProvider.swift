@@ -221,9 +221,6 @@ public actor PeerToPeerProvider: NetworkProvider {
                 let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
                 resetName(defaultName)
             }
-            if listener == nil {
-                self.setupBonjourListener()
-            }
         }
     }
 
@@ -245,6 +242,24 @@ public actor PeerToPeerProvider: NetworkProvider {
             // remove the connection from our collection
             connections.removeValue(forKey: holder.endpoint)
         }
+    }
+
+    public func startListening(as peerName: String? = nil) async throws {
+        if let peerName {
+            resetName(peerName)
+        }
+        if self.peerName.isEmpty {
+            throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
+        }
+        if listener == nil {
+            self.setupBonjourListener()
+        }
+    }
+
+    public func stopListening() async {
+        await disconnect()
+        listener?.cancel()
+        listener = nil
     }
 
     // MARK: Outgoing connection functions
@@ -724,12 +739,6 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
         }
         Logger.peerProtocol.warning("receive and reconnect loop for \(endpoint.debugDescription) terminated")
-    }
-
-    // Stop all listeners.
-    fileprivate func stopListening() {
-        listener?.cancel()
-        listener = nil
     }
 
     // Update the advertised name on the network.
