@@ -10,7 +10,13 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     let peerName: String
     let passcode: String
 
-    init(reconnectOnError: Bool, listening: Bool, peerName: String?, passcode: String, autoconnect: Bool? = nil) async {
+    public init(
+        reconnectOnError: Bool,
+        listening: Bool,
+        peerName: String?,
+        passcode: String,
+        autoconnect: Bool? = nil
+    ) async {
         self.reconnectOnError = reconnectOnError
         self.listening = listening
         if let auto = autoconnect {
