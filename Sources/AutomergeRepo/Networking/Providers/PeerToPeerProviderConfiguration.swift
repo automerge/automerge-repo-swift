@@ -4,19 +4,17 @@ import UIKit // for UIDevice.name access
 #endif
 
 public struct PeerToPeerProviderConfiguration: Sendable {
-    let reconnectOnError: Bool
-    let listening: Bool
-    let autoconnect: Bool
-    let peerName: String
     let passcode: String
+    let listening: Bool
+    let reconnectOnError: Bool
+    let autoconnect: Bool
 
     public init(
-        reconnectOnError: Bool,
-        listening: Bool,
-        peerName: String?,
         passcode: String,
+        listening: Bool,
+        reconnectOnError: Bool = true,
         autoconnect: Bool? = nil
-    ) async {
+    ) {
         self.reconnectOnError = reconnectOnError
         self.listening = listening
         if let auto = autoconnect {
@@ -27,11 +25,6 @@ public struct PeerToPeerProviderConfiguration: Sendable {
             #elseif os(macOS)
             self.autoconnect = false
             #endif
-        }
-        if let name = peerName {
-            self.peerName = name
-        } else {
-            self.peerName = await Self.defaultSharingIdentity()
         }
         self.passcode = passcode
     }
