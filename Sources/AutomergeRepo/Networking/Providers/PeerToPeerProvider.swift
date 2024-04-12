@@ -1,4 +1,5 @@
 import AsyncAlgorithms
+import Combine
 import Foundation
 import Network
 import OSLog
@@ -53,7 +54,13 @@ public actor PeerToPeerProvider: NetworkProvider {
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID? // this providers peer Id
     var peerMetadata: PeerMetadata? // this providers peer metadata
-    public var peerName: String // the human-readable name to advertise on Bonjour alongside peerId
+    public var peerName: String {
+        didSet {
+            self.resetName(peerName)
+        }
+    }
+
+    // the human-readable name to advertise on Bonjour alongside peerId
 
     var config: PeerToPeerProviderConfiguration
     let supportedProtocolVersion = "1"
@@ -63,6 +70,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // failure
     var ongoingReceiveMessageTasks: [NWEndpoint: Task<Void, any Error>]
     var connections: [NWEndpoint: ConnectionHolder]
+    var availablePeers: [AvailablePeer]
 
     var browser: NWBrowser?
     var listener: NWListener?
@@ -92,7 +100,9 @@ public actor PeerToPeerProvider: NetworkProvider {
     let browserResultUpdateContinuation: AsyncStream<BrowserResultUpdate>.Continuation
     var browserResultUpdateTaskHandle: Task<Void, Never>?
 
-    public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
+    // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
+    // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
+    public let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
 
     // this allows us to create a provider, but it's not ready to go until
     // its fully configured by setting a delegate on it, which initializes
@@ -101,6 +111,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     public init(_ config: PeerToPeerProviderConfiguration) {
         self.config = config
         connections = [:]
+        availablePeers = []
         delegate = nil
         peerId = nil
         peerMetadata = nil
@@ -129,7 +140,8 @@ public actor PeerToPeerProvider: NetworkProvider {
         (browserResultUpdateStream, browserResultUpdateContinuation) = AsyncStream<BrowserResultUpdate>.makeStream()
         self.browserStateUpdateTaskHandle = nil
 
-        self.availablePeerChannel = AsyncChannel()
+        // self.availablePeerChannel = AsyncChannel()
+        self.availablePeerPublisher = PassthroughSubject()
     }
 
     deinit {
@@ -486,7 +498,9 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
             return nil
         }
-        await availablePeerChannel.send(availablePeers)
+        self.availablePeers = availablePeers
+        availablePeerPublisher.send(availablePeers)
+        // await availablePeerChannel.send(availablePeers)
 
         if config.autoconnect {
             for change in update.changes {
