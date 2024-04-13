@@ -298,15 +298,19 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
             case let .join(msg):
                 if listening {
                     span.addEvent(SpanEvent(name: "join msg received"))
+                    let peerConnectionDetails = PeerConnection(
+                        peerId: msg.senderId,
+                        peerMetadata: msg.peerMetadata,
+                        endpoint: self.endpointName ?? "??",
+                        initiated: false,
+                        peered: false
+                    )
                     await self.delegate?.receiveEvent(
                         event: .peerCandidate(
-                            payload: .init(
-                                peerId: msg.senderId,
-                                peerMetadata: msg.peerMetadata
-                            )
+                            payload: peerConnectionDetails
                         )
                     )
-                    peeredConnections.append(PeerConnection(peerId: msg.senderId, peerMetadata: msg.peerMetadata))
+                    peeredConnections.append(peerConnectionDetails)
                     span.addEvent(SpanEvent(name: "replying with peer msg"))
                     await self.send(
                         message: .peer(
@@ -324,13 +328,17 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
                 }
             case let .peer(msg):
                 span.addEvent(SpanEvent(name: "peer msg received"))
-                peeredConnections.append(PeerConnection(peerId: msg.senderId, peerMetadata: msg.peerMetadata))
+                let peerConnectionDetails = PeerConnection(
+                    peerId: msg.senderId,
+                    peerMetadata: msg.peerMetadata,
+                    endpoint: "??",
+                    initiated: true,
+                    peered: true
+                )
+                peeredConnections.append(peerConnectionDetails)
                 await self.delegate?.receiveEvent(
                     event: .ready(
-                        payload: .init(
-                            peerId: msg.senderId,
-                            peerMetadata: msg.peerMetadata
-                        )
+                        payload: peerConnectionDetails
                     )
                 )
             default:
