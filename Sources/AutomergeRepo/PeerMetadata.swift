@@ -8,7 +8,7 @@ import Foundation
 //    isEphemeral: bool
 // }
 
-public struct PeerMetadata: Sendable, Codable, CustomDebugStringConvertible {
+public struct PeerMetadata: Hashable, Sendable, Codable, CustomDebugStringConvertible {
     public var storageId: STORAGE_ID?
     public var isEphemeral: Bool
 
