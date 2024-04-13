@@ -108,8 +108,8 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
     // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
-    public let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
-    public let connectionPublisher: PassthroughSubject<[PeerConnection], Never>
+    public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
+    public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnection], Never>
 
     // this allows us to create a provider, but it's not ready to go until
     // its fully configured by setting a delegate on it, which initializes
