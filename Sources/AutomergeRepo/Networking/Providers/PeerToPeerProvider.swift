@@ -35,12 +35,6 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    public struct AvailablePeer: Sendable {
-        let peerId: PEER_ID
-        let endpoint: NWEndpoint
-        let name: String
-    }
-
     private func allConnections() -> [PeerConnection] {
         connections.values.compactMap { holder in
             if let peerId = holder.peerId {
