@@ -5,4 +5,3 @@ public struct AvailablePeer: Sendable {
     public let endpoint: NWEndpoint
     public let name: String
 }
-
