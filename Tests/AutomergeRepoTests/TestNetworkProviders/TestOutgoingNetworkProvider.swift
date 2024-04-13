@@ -114,30 +114,36 @@ public actor TestOutgoingNetworkProvider: NetworkProvider {
         }
     }
 
-    public func connect(to _: String) async throws {
+    public func connect(to somewhere: String) async throws {
         do {
             guard let config else {
                 throw UnconfiguredTestNetwork()
             }
-            peeredConnections.append(PeerConnection(
+            let initialPeerConnection = PeerConnection(
                 peerId: config.remotePeer,
-                peerMetadata: config.remotePeerMetadata
-            ))
+                peerMetadata: config.remotePeerMetadata,
+                endpoint: somewhere,
+                initiated: true,
+                peered: false
+            )
+
+            peeredConnections.append(initialPeerConnection)
             await delegate?.receiveEvent(
                 event: .peerCandidate(
-                    payload: .init(
-                        peerId: config.remotePeer,
-                        peerMetadata: config.remotePeerMetadata
-                    )
+                    payload: initialPeerConnection
                 )
             )
             try await Task.sleep(for: .milliseconds(250))
+            let finalPeerConnection = PeerConnection(
+                peerId: config.remotePeer,
+                peerMetadata: config.remotePeerMetadata,
+                endpoint: somewhere,
+                initiated: true,
+                peered: true
+            )
             await delegate?.receiveEvent(
                 event: .ready(
-                    payload: .init(
-                        peerId: config.remotePeer,
-                        peerMetadata: config.remotePeerMetadata
-                    )
+                    payload: finalPeerConnection
                 )
             )
             connected = true
