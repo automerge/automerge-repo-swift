@@ -184,10 +184,16 @@ public actor WebSocketProvider: NetworkProvider {
                 throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: websocketMsg))
             }
 
-            let newPeerConnection = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)
-            peeredConnections = [newPeerConnection]
             peered = true
-            await delegate.receiveEvent(event: .ready(payload: newPeerConnection))
+            let peerConnectionDetails = PeerConnection(
+                peerId: peerMsg.senderId,
+                peerMetadata: peerMsg.peerMetadata,
+                endpoint: url.absoluteString,
+                initiated: true,
+                peered: peered
+            )
+            peeredConnections = [peerConnectionDetails]
+            await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
             Logger.webSocket.trace("Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
         } catch {
             // if there's an error, disconnect anything that's lingering and cancel it down.

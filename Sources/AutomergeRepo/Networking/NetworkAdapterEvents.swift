@@ -1,18 +1,37 @@
 public struct PeerConnection: Sendable, CustomStringConvertible {
     public var description: String {
-        if let meta = peerMetadata {
-            "\(peerId),\(meta)"
+        var str = ""
+        if initiated {
+            str.append(" -> ")
         } else {
-            "\(peerId),nil"
+            str.append(" <- ")
         }
+        if let meta = peerMetadata {
+            str.append("\(peerId),\(meta)")
+        } else {
+            str.append("\(peerId),nil")
+        }
+        if peered {
+            str.append(" [ready]")
+        } else {
+            str.append(" [pending]")
+        }
+        return str
     }
 
     public let peerId: PEER_ID
     public let peerMetadata: PeerMetadata?
+    // additional metadata about the connection that's useful for UI displays
+    public let endpoint: String
+    public let initiated: Bool
+    public let peered: Bool
 
-    public init(peerId: PEER_ID, peerMetadata: PeerMetadata?) {
+    public init(peerId: PEER_ID, peerMetadata: PeerMetadata?, endpoint: String, initiated: Bool, peered: Bool) {
         self.peerId = peerId
         self.peerMetadata = peerMetadata
+        self.endpoint = endpoint
+        self.initiated = initiated
+        self.peered = peered
     }
 }
 
