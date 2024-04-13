@@ -117,6 +117,8 @@ public actor Repo {
     /// The list does not reflect deleted or unavailable documents that have been requested, but may return
     /// Ids for documents still being creating, stored, or transferring from a peer.
     public func documentIds() async -> [DocumentId] {
+        // FIXME: make sure that the handles are all fully "resolved" to an end state
+        // _before_ attempting to filter them - we're capturing a snapshot in time here...
         handles.values
             .filter { handle in
                 handle.state == .ready || handle.state == .loading || handle.state == .requesting
