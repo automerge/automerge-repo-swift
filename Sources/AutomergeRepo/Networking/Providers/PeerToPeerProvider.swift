@@ -41,13 +41,25 @@ public actor PeerToPeerProvider: NetworkProvider {
         let name: String
     }
 
-    public var peeredConnections: [PeerConnection] {
+    private func allConnections() -> [PeerConnection] {
         connections.values.compactMap { holder in
             if let peerId = holder.peerId {
-                PeerConnection(peerId: peerId, peerMetadata: holder.peerMetadata)
+                PeerConnection(
+                    peerId: peerId,
+                    peerMetadata: holder.peerMetadata,
+                    endpoint: holder.endpoint.debugDescription,
+                    initiated: holder.initiated,
+                    peered: holder.peered
+                )
             } else {
                 nil
             }
+        }
+    }
+
+    public var peeredConnections: [PeerConnection] {
+        allConnections().filter { conn in
+            conn.peered == true
         }
     }
 
@@ -103,6 +115,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
     // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
     public let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
+    public let connectionPublisher: PassthroughSubject<[PeerConnection], Never>
 
     // this allows us to create a provider, but it's not ready to go until
     // its fully configured by setting a delegate on it, which initializes
@@ -142,6 +155,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
         // self.availablePeerChannel = AsyncChannel()
         self.availablePeerPublisher = PassthroughSubject()
+        self.connectionPublisher = PassthroughSubject()
     }
 
     deinit {
@@ -183,6 +197,8 @@ public actor PeerToPeerProvider: NetworkProvider {
             await holder.connection.cancel()
         }
         connections.removeAll()
+        // could be connectionPublisher.send(allConnections()), but we just removed them all...
+        connectionPublisher.send([])
     }
 
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
@@ -253,6 +269,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             await holder.connection.cancel()
             // remove the connection from our collection
             connections.removeValue(forKey: holder.endpoint)
+            connectionPublisher.send(allConnections())
         }
     }
 
@@ -292,7 +309,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         var holder = ConnectionHolder(connection: connection, initiated: true, peered: false, endpoint: destination)
         // indicate to everything else we're starting a connection, outgoing, not yet peered
         connections[destination] = holder
-
+        connectionPublisher.send(allConnections())
         Logger.peerProtocol.trace("Activating peer connection to \(destination.debugDescription, privacy: .public)")
 
         // since we initiated the WebSocket, it's on us to send an initial 'join'
@@ -320,12 +337,18 @@ public actor PeerToPeerProvider: NetworkProvider {
             holder.peerId = peerMsg.senderId
             holder.peerMetadata = peerMsg.peerMetadata
             holder.peered = true
-            let peerConnectionDetails = PeerConnection(peerId: peerMsg.senderId, peerMetadata: peerMsg.peerMetadata)
+            let peerConnectionDetails = PeerConnection(
+                peerId: peerId,
+                peerMetadata: holder.peerMetadata,
+                endpoint: holder.endpoint.debugDescription,
+                initiated: holder.initiated,
+                peered: holder.peered
+            )
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
             Logger.peerProtocol.trace("Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
             // update the reference to the connection with a peered version
             self.connections[destination] = holder
-
+            connectionPublisher.send(allConnections())
             return true
         } catch {
             // if there's an error, disconnect anything that's lingering and cancel it down.
@@ -333,11 +356,12 @@ public actor PeerToPeerProvider: NetworkProvider {
             // peer, so we don't want to continue to attempt to reconnect. Because the "should
             // we reconnect" is a constant in the config, we can erase the URL endpoint instead
             // which will force us to fail reconnects.
+            self.connections.removeValue(forKey: destination)
+            connectionPublisher.send(allConnections())
             Logger.webSocket
                 .error(
                     "Failed to peer with \(destination.debugDescription, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
-            await disconnect()
             throw error
         }
     }
@@ -396,6 +420,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 // broken connection that can be re-attempted
                 holder.peered = false
                 connections[endpoint] = holder
+                connectionPublisher.send(allConnections())
             }
         }
         Logger.webSocket.log("receive and reconnect loop terminated")
@@ -644,6 +669,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 endpoint: newConnection.endpoint
             )
             connections[newConnection.endpoint] = holder
+            connectionPublisher.send(allConnections())
 
             do {
                 if let peerConnectionDetails = try await attemptToPeer(holder) {
@@ -658,6 +684,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 // error thrown during peering
                 await holder.connection.cancel()
                 connections.removeValue(forKey: holder.endpoint)
+                connectionPublisher.send(allConnections())
             }
             // SET UP THE ATTEMPT TO PEER AND RECURRING READ HERE
         } else {
@@ -672,7 +699,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // MARK: Incoming connection functions
 
-    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
+    // Returns a new PeerConnection to track (at which point, save the url as the endpoint)
     // OR throws an error (terminate on error - no retry)
     // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
     private func attemptToPeer(_ holder: ConnectionHolder) async throws -> PeerConnection? {
@@ -698,7 +725,13 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
 
         // send the peer candidate information
-        let peerConnectionDetails = PeerConnection(peerId: joinMsg.senderId, peerMetadata: joinMsg.peerMetadata)
+        let peerConnectionDetails = PeerConnection(
+            peerId: joinMsg.senderId,
+            peerMetadata: joinMsg.peerMetadata,
+            endpoint: holder.endpoint.debugDescription,
+            initiated: holder.initiated,
+            peered: holder.peered
+        )
         await delegate.receiveEvent(event: .peerCandidate(payload: peerConnectionDetails))
 
         // check to verify the requested protocol version matches what we're expecting
@@ -711,6 +744,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         holderCopy.peerMetadata = joinMsg.peerMetadata
         holderCopy.peered = true
         connections[holderCopy.endpoint] = holderCopy
+        connectionPublisher.send(allConnections())
 
         Logger.peerProtocol
             .trace("Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
