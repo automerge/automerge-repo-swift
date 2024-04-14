@@ -60,11 +60,8 @@ public actor PeerToPeerProvider: NetworkProvider {
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID? // this providers peer Id
     var peerMetadata: PeerMetadata? // this providers peer metadata
-    public var peerName: String {
-        didSet {
-            self.resetName(peerName)
-        }
-    }
+    
+    public var peerName: String
 
     // the human-readable name to advertise on Bonjour alongside peerId
 
@@ -241,7 +238,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         if config.listening {
             if peerName.isEmpty {
                 let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
-                resetName(defaultName)
+                setName(defaultName)
             }
         }
     }
@@ -269,7 +266,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     public func startListening(as peerName: String? = nil) async throws {
         if let peerName {
-            resetName(peerName)
+            setName(peerName)
         }
         if self.peerName.isEmpty {
             throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
@@ -784,7 +781,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     // Update the advertised name on the network.
-    fileprivate func resetName(_ name: String) {
+    public func setName(_ name: String) {
         self.peerName = name
         txtRecord[TXTRecordKeys.name] = name
 
