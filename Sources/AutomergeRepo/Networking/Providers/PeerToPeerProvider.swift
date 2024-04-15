@@ -60,7 +60,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID? // this providers peer Id
     var peerMetadata: PeerMetadata? // this providers peer metadata
-    
+
     public var peerName: String
 
     // the human-readable name to advertise on Bonjour alongside peerId
@@ -232,6 +232,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     ) async {
         self.delegate = delegate
         self.peerId = peerId
+        txtRecord[TXTRecordKeys.peer_id] = peerId
         self.peerMetadata = metadata
         if peerName.isEmpty {
             let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
