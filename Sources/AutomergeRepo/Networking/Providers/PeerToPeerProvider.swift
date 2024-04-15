@@ -108,6 +108,9 @@ public actor PeerToPeerProvider: NetworkProvider {
     public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
     public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnection], Never>
 
+    public nonisolated let browserStatePublisher: PassthroughSubject<NWBrowser.State, Never>
+    public nonisolated let listenerStatePublisher: PassthroughSubject<NWListener.State, Never>
+
     // this allows us to create a provider, but it's not ready to go until
     // its fully configured by setting a delegate on it, which initializes
     // not only delegate, but also peerId and the optional peerMetadata
@@ -147,6 +150,8 @@ public actor PeerToPeerProvider: NetworkProvider {
         // self.availablePeerChannel = AsyncChannel()
         self.availablePeerPublisher = PassthroughSubject()
         self.connectionPublisher = PassthroughSubject()
+        self.browserStatePublisher = PassthroughSubject()
+        self.listenerStatePublisher = PassthroughSubject()
     }
 
     deinit {
@@ -482,6 +487,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     private func reactToNWBrowserStateUpdate(_ newState: NWBrowser.State) async {
+        browserStatePublisher.send(newState)
         switch newState {
         case let .failed(error):
             // Restart the browser if it loses its connection.
@@ -554,6 +560,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         guard let listener = self.listener else {
             return
         }
+        listenerStatePublisher.send(newState)
         switch newState {
         case .ready:
             if let port = listener.port {
