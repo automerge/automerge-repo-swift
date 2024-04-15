@@ -5,18 +5,15 @@ import UIKit // for UIDevice.name access
 
 public struct PeerToPeerProviderConfiguration: Sendable {
     let passcode: String
-    let listening: Bool
     let reconnectOnError: Bool
     let autoconnect: Bool
 
     public init(
         passcode: String,
-        listening: Bool,
         reconnectOnError: Bool = true,
         autoconnect: Bool? = nil
     ) {
         self.reconnectOnError = reconnectOnError
-        self.listening = listening
         if let auto = autoconnect {
             self.autoconnect = auto
         } else {
@@ -40,7 +37,6 @@ public struct PeerToPeerProviderConfiguration: Sendable {
         #elseif os(macOS)
         defaultName = Host.current().localizedName ?? "Automerge User"
         #endif
-        return UserDefaults.standard
-            .string(forKey: UserDefaultKeys.publicPeerName) ?? defaultName
+        return defaultName
     }
 }
