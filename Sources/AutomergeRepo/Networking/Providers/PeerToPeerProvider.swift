@@ -289,6 +289,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         await disconnect()
         listener?.cancel()
         listener = nil
+        availablePeerPublisher.send([])
         browserStatePublisher.send(.setup)
         listenerStatePublisher.send(.setup)
     }
