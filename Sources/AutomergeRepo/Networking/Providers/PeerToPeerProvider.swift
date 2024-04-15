@@ -233,13 +233,9 @@ public actor PeerToPeerProvider: NetworkProvider {
         self.delegate = delegate
         self.peerId = peerId
         self.peerMetadata = metadata
-
-        // if listener = true, set up a listener...
-        if config.listening {
-            if peerName.isEmpty {
-                let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
-                setName(defaultName)
-            }
+        if peerName.isEmpty {
+            let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
+            setName(defaultName)
         }
     }
 
