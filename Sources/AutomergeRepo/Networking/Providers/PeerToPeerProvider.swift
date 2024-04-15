@@ -521,7 +521,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 )
             if case let .bonjour(txtRecord) = browserResult.metadata,
                let name = txtRecord[TXTRecordKeys.name],
-               let peerId = txtRecord[TXTRecordKeys.name]
+               let peerId = txtRecord[TXTRecordKeys.peer_id]
             {
                 return AvailablePeer(peerId: peerId, endpoint: browserResult.endpoint, name: name)
             }
