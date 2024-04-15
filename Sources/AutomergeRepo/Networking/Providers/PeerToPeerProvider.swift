@@ -267,12 +267,19 @@ public actor PeerToPeerProvider: NetworkProvider {
         if self.peerName.isEmpty {
             throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
         }
+        Logger.peerProtocol.debug("Starting Bonjour listener as \(self.peerName)")
+        if browser == nil {
+            self.startBrowsing()
+        }
         if listener == nil {
             self.setupBonjourListener()
         }
     }
 
     public func stopListening() async {
+        self.stopBrowsing()
+        browser = nil
+        Logger.peerProtocol.debug("Stopping Bonjour listener")
         await disconnect()
         listener?.cancel()
         listener = nil
@@ -297,7 +304,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         // indicate to everything else we're starting a connection, outgoing, not yet peered
         connections[destination] = holder
         connectionPublisher.send(allConnections())
-        Logger.peerProtocol.trace("Activating peer connection to \(destination.debugDescription, privacy: .public)")
+        Logger.peerProtocol.trace("Attempting a peer connection to \(destination.debugDescription, privacy: .public)")
 
         // since we initiated the WebSocket, it's on us to send an initial 'join'
         // protocol message to start the handshake phase of the protocol
