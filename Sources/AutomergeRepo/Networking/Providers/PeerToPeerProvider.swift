@@ -289,6 +289,8 @@ public actor PeerToPeerProvider: NetworkProvider {
         await disconnect()
         listener?.cancel()
         listener = nil
+        browserStatePublisher.send(.setup)
+        listenerStatePublisher.send(.setup)
     }
 
     // MARK: Outgoing connection functions
