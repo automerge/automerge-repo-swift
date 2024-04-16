@@ -13,6 +13,7 @@
  */
 
 import Automerge
+import Combine
 import Foundation
 import Network
 import OSLog
@@ -23,24 +24,25 @@ import OSLog
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
 public actor PeerToPeerConnection {
+    // A Sendable wrapper around NWConnection to hold async handlers and relevant state
+    // for the connection
+
+    public nonisolated let connectionStatePublisher: PassthroughSubject<NWConnection.State, Never>
+    public nonisolated let endpoint: NWEndpoint
+
+    var connection: NWConnection
+    var currentConnectionState: NWConnection.State
+
+    let stateStream: AsyncStream<NWConnection.State>
+    let stateContinuation: AsyncStream<NWConnection.State>.Continuation
+    var listenerStateUpdateTaskHandle: Task<Void, Never>?
+
     struct ReceiveMessageData: Sendable {
         let content: Data?
         let contentContext: NWConnection.ContentContext?
         let isComplete: Bool
         let error: NWError?
     }
-
-    // A Sendable wrapper around NWConnection to hold async handlers and relevant state
-    // for the connection
-
-    var connection: NWConnection
-    var endpoint: NWEndpoint? {
-        connection.endpoint
-    }
-
-    let stateStream: AsyncStream<NWConnection.State>
-    let stateContinuation: AsyncStream<NWConnection.State>.Continuation
-    var listenerStateUpdateTaskHandle: Task<Void, Never>?
 
     let messageDataStream: AsyncStream<ReceiveMessageData>
     let receiveMessageContinuation: AsyncStream<ReceiveMessageData>.Continuation
@@ -59,7 +61,10 @@ public actor PeerToPeerConnection {
             to: destination,
             using: NWParameters.peerSyncParameters(passcode: passcode)
         )
+        endpoint = destination
+        self.connectionStatePublisher = PassthroughSubject()
         self.connection = connection
+        currentConnectionState = connection.state
 
         Logger.peerConnection
             .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
@@ -94,8 +99,11 @@ public actor PeerToPeerConnection {
         connection.start(queue: .main)
     }
 
-    public init(connection: NWConnection) async {
+    public init(connection: NWConnection) {
         self.connection = connection
+        endpoint = connection.endpoint
+        connectionStatePublisher = PassthroughSubject()
+        currentConnectionState = connection.state
 
         // AsyncStream as a queue to receive the updates
         let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
@@ -125,6 +133,8 @@ public actor PeerToPeerConnection {
     }
 
     func handleConnectionStateUpdate(_ newState: NWConnection.State) async {
+        connectionStatePublisher.send(newState)
+        currentConnectionState = newState
         switch newState {
         case .ready:
             Logger.peerConnection
@@ -175,11 +185,98 @@ public actor PeerToPeerConnection {
         }
     }
 
+    public struct NetworkConnectionError: Sendable, LocalizedError {
+        public var msg: String
+        public var err: NWError?
+        public var errorDescription: String? {
+            "NewtorkConnectionError: \(msg)"
+        }
+
+        public init(msg: String, wrapping: NWError?) {
+            self.msg = msg
+            self.err = wrapping
+        }
+    }
+
+    public struct ConnectionReadyTimeout: Sendable, LocalizedError {
+        public let duration: ContinuousClock.Instant.Duration
+        public var errorDescription: String? {
+            "Connection didn't become ready in \(duration.description)"
+        }
+
+        public init(_ duration: ContinuousClock.Instant.Duration) {
+            self.duration = duration
+        }
+    }
+
+    public struct ConnectionTerminated: Sendable, LocalizedError {
+        public var errorDescription: String? {
+            "Connection terminated."
+        }
+
+        public init() {}
+    }
+
+    // function that waits for the underlying connection state to move into a
+    // .ready state before returning, throwing an error if the state is in a terminal
+    // mode
+    func isReady(
+        withTimeout: ContinuousClock.Instant.Duration?,
+        delay: ContinuousClock.Instant.Duration = .milliseconds(25)
+    ) async throws {
+        try Task.checkCancellation()
+
+        // NOTE<heckj>: This would be a great place to use withDiscardingTaskGroup,
+        // but it's dependent on Swift 5.9 AND is only available on macOS 14+, iOS 17+
+        // so we'll stick with the older/original style of racing tasks with structured
+        // concurrency
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                var readyState = false
+                // Check to see if the connection is ready
+                repeat {
+                    try Task.checkCancellation()
+                    switch await self.currentConnectionState {
+                    case .setup:
+                        break
+                    case let .waiting(nWError):
+                        Logger.peerConnection
+                            .trace(
+                                "peer connection to \(String(describing: self.endpoint)) is in waiting state: \(nWError.localizedDescription)"
+                            )
+                    case .preparing:
+                        break
+                    case .ready:
+                        readyState = true
+                    case let .failed(nWError):
+                        throw NetworkConnectionError(msg: "failed connection", wrapping: nWError)
+                    case .cancelled:
+                        throw NetworkConnectionError(msg: "cancelled connection", wrapping: nil)
+                    @unknown default:
+                        throw NetworkConnectionError(msg: "unknown connection state", wrapping: nil)
+                    }
+                    try await Task.sleep(for: delay)
+                } while readyState != true
+            }
+
+            if let timeout = withTimeout {
+                group.addTask { // keep the restaurant going until closing time
+                    try await Task.sleep(for: timeout)
+                    throw ConnectionReadyTimeout(timeout)
+                }
+            }
+
+            try await group.next()
+            // cancel all ongoing shifts
+            group.cancelAll()
+        }
+    }
+
     // MARK: Automerge data to Automerge Sync Protocol transforms
 
     /// Sends an Automerge sync data packet.
     /// - Parameter syncMsg: The data to send.
-    public func send(_ msg: SyncV1Msg) throws {
+    public func send(_ msg: SyncV1Msg) async throws {
         // Create a message object to hold the command type.
         let message = NWProtocolFramer.Message(syncMessageType: .syncV1data)
         let context = NWConnection.ContentContext(
@@ -189,6 +286,7 @@ public actor PeerToPeerConnection {
 
         let encodedMsg = try SyncV1Msg.encode(msg)
         // Send the app content along with the message.
+        try await self.isReady(withTimeout: .seconds(1))
         connection.send(
             content: encodedMsg,
             contentContext: context,
@@ -204,6 +302,7 @@ public actor PeerToPeerConnection {
         // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
         // the signature that _demands_ a timeout in the face of the developer (me)
         // who otherwise forgets its there.
+        try await self.isReady(withTimeout: .seconds(1))
         let timeout: ContinuousClock.Instant.Duration = if let providedTimeout = withTimeout {
             providedTimeout
         } else {
@@ -267,6 +366,12 @@ public actor PeerToPeerConnection {
             Logger.peerConnection.trace("  - received \(bytes) bytes")
         } else {
             Logger.peerConnection.trace("  - received no data with msg")
+        }
+
+        if let ctx = rawMessageData.contentContext, ctx.isFinal {
+            Logger.peerConnection.warning("  - received message is marked as final in TCP stream")
+            self.cancel()
+            throw ConnectionTerminated()
         }
 
         if let err = rawMessageData.error {

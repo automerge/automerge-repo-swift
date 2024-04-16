@@ -657,10 +657,6 @@ public actor PeerToPeerProvider: NetworkProvider {
                 "  Connection details: \(newConnection.debugDescription, privacy: .public)"
             )
 
-        let peerConnection = await PeerToPeerConnection(
-            connection: newConnection
-        )
-
         // check to see if there's already a connection with this endpoint, if there is
         // on recorded (even if it's not yet peered), don't accept the incoming connection.
         if connections[newConnection.endpoint] != nil {
@@ -668,6 +664,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 .info(
                     "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
                 )
+            let peerConnection = PeerToPeerConnection(connection: newConnection)
             let holder = ConnectionHolder(
                 connection: peerConnection,
                 initiated: false,
