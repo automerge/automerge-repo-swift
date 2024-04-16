@@ -76,7 +76,7 @@ public struct TestOutgoingNetworkConfiguration: Sendable, CustomDebugStringConve
 ///
 /// Acts akin to an outbound connection - doesn't "connect" and trigger messages until you explicitly ask
 public actor TestOutgoingNetworkProvider: NetworkProvider {
-    public var peeredConnections: [PeerConnection] = []
+    public var peeredConnections: [PeerConnectionInfo] = []
 
     public typealias NetworkConnectionEndpoint = String
 
@@ -119,7 +119,7 @@ public actor TestOutgoingNetworkProvider: NetworkProvider {
             guard let config else {
                 throw UnconfiguredTestNetwork()
             }
-            let initialPeerConnection = PeerConnection(
+            let initialPeerConnection = PeerConnectionInfo(
                 peerId: config.remotePeer,
                 peerMetadata: config.remotePeerMetadata,
                 endpoint: somewhere,
@@ -134,7 +134,7 @@ public actor TestOutgoingNetworkProvider: NetworkProvider {
                 )
             )
             try await Task.sleep(for: .milliseconds(250))
-            let finalPeerConnection = PeerConnection(
+            let finalPeerConnection = PeerConnectionInfo(
                 peerId: config.remotePeer,
                 peerMetadata: config.remotePeerMetadata,
                 endpoint: somewhere,

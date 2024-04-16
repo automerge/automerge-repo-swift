@@ -1,4 +1,4 @@
-public struct PeerConnection: Sendable, Identifiable, CustomStringConvertible {
+public struct PeerConnectionInfo: Sendable, Identifiable, CustomStringConvertible {
     public var description: String {
         var str = ""
         if initiated {
@@ -39,10 +39,10 @@ public struct PeerConnection: Sendable, Identifiable, CustomStringConvertible {
     }
 }
 
-extension PeerConnection: Hashable {}
+extension PeerConnectionInfo: Hashable {}
 
-extension PeerConnection: Comparable {
-    public static func < (lhs: PeerConnection, rhs: PeerConnection) -> Bool {
+extension PeerConnectionInfo: Comparable {
+    public static func < (lhs: PeerConnectionInfo, rhs: PeerConnectionInfo) -> Bool {
         lhs.peerId < rhs.peerId
     }
 }

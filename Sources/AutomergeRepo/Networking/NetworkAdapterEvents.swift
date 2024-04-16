@@ -27,10 +27,12 @@ public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
         }
     }
 
-    case ready(payload: PeerConnection) // a network connection has been established and peered - sent by both listening
+    case ready(payload: PeerConnectionInfo) // a network connection has been established and peered - sent by both
+    // listening
     // and initiating connections
     case close // handled by Repo, relevant to sync
-    case peerCandidate(payload: PeerConnection) // sent when a listening network adapter receives a proposed connection
+    case peerCandidate(payload: PeerConnectionInfo) // sent when a listening network adapter receives a proposed
+    // connection
     // message (aka 'join')
     case peerDisconnect(payload: PeerDisconnectPayload) // send when a peer connection terminates
     case message(payload: SyncV1Msg) // handled by Sync

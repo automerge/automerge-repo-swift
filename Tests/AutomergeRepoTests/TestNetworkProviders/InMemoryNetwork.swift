@@ -175,7 +175,7 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
         }
     }
 
-    public var peeredConnections: [PeerConnection]
+    public var peeredConnections: [PeerConnectionInfo]
     var _connections: [InMemoryNetworkConnection]
     var delegate: (any NetworkEventReceiver)?
     var config: BasicNetworkConfiguration
@@ -298,7 +298,7 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
             case let .join(msg):
                 if listening {
                     span.addEvent(SpanEvent(name: "join msg received"))
-                    let peerConnectionDetails = PeerConnection(
+                    let peerConnectionDetails = PeerConnectionInfo(
                         peerId: msg.senderId,
                         peerMetadata: msg.peerMetadata,
                         endpoint: self.endpointName ?? "??",
@@ -328,7 +328,7 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
                 }
             case let .peer(msg):
                 span.addEvent(SpanEvent(name: "peer msg received"))
-                let peerConnectionDetails = PeerConnection(
+                let peerConnectionDetails = PeerConnectionInfo(
                     peerId: msg.senderId,
                     peerMetadata: msg.peerMetadata,
                     endpoint: "??",

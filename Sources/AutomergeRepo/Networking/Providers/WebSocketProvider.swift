@@ -12,7 +12,7 @@ public actor WebSocketProvider: NetworkProvider {
         }
     }
 
-    public var peeredConnections: [PeerConnection]
+    public var peeredConnections: [PeerConnectionInfo]
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID?
     var peerMetadata: PeerMetadata?
@@ -185,7 +185,7 @@ public actor WebSocketProvider: NetworkProvider {
             }
 
             peered = true
-            let peerConnectionDetails = PeerConnection(
+            let peerConnectionDetails = PeerConnectionInfo(
                 peerId: peerMsg.senderId,
                 peerMetadata: peerMsg.peerMetadata,
                 endpoint: url.absoluteString,
