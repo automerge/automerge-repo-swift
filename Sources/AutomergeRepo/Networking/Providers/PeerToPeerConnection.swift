@@ -30,6 +30,7 @@ public actor PeerToPeerConnection {
     public nonisolated let connectionStatePublisher: PassthroughSubject<NWConnection.State, Never>
     public nonisolated let endpoint: NWEndpoint
 
+    let connectionQueue = DispatchQueue(label: "p2pconnection", qos: .default, attributes: .concurrent)
     var connection: NWConnection
     var currentConnectionState: NWConnection.State
 
@@ -96,7 +97,7 @@ public actor PeerToPeerConnection {
         }
 
         // Start the connection establishment.
-        connection.start(queue: .main)
+        connection.start(queue: connectionQueue)
     }
 
     public init(connection: NWConnection) {
@@ -124,7 +125,7 @@ public actor PeerToPeerConnection {
         }
 
         // Start the connection establishment.
-        connection.start(queue: .main)
+        connection.start(queue: connectionQueue)
     }
 
     /// Cancels the current connection.
