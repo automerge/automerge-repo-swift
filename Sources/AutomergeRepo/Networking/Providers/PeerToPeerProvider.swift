@@ -35,10 +35,10 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    private func allConnections() -> [PeerConnection] {
+    private func allConnections() -> [PeerConnectionInfo] {
         connections.values.compactMap { holder in
             if let peerId = holder.peerId {
-                PeerConnection(
+                PeerConnectionInfo(
                     peerId: peerId,
                     peerMetadata: holder.peerMetadata,
                     endpoint: holder.endpoint.debugDescription,
@@ -51,7 +51,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    public var peeredConnections: [PeerConnection] {
+    public var peeredConnections: [PeerConnectionInfo] {
         allConnections().filter { conn in
             conn.peered == true
         }
@@ -106,7 +106,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
     // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
     public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
-    public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnection], Never>
+    public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnectionInfo], Never>
 
     public nonisolated let browserStatePublisher: PassthroughSubject<NWBrowser.State, Never>
     public nonisolated let listenerStatePublisher: PassthroughSubject<NWListener.State, Never>
@@ -341,7 +341,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             holder.peerId = peerMsg.senderId
             holder.peerMetadata = peerMsg.peerMetadata
             holder.peered = true
-            let peerConnectionDetails = PeerConnection(
+            let peerConnectionDetails = PeerConnectionInfo(
                 peerId: peerId,
                 peerMetadata: holder.peerMetadata,
                 endpoint: holder.endpoint.debugDescription,
@@ -705,7 +705,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // Returns a new PeerConnection to track (at which point, save the url as the endpoint)
     // OR throws an error (terminate on error - no retry)
     // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
-    private func attemptToPeer(_ holder: ConnectionHolder) async throws -> PeerConnection? {
+    private func attemptToPeer(_ holder: ConnectionHolder) async throws -> PeerConnectionInfo? {
         // can't/shouldn't peer if we're not yet fully configured
         guard let peerId,
               let delegate
@@ -728,7 +728,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
 
         // send the peer candidate information
-        let peerConnectionDetails = PeerConnection(
+        let peerConnectionDetails = PeerConnectionInfo(
             peerId: joinMsg.senderId,
             peerMetadata: joinMsg.peerMetadata,
             endpoint: holder.endpoint.debugDescription,

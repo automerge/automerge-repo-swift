@@ -44,7 +44,7 @@ public protocol NetworkProvider: Sendable {
     ///
     /// For an outgoing connection, this is typically a single connection.
     /// For a listening connection, this could be quite a few.
-    var peeredConnections: [PeerConnection] { get async }
+    var peeredConnections: [PeerConnectionInfo] { get async }
 
     /// For outgoing connections, the type that represents the endpoint to connect
     /// For example, it could be `URL`, `NWEndpoint` for a Bonjour network, or a custom type.
