@@ -11,7 +11,7 @@ public protocol EphemeralMessageDelegate: Sendable {
 }
 
 public actor Repo {
-    nonisolated public let peerId: PEER_ID
+    public nonisolated let peerId: PEER_ID
     public var localPeerMetadata: PeerMetadata
 
     private var handles: [DocumentId: InternalDocHandle] = [:]
