@@ -63,6 +63,11 @@ public actor PeerToPeerConnection {
 
         Logger.peerConnection
             .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
+        Logger.peerConnection
+            .debug(
+                " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
+            )
+
         // AsyncStream as a queue to receive the updates
         let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
@@ -124,12 +129,12 @@ public actor PeerToPeerConnection {
         case .ready:
             Logger.peerConnection
                 .debug(
-                    "connection to \(self.connection.endpoint.debugDescription, privacy: .public) ready."
+                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) ready."
                 )
         case let .failed(error):
             Logger.peerConnection
                 .warning(
-                    "FAILED \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
+                    "NWConnection FAILED \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
                 )
             // Cancel the connection upon a failure.
             connection.cancel()
@@ -137,7 +142,7 @@ public actor PeerToPeerConnection {
         case .cancelled:
             Logger.peerConnection
                 .debug(
-                    "CANCEL \(self.endpoint.debugDescription, privacy: .public) connection."
+                    "NWConnection CANCELLED \(self.endpoint.debugDescription, privacy: .public) connection."
                 )
 
         case let .waiting(nWError):
@@ -151,19 +156,19 @@ public actor PeerToPeerConnection {
             // behalf.
             Logger.peerConnection
                 .warning(
-                    "connection to \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
+                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
                 )
 
         case .preparing:
             Logger.peerConnection
                 .debug(
-                    "connection to \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
+                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
                 )
 
         case .setup:
             Logger.peerConnection
                 .debug(
-                    "connection to \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
+                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
                 )
         default:
             break

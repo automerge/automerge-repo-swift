@@ -311,17 +311,18 @@ public actor PeerToPeerProvider: NetworkProvider {
         let connection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
         var holder = ConnectionHolder(connection: connection, initiated: true, peered: false, endpoint: destination)
         // indicate to everything else we're starting a connection, outgoing, not yet peered
+
+        // report that this connection exists to all interested
         connections[destination] = holder
         connectionPublisher.send(allConnections())
-        Logger.peerProtocol.trace("Attempting a peer connection to \(destination.debugDescription, privacy: .public)")
 
-        // since we initiated the WebSocket, it's on us to send an initial 'join'
+        // start process to "peer" with endpoint
+        Logger.peerProtocol.trace("Requesting peering with \(destination.debugDescription, privacy: .public)")
+        // since we initiated the connection, it's on us to send an initial 'join'
         // protocol message to start the handshake phase of the protocol
         let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
-
         try await connection.send(.join(joinMessage))
-
-        Logger.peerProtocol.trace("SEND: \(joinMessage.debugDescription)")
+        Logger.peerProtocol.trace("SENT: \(joinMessage.debugDescription)")
 
         do {
             // Race a timeout against receiving a Peer message from the other side
