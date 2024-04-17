@@ -8,10 +8,15 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     let reconnectOnError: Bool
     let autoconnect: Bool
 
+    let recurringNextMessageTimeout: ContinuousClock.Instant.Duration
+    let waitForPeerTimeout: ContinuousClock.Instant.Duration
+
     public init(
         passcode: String,
         reconnectOnError: Bool = true,
-        autoconnect: Bool? = nil
+        autoconnect: Bool? = nil,
+        recurringNextMessageTimeout: ContinuousClock.Instant.Duration = .seconds(30),
+        waitForPeerTimeout: ContinuousClock.Instant.Duration = .seconds(5)
     ) {
         self.reconnectOnError = reconnectOnError
         if let auto = autoconnect {
@@ -24,6 +29,8 @@ public struct PeerToPeerProviderConfiguration: Sendable {
             #endif
         }
         self.passcode = passcode
+        self.waitForPeerTimeout = waitForPeerTimeout
+        self.recurringNextMessageTimeout = recurringNextMessageTimeout
     }
 
     // MARK: default sharing identity
