@@ -119,7 +119,7 @@ public actor PeerToPeerConnection {
     public init(
         connection: NWConnection,
         receiveTimeout: ContinuousClock.Instant.Duration = .seconds(3.5),
-        readyTimeout: ContinuousClock.Instant.Duration = .seconds(1),
+        readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
         readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
     ) {
         self.readyTimeout = readyTimeout
