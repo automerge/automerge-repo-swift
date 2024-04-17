@@ -263,6 +263,7 @@ public actor PeerToPeerConnection {
             if let timeout = withTimeout {
                 group.addTask { // keep the restaurant going until closing time
                     try await Task.sleep(for: timeout)
+                    Logger.peerConnection.warning("Connection Ready TimeOut \(timeout) REACHED")
                     throw ConnectionReadyTimeout(timeout)
                 }
             }
@@ -278,6 +279,7 @@ public actor PeerToPeerConnection {
     /// Sends an Automerge sync data packet.
     /// - Parameter syncMsg: The data to send.
     public func send(_ msg: SyncV1Msg) async throws {
+        Logger.peerConnection.trace("CONN[\(String(describing: self.endpoint))] Sending: \(msg.debugDescription)")
         // Create a message object to hold the command type.
         let message = NWProtocolFramer.Message(syncMessageType: .syncV1data)
         let context = NWConnection.ContentContext(

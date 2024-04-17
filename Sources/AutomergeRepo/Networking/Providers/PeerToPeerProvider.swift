@@ -164,23 +164,29 @@ public actor PeerToPeerProvider: NetworkProvider {
     // MARK: NetworkProvider Methods
 
     public func connect(to destination: NWEndpoint) async throws {
-        if connections.values.contains(where: { ch in
-            ch.endpoint == destination && ch.peered == true
-        }) {
-            throw Errors.NetworkProviderError(msg: "attempting to connect while already peered")
-        }
-
-        guard peerId != nil, delegate != nil else {
-            throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
-        }
-
-        if try await attemptConnect(to: destination) {
-            let receiveAndRetry = Task.detached {
-                try await self.ongoingReceivePeerMessages(endpoint: destination)
+        do {
+            if connections.values.contains(where: { ch in
+                ch.endpoint == destination && ch.peered == true
+            }) {
+                throw Errors.NetworkProviderError(msg: "Attempting to connect while already peered")
             }
-            ongoingReceiveMessageTasks[destination] = receiveAndRetry
-        } else {
-            throw Errors.NetworkProviderError(msg: "Unable to connect to \(destination.debugDescription)")
+
+            guard peerId != nil, delegate != nil else {
+                throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
+            }
+
+            if try await attemptConnect(to: destination) {
+                Logger.peerProtocol.trace("Connection established to \(destination.debugDescription)")
+                let receiveAndRetry = Task.detached {
+                    try await self.ongoingReceivePeerMessages(endpoint: destination)
+                }
+                ongoingReceiveMessageTasks[destination] = receiveAndRetry
+            } else {
+                throw Errors.NetworkProviderError(msg: "Unable to connect to \(destination.debugDescription)")
+            }
+        } catch {
+            Logger.peerProtocol.error("Failed to connect: \(error.localizedDescription)")
+            throw error
         }
     }
 
@@ -192,6 +198,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         for holder in connections.values {
             await holder.connection.cancel()
         }
+        Logger.peerProtocol.debug("Terminating \(self.connections.count) connections")
         connections.removeAll()
         // could be connectionPublisher.send(allConnections()), but we just removed them all...
         connectionPublisher.send([])
@@ -273,18 +280,27 @@ public actor PeerToPeerProvider: NetworkProvider {
         if self.peerName.isEmpty {
             throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
         }
-        Logger.peerProtocol.debug("Starting Bonjour listener as \(self.peerName)")
+
+        Logger.peerProtocol.debug("Starting Bonjour browser")
         if browser == nil {
             self.startBrowsing()
         }
+
+        Logger.peerProtocol.debug("Starting Bonjour listener as \(self.peerName)")
+        Logger.peerProtocol.debug(" - PeerId: \(self.peerId ?? "unset")")
+        Logger.peerProtocol.debug(" - PeerMetadata: \(self.peerMetadata?.debugDescription ?? "nil")")
+        Logger.peerProtocol.debug(" - Autoconnect on appearing host: \(self.config.autoconnect)")
+        Logger.peerProtocol.debug(" - Delegate: \(String(describing: self.delegate))")
         if listener == nil {
             self.setupBonjourListener()
         }
     }
 
     public func stopListening() async {
+        Logger.peerProtocol.debug("Stopping Bonjour browser")
         self.stopBrowsing()
         browser = nil
+
         Logger.peerProtocol.debug("Stopping Bonjour listener")
         await disconnect()
         listener?.cancel()
@@ -536,11 +552,21 @@ public actor PeerToPeerProvider: NetworkProvider {
             for change in update.changes {
                 if case let .added(result) = change {
                     do {
+                        Logger.peerProtocol.debug("AutoConnect attempting to: \(result.endpoint.debugDescription)")
+                        switch result.metadata {
+                        case .none:
+                            Logger.peerProtocol.debug("  - No metadata available")
+                        case let .bonjour(txtRecord):
+                            Logger.peerProtocol.debug("  - \(txtRecord.debugDescription)")
+                        @unknown default:
+                            fatalError("Unknown metadata on Bonjour browser result")
+                        }
+                        Logger.peerProtocol.debug("AutoConnect attempting to: \(result.interfaces)")
                         try await connect(to: result.endpoint)
                     } catch {
                         Logger.peerProtocol
                             .warning(
-                                "Attempted to connect to \(result.endpoint.debugDescription), but failed: \(error.localizedDescription)"
+                                "Failed to connect to \(result.endpoint.debugDescription): \(error.localizedDescription)"
                             )
                     }
                 }
