@@ -30,6 +30,10 @@ public actor PeerToPeerConnection {
     public nonisolated let connectionStatePublisher: PassthroughSubject<NWConnection.State, Never>
     public nonisolated let endpoint: NWEndpoint
 
+    nonisolated let readyTimeout: ContinuousClock.Instant.Duration
+    nonisolated let readyCheckDelay: ContinuousClock.Instant.Duration
+    nonisolated let defaultReceiveTimeout: ContinuousClock.Instant.Duration
+
     let connectionQueue = DispatchQueue(label: "p2pconnection", qos: .default, attributes: .concurrent)
     var connection: NWConnection
     var currentConnectionState: NWConnection.State
@@ -56,8 +60,14 @@ public actor PeerToPeerConnection {
     ///   - docId: The document Id to use as a pre-shared key in TLS establishment of the connection.
     public init(
         to destination: NWEndpoint,
-        passcode: String
+        passcode: String,
+        receiveTimeout: ContinuousClock.Instant.Duration = .seconds(3.5),
+        readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
+        readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
     ) async {
+        self.readyTimeout = readyTimeout
+        self.defaultReceiveTimeout = receiveTimeout
+        self.readyCheckDelay = readyCheckDelay
         let connection = NWConnection(
             to: destination,
             using: NWParameters.peerSyncParameters(passcode: passcode)
@@ -100,7 +110,21 @@ public actor PeerToPeerConnection {
         connection.start(queue: connectionQueue)
     }
 
-    public init(connection: NWConnection) {
+    /// Accept an incoming connection
+    /// - Parameters:
+    ///   - connection: The Network provided connection to wrap
+    ///   - receiveTimeout: The timeout for expecting new messages
+    ///   - readyTimeout: The timeout for waiting for the network connection to move into the ready state
+    ///   - readyCheckDelay: The delay while checking the network connections state
+    public init(
+        connection: NWConnection,
+        receiveTimeout: ContinuousClock.Instant.Duration = .seconds(3.5),
+        readyTimeout: ContinuousClock.Instant.Duration = .seconds(1),
+        readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
+    ) {
+        self.readyTimeout = readyTimeout
+        self.defaultReceiveTimeout = receiveTimeout
+        self.readyCheckDelay = readyCheckDelay
         self.connection = connection
         endpoint = connection.endpoint
         connectionStatePublisher = PassthroughSubject()
@@ -221,10 +245,7 @@ public actor PeerToPeerConnection {
     // function that waits for the underlying connection state to move into a
     // .ready state before returning, throwing an error if the state is in a terminal
     // mode
-    func isReady(
-        withTimeout: ContinuousClock.Instant.Duration?,
-        delay: ContinuousClock.Instant.Duration = .milliseconds(25)
-    ) async throws {
+    func isReady(timeoutEnabled: Bool) async throws {
         try Task.checkCancellation()
 
         // NOTE<heckj>: This would be a great place to use withDiscardingTaskGroup,
@@ -256,15 +277,15 @@ public actor PeerToPeerConnection {
                     @unknown default:
                         throw NetworkConnectionError(msg: "unknown connection state", wrapping: nil)
                     }
-                    try await Task.sleep(for: delay)
+                    try await Task.sleep(for: self.readyCheckDelay)
                 } while readyState != true
             }
 
-            if let timeout = withTimeout {
+            if timeoutEnabled {
                 group.addTask { // keep the restaurant going until closing time
-                    try await Task.sleep(for: timeout)
-                    Logger.peerConnection.warning("Connection Ready TimeOut \(timeout) REACHED")
-                    throw ConnectionReadyTimeout(timeout)
+                    try await Task.sleep(for: self.readyTimeout)
+                    Logger.peerConnection.warning("Connection Ready TimeOut \(self.readyTimeout) REACHED")
+                    throw ConnectionReadyTimeout(self.readyTimeout)
                 }
             }
 
@@ -289,7 +310,7 @@ public actor PeerToPeerConnection {
 
         let encodedMsg = try SyncV1Msg.encode(msg)
         // Send the app content along with the message.
-        try await self.isReady(withTimeout: .seconds(1))
+        try await self.isReady(timeoutEnabled: true)
         connection.send(
             content: encodedMsg,
             contentContext: context,
@@ -302,15 +323,11 @@ public actor PeerToPeerConnection {
     // throw error on cancel
     // otherwise return the msg
     public func receive(withTimeout: ContinuousClock.Instant.Duration?) async throws -> SyncV1Msg {
+        let explicitTimeout: ContinuousClock.Instant.Duration = withTimeout ?? self.defaultReceiveTimeout
         // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
         // the signature that _demands_ a timeout in the face of the developer (me)
         // who otherwise forgets its there.
-        try await self.isReady(withTimeout: .seconds(1))
-        let timeout: ContinuousClock.Instant.Duration = if let providedTimeout = withTimeout {
-            providedTimeout
-        } else {
-            .seconds(3.5)
-        }
+        try await self.isReady(timeoutEnabled: true)
 
         // Co-operatively check to see if we're cancelled, and if so - we can bail out before
         // going into the receive loop.
@@ -322,12 +339,12 @@ public actor PeerToPeerConnection {
         let msg = try await withThrowingTaskGroup(of: SyncV1Msg.self) { group in
             group.addTask {
                 // retrieve the next websocket message
-                try await self.receive()
+                try await self.receiveSingleMessage()
             }
 
             group.addTask {
                 // Race against the receive call with a continuous timer
-                try await Task.sleep(for: timeout)
+                try await Task.sleep(for: explicitTimeout)
                 throw SyncV1Msg.Errors.Timeout()
             }
 
@@ -341,7 +358,7 @@ public actor PeerToPeerConnection {
         return msg
     }
 
-    public func receive() async throws -> SyncV1Msg {
+    public func receiveSingleMessage() async throws -> SyncV1Msg {
         // schedules a single callback with the connection to provide the next, complete
         // message. That goes into an async stream (queue) help by this actor, and is
         // processed by an ongoing background task that calls `receiveMessageData`

@@ -332,19 +332,22 @@ public actor PeerToPeerProvider: NetworkProvider {
         connections[destination] = holder
         connectionPublisher.send(allConnections())
 
-        // start process to "peer" with endpoint
-        Logger.peerProtocol.trace("Requesting peering with \(destination.debugDescription, privacy: .public)")
-        // since we initiated the connection, it's on us to send an initial 'join'
-        // protocol message to start the handshake phase of the protocol
-        let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
-        try await connection.send(.join(joinMessage))
-        Logger.peerProtocol.trace("SENT: \(joinMessage.debugDescription)")
-
         do {
+            // start process to "peer" with endpoint
+            Logger.peerProtocol
+                .trace(
+                    "Connection established, requesting peering with \(destination.debugDescription, privacy: .public)"
+                )
+            // since we initiated the connection, it's on us to send an initial 'join'
+            // protocol message to start the handshake phase of the protocol
+            let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
+            try await connection.send(.join(joinMessage))
+            Logger.peerProtocol.trace("SENT: \(joinMessage.debugDescription)")
+
             // Race a timeout against receiving a Peer message from the other side
             // of the connection. If we fail that race, shut down the connection
             // and move into a .closed connectionState
-            let nextMessage: SyncV1Msg = try await connection.receive(withTimeout: .seconds(3.5))
+            let nextMessage: SyncV1Msg = try await connection.receive(withTimeout: config.waitForPeerTimeout)
 
             // Now that we have the WebSocket message, figure out if we got what we expected.
             // For the sync protocol handshake phase, it's essentially "peer or die" since
@@ -431,11 +434,11 @@ public actor PeerToPeerProvider: NetworkProvider {
             try Task.checkCancellation()
 
             do {
-                let msg = try await holder.connection.receive()
+                let msg = try await holder.connection.receive(withTimeout: config.recurringNextMessageTimeout)
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the WebSocket connection
-                Logger.webSocket.warning("Error reading websocket: \(error.localizedDescription)")
+                Logger.peerProtocol.warning("Error reading from connection: \(error.localizedDescription)")
                 // update the stored copy of the holder with peered as false to indicate a
                 // broken connection that can be re-attempted
                 holder.peered = false
@@ -683,6 +686,22 @@ public actor PeerToPeerProvider: NetworkProvider {
                 "  Connection details: \(newConnection.debugDescription, privacy: .public)"
             )
 
+        Logger.peerProtocol.debug("Existing connections:")
+        Logger.peerProtocol.debug("----------------------------------------------------------")
+        for (k, v) in connections {
+            let peeredString = v.peered ? "true" : "false"
+            let initiatedString = v.initiated ? "true" : "false"
+            let peerString = v.peerId ?? "nil"
+            let connectionState = await v.connection.currentConnectionState
+
+            Logger.peerProtocol.debug("\(k.debugDescription)")
+            Logger.peerProtocol.debug(" :: peerId: \(peerString)")
+            Logger.peerProtocol.debug(" :: initiated: \(initiatedString)")
+            Logger.peerProtocol.debug(" :: peered: \(peeredString)")
+            Logger.peerProtocol.debug(" :: state: \(String(describing: connectionState))]")
+            Logger.peerProtocol.debug("----------------------------------------------------------")
+        }
+
         // check to see if there's already a connection with this endpoint, if there is
         // on recorded (even if it's not yet peered), don't accept the incoming connection.
         if connections[newConnection.endpoint] != nil {
@@ -743,7 +762,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         // Race a timeout against receiving a Join message from the other side
         // of the connection. If we fail that race, shut down the connection
         // and move into a .closed connectionState
-        let nextMessage: SyncV1Msg = try await holderCopy.connection.receive(withTimeout: .seconds(3.5))
+        let nextMessage: SyncV1Msg = try await holderCopy.connection.receive(withTimeout: config.waitForPeerTimeout)
 
         // Now that we have the WebSocket message, figure out if we got what we expected.
         // For the sync protocol handshake phase, it's essentially "peer or die" since
@@ -792,8 +811,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     }
 
     /// Infinitely loops over incoming messages from the peer connection and updates the state machine based on the
-    /// messages
-    /// received.
+    /// messages received.
     private func ongoingListenerReceivePeerMessages(endpoint: NWEndpoint) async throws {
         while true {
             try Task.checkCancellation()
@@ -806,7 +824,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
 
             do {
-                let msg = try await holder.connection.receive()
+                let msg = try await holder.connection.receive(withTimeout: config.recurringNextMessageTimeout)
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the PeerToPeer connection
