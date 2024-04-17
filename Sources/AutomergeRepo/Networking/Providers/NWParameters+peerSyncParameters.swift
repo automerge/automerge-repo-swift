@@ -45,6 +45,12 @@ extension NWParameters {
             DispatchData(bytes: $0)
         }
 
+        // Private Shared Key (https://datatracker.ietf.org/doc/html/rfc4279) is *not* supported in
+        // TLS 1.3 [https://tools.ietf.org/html/rfc8446], so this pins the TLS options to use version 1.2:
+        // @constant tls_protocol_version_TLSv12 TLS 1.2 [https://tools.ietf.org/html/rfc5246]
+        sec_protocol_options_set_max_tls_protocol_version(tlsOptions.securityProtocolOptions, .TLSv12)
+        sec_protocol_options_set_min_tls_protocol_version(tlsOptions.securityProtocolOptions, .TLSv12)
+
         sec_protocol_options_add_pre_shared_key(
             tlsOptions.securityProtocolOptions,
             authenticationDispatchData as __DispatchData,
