@@ -704,7 +704,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
         // check to see if there's already a connection with this endpoint, if there is
         // on recorded (even if it's not yet peered), don't accept the incoming connection.
-        if connections[newConnection.endpoint] != nil {
+        if connections[newConnection.endpoint] == nil {
             Logger.peerProtocol
                 .info(
                     "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
@@ -734,7 +734,6 @@ public actor PeerToPeerProvider: NetworkProvider {
                 connections.removeValue(forKey: holder.endpoint)
                 connectionPublisher.send(allConnections())
             }
-            // SET UP THE ATTEMPT TO PEER AND RECURRING READ HERE
         } else {
             Logger.peerProtocol
                 .info(
