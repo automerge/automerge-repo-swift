@@ -13,7 +13,7 @@
  */
 
 import Automerge
-import Combine
+@preconcurrency import Combine
 import Foundation
 import Network
 import OSLog
@@ -33,14 +33,15 @@ public actor PeerToPeerConnection {
     nonisolated let readyTimeout: ContinuousClock.Instant.Duration
     nonisolated let readyCheckDelay: ContinuousClock.Instant.Duration
     nonisolated let defaultReceiveTimeout: ContinuousClock.Instant.Duration
+    nonisolated let initiated: Bool
 
     let connectionQueue = DispatchQueue(label: "p2pconnection", qos: .default, attributes: .concurrent)
-    var connection: NWConnection
-    var currentConnectionState: NWConnection.State
+    nonisolated let connection: NWConnection
+//    var currentConnectionState: NWConnection.State
 
-    let stateStream: AsyncStream<NWConnection.State>
-    let stateContinuation: AsyncStream<NWConnection.State>.Continuation
-    var listenerStateUpdateTaskHandle: Task<Void, Never>?
+//    let stateStream: AsyncStream<NWConnection.State>
+//    let stateContinuation: AsyncStream<NWConnection.State>.Continuation
+//    let listenerStateUpdateTaskHandle: Task<Void, Never>
 
     struct ReceiveMessageData: Sendable {
         let content: Data?
@@ -68,6 +69,7 @@ public actor PeerToPeerConnection {
         self.readyTimeout = readyTimeout
         self.defaultReceiveTimeout = receiveTimeout
         self.readyCheckDelay = readyCheckDelay
+        self.initiated = true
         let connection = NWConnection(
             to: destination,
             using: NWParameters.peerSyncParameters(passcode: passcode)
@@ -75,7 +77,7 @@ public actor PeerToPeerConnection {
         endpoint = destination
         self.connectionStatePublisher = PassthroughSubject()
         self.connection = connection
-        currentConnectionState = connection.state
+//        currentConnectionState = connection.state
 
         Logger.peerConnection
             .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
@@ -84,30 +86,23 @@ public actor PeerToPeerConnection {
                 " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
             )
 
-        // AsyncStream as a queue to receive the updates
-        let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
+        // AsyncStream as a queue to receive the updates about the connection state
+//        let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
         // task handle to have some async process accepting and dealing with the results
-        listenerStateUpdateTaskHandle = nil
-
-        self.stateStream = stream
-        self.stateContinuation = continuation
-        // connect into the existing system by yielding the value
-        // into the continuation that the stream provided on creation.
-
+//        self.stateStream = stream
+//        self.stateContinuation = continuation
+        
+        // AsyncStream as a queue to receive the messages from the connection
         (messageDataStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
+//        listenerStateUpdateTaskHandle = Task {
+//            // connect into the existing system by yielding the value
+//            // into the continuation that the stream provided on creation.
+//            for await newState in stateStream {
+//                await handleConnectionStateUpdate(newState)
+//            }
+//        }
+        startConnection()
 
-        connection.stateUpdateHandler = { newState in
-            self.stateContinuation.yield(newState)
-        }
-
-        listenerStateUpdateTaskHandle = Task {
-            for await newState in stateStream {
-                await handleConnectionStateUpdate(newState)
-            }
-        }
-
-        // Start the connection establishment.
-        connection.start(queue: connectionQueue)
     }
 
     /// Accept an incoming connection
@@ -125,96 +120,169 @@ public actor PeerToPeerConnection {
         self.readyTimeout = readyTimeout
         self.defaultReceiveTimeout = receiveTimeout
         self.readyCheckDelay = readyCheckDelay
+        self.initiated = false
         self.connection = connection
         endpoint = connection.endpoint
         connectionStatePublisher = PassthroughSubject()
-        currentConnectionState = connection.state
+//        currentConnectionState = connection.state
 
-        // AsyncStream as a queue to receive the updates
-        let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
-        // task handle to have some async process accepting and dealing with the results
-        listenerStateUpdateTaskHandle = nil
+        // AsyncStream as a queue to receive the state updates about the connection
+//        let (stream, continuation) = AsyncStream<NWConnection.State>.makeStream()
 
-        self.stateStream = stream
-        self.stateContinuation = continuation
+//        self.stateStream = stream
+//        self.stateContinuation = continuation
         // connect into the existing system by yielding the value
         // into the continuation that the stream provided on creation.
 
+        // AsyncStream as a queue to receive the messages from the connection
         (messageDataStream, receiveMessageContinuation) = AsyncStream<ReceiveMessageData>.makeStream()
 
+        // task handle to have some async process accepting and dealing with the results
+//        listenerStateUpdateTaskHandle = Task {
+//            // connect into the existing system by yielding the value
+//            // into the continuation that the stream provided on creation.
+//            for await newState in stateStream {
+//                await handleConnectionStateUpdate(newState)
+//            }
+//        }
+
         // connect into the existing system by yielding the value
         // into the continuation that the stream provided on creation.
-        connection.stateUpdateHandler = { newState in
-            self.stateContinuation.yield(newState)
-        }
+//        connection.stateUpdateHandler = { newState in
+//            self.stateContinuation.yield(newState)
+//        }
+        startConnection()
+    }
 
+    
+    nonisolated func startConnection() {
+        connection.stateUpdateHandler = { [weak self] newState in
+            guard let self else {
+                return
+            }
+            // warning here:
+            // Non-sendable type 'PassthroughSubject<NWConnection.State, Never>' in asynchronous access to nonisolated property 'connectionStatePublisher' cannot cross actor boundary
+            // We're importing Combine with @preconcurrency to resolve the warning
+            self.connectionStatePublisher.send(newState)
+            let direction: String = self.initiated ? "to" : "from"
+            switch newState {
+            case .ready:
+                Logger.peerConnection
+                    .debug(
+                        "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) ready."
+                    )
+                // Ideally, we don't start attempting to receive connections until AFTER we're in a .ready state
+                // START RECEIVING MESSAGES HERE
+            case let .failed(error):
+                Logger.peerConnection
+                    .warning(
+                        "FAILED: NWConnection \(direction) \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
+                    )
+                // Cancel the connection upon a failure.
+                connection.cancel()
+
+            case .cancelled:
+                Logger.peerConnection
+                    .debug(
+                        "CANCELLED: NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) connection."
+                    )
+
+            case let .waiting(nWError):
+                // from Network headers
+                // `Waiting connections have not yet been started, or do not have a viable network`
+                // So if we drop into this state, it's likely the network has shifted to non-viable
+                // (for example, the wifi was disabled or dropped).
+                //
+                // Unclear if this is something we should retry ourselves when the associated network
+                // path is again viable, or if this is something that the Network framework does on our
+                // behalf.
+                Logger.peerConnection
+                    .warning(
+                        "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
+                    )
+
+            case .preparing:
+                Logger.peerConnection
+                    .debug(
+                        "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
+                    )
+
+            case .setup:
+                Logger.peerConnection
+                    .debug(
+                        "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
+                    )
+            default:
+                break
+            }
+        }
+        
         // Start the connection establishment.
         connection.start(queue: connectionQueue)
     }
-
     /// Cancels the current connection.
     public func cancel() {
         connection.cancel()
     }
 
-    func handleConnectionStateUpdate(_ newState: NWConnection.State) async {
-        connectionStatePublisher.send(newState)
-        currentConnectionState = newState
-        switch newState {
-        case .ready:
-            Logger.peerConnection
-                .debug(
-                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) ready."
-                )
-        case let .failed(error):
-            Logger.peerConnection
-                .warning(
-                    "NWConnection FAILED \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
-                )
-            // Cancel the connection upon a failure.
-            connection.cancel()
-
-        case .cancelled:
-            Logger.peerConnection
-                .debug(
-                    "NWConnection CANCELLED \(self.endpoint.debugDescription, privacy: .public) connection."
-                )
-
-        case let .waiting(nWError):
-            // from Network headers
-            // `Waiting connections have not yet been started, or do not have a viable network`
-            // So if we drop into this state, it's likely the network has shifted to non-viable
-            // (for example, the wifi was disabled or dropped).
-            //
-            // Unclear if this is something we should retry ourselves when the associated network
-            // path is again viable, or if this is something that the Network framework does on our
-            // behalf.
-            Logger.peerConnection
-                .warning(
-                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
-                )
-
-        case .preparing:
-            Logger.peerConnection
-                .debug(
-                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
-                )
-
-        case .setup:
-            Logger.peerConnection
-                .debug(
-                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
-                )
-        default:
-            break
-        }
-    }
+//    func handleConnectionStateUpdate(_ newState: NWConnection.State) { //[weak self] newState in
+//        connectionStatePublisher.send(newState)
+//        currentConnectionState = newState
+//        switch newState {
+//        case .ready:
+//            Logger.peerConnection
+//                .debug(
+//                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) ready."
+//                )
+//        case let .failed(error):
+//            Logger.peerConnection
+//                .warning(
+//                    "NWConnection FAILED \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
+//                )
+//            // Cancel the connection upon a failure.
+//            connection.cancel()
+//
+//        case .cancelled:
+//            Logger.peerConnection
+//                .debug(
+//                    "NWConnection CANCELLED \(self.endpoint.debugDescription, privacy: .public) connection."
+//                )
+//
+//        case let .waiting(nWError):
+//            // from Network headers
+//            // `Waiting connections have not yet been started, or do not have a viable network`
+//            // So if we drop into this state, it's likely the network has shifted to non-viable
+//            // (for example, the wifi was disabled or dropped).
+//            //
+//            // Unclear if this is something we should retry ourselves when the associated network
+//            // path is again viable, or if this is something that the Network framework does on our
+//            // behalf.
+//            Logger.peerConnection
+//                .warning(
+//                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
+//                )
+//
+//        case .preparing:
+//            Logger.peerConnection
+//                .debug(
+//                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
+//                )
+//
+//        case .setup:
+//            Logger.peerConnection
+//                .debug(
+//                    "NWConnection to \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
+//                )
+//        default:
+//            break
+//        }
+//    }
 
     public struct NetworkConnectionError: Sendable, LocalizedError {
         public var msg: String
         public var err: NWError?
         public var errorDescription: String? {
-            "NewtorkConnectionError: \(msg)"
+            "NetworkConnectionError: \(msg)"
         }
 
         public init(msg: String, wrapping: NWError?) {
@@ -242,58 +310,58 @@ public actor PeerToPeerConnection {
         public init() {}
     }
 
-    // function that waits for the underlying connection state to move into a
-    // .ready state before returning, throwing an error if the state is in a terminal
-    // mode
-    func isReady(timeoutEnabled: Bool) async throws {
-        try Task.checkCancellation()
-
-        // NOTE<heckj>: This would be a great place to use withDiscardingTaskGroup,
-        // but it's dependent on Swift 5.9 AND is only available on macOS 14+, iOS 17+
-        // so we'll stick with the older/original style of racing tasks with structured
-        // concurrency
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                var readyState = false
-                // Check to see if the connection is ready
-                repeat {
-                    try Task.checkCancellation()
-                    switch await self.currentConnectionState {
-                    case .setup:
-                        break
-                    case let .waiting(nWError):
-                        Logger.peerConnection
-                            .trace(
-                                "peer connection to \(String(describing: self.endpoint)) is in waiting state: \(nWError.localizedDescription)"
-                            )
-                    case .preparing:
-                        break
-                    case .ready:
-                        readyState = true
-                    case let .failed(nWError):
-                        throw NetworkConnectionError(msg: "failed connection", wrapping: nWError)
-                    case .cancelled:
-                        throw NetworkConnectionError(msg: "cancelled connection", wrapping: nil)
-                    @unknown default:
-                        throw NetworkConnectionError(msg: "unknown connection state", wrapping: nil)
-                    }
-                    try await Task.sleep(for: self.readyCheckDelay)
-                } while readyState != true
-            }
-
-            if timeoutEnabled {
-                group.addTask { // keep the restaurant going until closing time
-                    try await Task.sleep(for: self.readyTimeout)
-                    Logger.peerConnection.warning("Connection Ready TimeOut \(self.readyTimeout) REACHED")
-                    throw ConnectionReadyTimeout(self.readyTimeout)
-                }
-            }
-
-            try await group.next()
-            // cancel all ongoing shifts
-            group.cancelAll()
-        }
-    }
+//    // function that waits for the underlying connection state to move into a
+//    // .ready state before returning, throwing an error if the state is in a terminal
+//    // mode
+//    func isReady(timeoutEnabled: Bool) async throws {
+//        try Task.checkCancellation()
+//
+//        // NOTE<heckj>: This would be a great place to use withDiscardingTaskGroup,
+//        // but it's dependent on Swift 5.9 AND is only available on macOS 14+, iOS 17+
+//        // so we'll stick with the older/original style of racing tasks with structured
+//        // concurrency
+//        try await withThrowingTaskGroup(of: Void.self) { group in
+//            group.addTask {
+//                var readyState = false
+//                // Check to see if the connection is ready
+//                repeat {
+//                    try Task.checkCancellation()
+//                    switch await self.currentConnectionState {
+//                    case .setup:
+//                        break
+//                    case let .waiting(nWError):
+//                        Logger.peerConnection
+//                            .trace(
+//                                "peer connection to \(String(describing: self.endpoint)) is in waiting state: \(nWError.localizedDescription)"
+//                            )
+//                    case .preparing:
+//                        break
+//                    case .ready:
+//                        readyState = true
+//                    case let .failed(nWError):
+//                        throw NetworkConnectionError(msg: "failed connection", wrapping: nWError)
+//                    case .cancelled:
+//                        throw NetworkConnectionError(msg: "cancelled connection", wrapping: nil)
+//                    @unknown default:
+//                        throw NetworkConnectionError(msg: "unknown connection state", wrapping: nil)
+//                    }
+//                    try await Task.sleep(for: self.readyCheckDelay)
+//                } while readyState != true
+//            }
+//
+//            if timeoutEnabled {
+//                group.addTask { // keep the restaurant going until closing time
+//                    try await Task.sleep(for: self.readyTimeout)
+//                    Logger.peerConnection.warning("Connection Ready TimeOut \(self.readyTimeout) REACHED")
+//                    throw ConnectionReadyTimeout(self.readyTimeout)
+//                }
+//            }
+//
+//            try await group.next()
+//            // cancel all ongoing shifts
+//            group.cancelAll()
+//        }
+//    }
 
     // MARK: Automerge data to Automerge Sync Protocol transforms
 
@@ -310,7 +378,8 @@ public actor PeerToPeerConnection {
 
         let encodedMsg = try SyncV1Msg.encode(msg)
         // Send the app content along with the message.
-        try await self.isReady(timeoutEnabled: true)
+        #warning("isReady() ?")
+        //try await self.isReady(timeoutEnabled: true)
         connection.send(
             content: encodedMsg,
             contentContext: context,
@@ -327,7 +396,8 @@ public actor PeerToPeerConnection {
         // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
         // the signature that _demands_ a timeout in the face of the developer (me)
         // who otherwise forgets its there.
-        try await self.isReady(timeoutEnabled: true)
+        #warning("isReady() ?")
+//        try await self.isReady(timeoutEnabled: true)
 
         // Co-operatively check to see if we're cancelled, and if so - we can bail out before
         // going into the receive loop.
