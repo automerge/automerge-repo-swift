@@ -190,13 +190,13 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    public func disconnect() async {
+    public func disconnect() {
         for receivingTasks in ongoingReceiveMessageTasks {
             receivingTasks.value.cancel()
         }
 
         for holder in connections.values {
-            await holder.connection.cancel()
+            holder.connection.cancel()
         }
         Logger.peerProtocol.debug("Terminating \(self.connections.count) connections")
         connections.removeAll()
@@ -256,7 +256,7 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     /// Cancels and removes the connection for a given peerId
     /// - Parameter peerId: the peer Id to disconnect from either receiving or initiated connection
-    public func disconnect(peerId: PEER_ID) async {
+    public func disconnect(peerId: PEER_ID) {
         let holdersWithPeer: [ConnectionHolder] = connections.values.filter { h in
             h.peerId == peerId
         }
@@ -266,7 +266,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 receivingTask.cancel()
             }
             // cancel the connection itself
-            await holder.connection.cancel()
+            holder.connection.cancel()
             // remove the connection from our collection
             connections.removeValue(forKey: holder.endpoint)
             connectionPublisher.send(allConnections())
@@ -296,13 +296,13 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    public func stopListening() async {
+    public func stopListening() {
         Logger.peerProtocol.debug("Stopping Bonjour browser")
         self.stopBrowsing()
         browser = nil
 
         Logger.peerProtocol.debug("Stopping Bonjour listener")
-        await disconnect()
+        disconnect()
         listener?.cancel()
         listener = nil
         availablePeerPublisher.send([])
@@ -312,9 +312,8 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     // MARK: Outgoing connection functions
 
-    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
+    // Returns a boolean indicating we were able to connect to the destination
     // OR throws an error (log the error, but can retry)
-    // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
     private func attemptConnect(to destination: NWEndpoint?) async throws -> Bool {
         guard let destination,
               let peerId,
@@ -349,7 +348,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             // and move into a .closed connectionState
             let nextMessage: SyncV1Msg = try await connection.receive(withTimeout: config.waitForPeerTimeout)
 
-            // Now that we have the WebSocket message, figure out if we got what we expected.
+            // Now that we have a message, figure out if we got what we expected.
             // For the sync protocol handshake phase, it's essentially "peer or die" since
             // we were the initiating side of the connection.
 
@@ -381,7 +380,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             // which will force us to fail reconnects.
             self.connections.removeValue(forKey: destination)
             connectionPublisher.send(allConnections())
-            Logger.webSocket
+            Logger.peerProtocol
                 .error(
                     "Failed to peer with \(destination.debugDescription, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
@@ -437,7 +436,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 let msg = try await holder.connection.receive(withTimeout: config.recurringNextMessageTimeout)
                 await handleMessage(msg: msg)
             } catch {
-                // error scenario with the WebSocket connection
+                // error scenario with the connection
                 Logger.peerProtocol.warning("Error reading from connection: \(error.localizedDescription)")
                 // update the stored copy of the holder with peered as false to indicate a
                 // broken connection that can be re-attempted
@@ -446,7 +445,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 connectionPublisher.send(allConnections())
             }
         }
-        Logger.webSocket.log("receive and reconnect loop terminated")
+        Logger.peerProtocol.log("receive and reconnect loop terminated")
     }
 
     private func handleMessage(msg: SyncV1Msg) async {
@@ -456,12 +455,12 @@ public actor PeerToPeerProvider: NetworkProvider {
         // - otherwise forward the message to the delegate to work with
         switch msg {
         case let .leave(msg):
-            Logger.webSocket.trace("\(msg.senderId) requests to kill the connection")
-            await disconnect()
+            Logger.peerProtocol.trace("\(msg.senderId) requests to kill the connection")
+            disconnect(peerId: msg.senderId)
         case let .join(msg):
-            Logger.webSocket.error("Unexpected message received: \(msg.debugDescription)")
+            Logger.peerProtocol.error("Unexpected message received: \(msg.debugDescription)")
         case let .peer(msg):
-            Logger.webSocket.error("Unexpected message received: \(msg.debugDescription)")
+            Logger.peerProtocol.error("Unexpected message received: \(msg.debugDescription)")
         default:
             await delegate?.receiveEvent(event: .message(payload: msg))
         }
@@ -692,13 +691,11 @@ public actor PeerToPeerProvider: NetworkProvider {
             let peeredString = v.peered ? "true" : "false"
             let initiatedString = v.initiated ? "true" : "false"
             let peerString = v.peerId ?? "nil"
-//            let connectionState = await v.connection.currentConnectionState
 
             Logger.peerProtocol.debug("\(k.debugDescription)")
             Logger.peerProtocol.debug(" :: peerId: \(peerString)")
             Logger.peerProtocol.debug(" :: initiated: \(initiatedString)")
             Logger.peerProtocol.debug(" :: peered: \(peeredString)")
-//            Logger.peerProtocol.debug(" :: state: \(String(describing: connectionState))]")
             Logger.peerProtocol.debug("----------------------------------------------------------")
         }
 
@@ -730,7 +727,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 }
             } catch {
                 // error thrown during peering
-                await holder.connection.cancel()
+                holder.connection.cancel()
                 connections.removeValue(forKey: holder.endpoint)
                 connectionPublisher.send(allConnections())
             }
@@ -763,7 +760,7 @@ public actor PeerToPeerProvider: NetworkProvider {
         // and move into a .closed connectionState
         let nextMessage: SyncV1Msg = try await holderCopy.connection.receive(withTimeout: config.waitForPeerTimeout)
 
-        // Now that we have the WebSocket message, figure out if we got what we expected.
+        // Now that we have a message, figure out if we got what we expected.
         // For the sync protocol handshake phase, it's essentially "peer or die" since
         // we were the initiating side of the connection.
 
@@ -828,7 +825,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             } catch {
                 // error scenario with the PeerToPeer connection
                 Logger.peerProtocol.warning("Error reading connection: \(error.localizedDescription)")
-                await disconnect(peerId: peerId)
+                disconnect(peerId: peerId)
                 break
             }
         }
