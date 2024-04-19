@@ -692,13 +692,13 @@ public actor PeerToPeerProvider: NetworkProvider {
             let peeredString = v.peered ? "true" : "false"
             let initiatedString = v.initiated ? "true" : "false"
             let peerString = v.peerId ?? "nil"
-            let connectionState = await v.connection.currentConnectionState
+//            let connectionState = await v.connection.currentConnectionState
 
             Logger.peerProtocol.debug("\(k.debugDescription)")
             Logger.peerProtocol.debug(" :: peerId: \(peerString)")
             Logger.peerProtocol.debug(" :: initiated: \(initiatedString)")
             Logger.peerProtocol.debug(" :: peered: \(peeredString)")
-            Logger.peerProtocol.debug(" :: state: \(String(describing: connectionState))]")
+//            Logger.peerProtocol.debug(" :: state: \(String(describing: connectionState))]")
             Logger.peerProtocol.debug("----------------------------------------------------------")
         }
 
