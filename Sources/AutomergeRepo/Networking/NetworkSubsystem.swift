@@ -56,10 +56,11 @@ public final class NetworkSubsystem {
             // invariant that there should be a valid doc handle available from the repo
             throw Errors.Unavailable(id: id)
         }
-
+        Logger.repo.trace("   - Initiating remote fetch for \(id)")
         let newDocument = Document()
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
+                Logger.repo.trace("   - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)")
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
@@ -80,6 +81,7 @@ public final class NetworkSubsystem {
                 }
             }
         }
+        Logger.repo.trace("   - remote fetch for \(id) finished")
     }
 
     func send(message: SyncV1Msg, to: PEER_ID?) async {
@@ -141,14 +143,24 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         )
                     return
                 }
+                Logger.network.trace("Received \(event.debugDescription) event")
                 if let peersRequested = requestedDocuments[docId] {
+                    Logger.network.trace("We've requested \(docId) from \(peersRequested.count) peers:")
+                    for p in peersRequested {
+                        Logger.network.trace(" - Peer: \(p)")
+                    }
                     // if we receive an unavailable from one peer, record it and wait until
                     // we receive unavailable from all available peers before marking it unavailable
                     let remainingPeersPending = peersRequested.filter { peerId in
                         // include the peers OTHER than the one sending the unavailable msg
                         peerId != unavailableMsg.senderId
                     }
+                    Logger.network.trace("Removing the sending peer, there are \(remainingPeersPending.count) remaining:")
+                    for p in remainingPeersPending {
+                        Logger.network.trace(" - Peer: \(p)")
+                    }
                     if remainingPeersPending.isEmpty {
+                        Logger.network.trace("No further peers with requests outstanding, so marking document \(docId) as unavailable")
                         await repo.markDocUnavailable(id: docId)
                         requestedDocuments.removeValue(forKey: docId)
                     } else {

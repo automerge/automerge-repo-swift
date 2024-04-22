@@ -24,7 +24,7 @@ public final class WebSocketProvider: NetworkProvider {
     var endpoint: URL?
     var peered: Bool
 
-    public init(_ config: WebSocketProviderConfiguration = .default) {
+    public nonisolated init(_ config: WebSocketProviderConfiguration = .default) {
         self.config = config
         peeredConnections = []
         delegate = nil
@@ -176,7 +176,7 @@ public final class WebSocketProvider: NetworkProvider {
             // Race a timeout against receiving a Peer message from the other side
             // of the WebSocket connection. If we fail that race, shut down the connection
             // and move into a .closed connectionState
-            let websocketMsg = try await nextMessage(withTimeout: .seconds(3.5))
+            let websocketMsg = try await nextMessage(on: webSocketTask, withTimeout: .seconds(3.5))
 
             // Now that we have the WebSocket message, figure out if we got what we expected.
             // For the sync protocol handshake phase, it's essentially "peer or die" since
@@ -217,6 +217,7 @@ public final class WebSocketProvider: NetworkProvider {
     // throw error on cancel
     // otherwise return the msg
     private func nextMessage(
+        on webSocketTask: URLSessionWebSocketTask,
         withTimeout: ContinuousClock.Instant
             .Duration?
     ) async throws -> URLSessionWebSocketTask.Message {
@@ -233,12 +234,12 @@ public final class WebSocketProvider: NetworkProvider {
         // going into the receive loop.
         try Task.checkCancellation()
 
-        // check the invariants
-        guard let webSocketTask
-        else {
-            throw SyncV1Msg.Errors
-                .ConnectionClosed(errorDescription: "Attempting to wait for a websocket message when the task is nil")
-        }
+//        // check the invariants
+//        guard let webSocketTask
+//        else {
+//            throw SyncV1Msg.Errors
+//                .ConnectionClosed(errorDescription: "Attempting to wait for a websocket message when the task is nil")
+//        }
 
         // Race a timeout against receiving a Peer message from the other side
         // of the WebSocket connection. If we fail that race, shut down the connection
@@ -337,6 +338,7 @@ public final class WebSocketProvider: NetworkProvider {
         //   in this method (all handling of them should happen before getting here)
         // - .leave invokes the disconnect, and associated messages to the delegate
         // - otherwise forward the message to the delegate to work with
+        Logger.webSocket.trace("WebSocket received: \(msg.debugDescription)")
         switch msg {
         case let .leave(msg):
             Logger.webSocket.trace("\(msg.senderId) requests to kill the connection")
