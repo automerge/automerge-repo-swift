@@ -8,34 +8,6 @@ import OSLog
 public final class PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
-//    /// A wrapper around PeerToPeer connection that holds additional metadata about the connection
-//    /// relevant for the PeerToPeer provider, exposing a copy of its endpoint and latest updated Peering
-//    /// state so that it can be used from synchronous calls inside this actor.
-//    struct ConnectionHolder: Sendable {
-//        var connection: PeerToPeerConnection
-//        var initiated: Bool // is this an outgoing/initiated connection
-//        var endpoint: NWEndpoint
-//        var peered: Bool // has the connection advanced to being peered and ready to go
-//        var peerId: PEER_ID? // if peered, should be non-nil
-//        var peerMetadata: PeerMetadata?
-//
-//        init(
-//            connection: PeerToPeerConnection,
-//            initiated: Bool,
-//            peered: Bool,
-//            endpoint: NWEndpoint,
-//            peerId: PEER_ID? = nil,
-//            peerMetadata: PeerMetadata? = nil
-//        ) {
-//            self.connection = connection
-//            self.initiated = initiated
-//            self.peered = peered
-//            self.endpoint = endpoint
-//            self.peerId = peerId
-//            self.peerMetadata = peerMetadata
-//        }
-//    }
-
     private func allConnections() -> [PeerConnectionInfo] {
         connections.values.compactMap { holder in
             if let peerId = holder.peerId {
@@ -106,17 +78,17 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
     // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
-    public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never>
-    public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnectionInfo], Never>
+    public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never> = PassthroughSubject()
+    public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnectionInfo], Never> = PassthroughSubject()
 
-    public nonisolated let browserStatePublisher: PassthroughSubject<NWBrowser.State, Never>
-    public nonisolated let listenerStatePublisher: PassthroughSubject<NWListener.State, Never>
+    public nonisolated let browserStatePublisher: PassthroughSubject<NWBrowser.State, Never> = PassthroughSubject()
+    public nonisolated let listenerStatePublisher: PassthroughSubject<NWListener.State, Never> = PassthroughSubject()
 
     // this allows us to create a provider, but it's not ready to go until
     // its fully configured by setting a delegate on it, which initializes
     // not only delegate, but also peerId and the optional peerMetadata
     // ``setDelegate``
-    public init(_ config: PeerToPeerProviderConfiguration) {
+    public nonisolated init(_ config: PeerToPeerProviderConfiguration) {
         self.config = config
         connections = [:]
         availablePeers = []
@@ -147,12 +119,6 @@ public final class PeerToPeerProvider: NetworkProvider {
 
         (browserResultUpdateStream, browserResultUpdateContinuation) = AsyncStream<BrowserResultUpdate>.makeStream()
         self.browserStateUpdateTaskHandle = nil
-
-        // self.availablePeerChannel = AsyncChannel()
-        self.availablePeerPublisher = PassthroughSubject()
-        self.connectionPublisher = PassthroughSubject()
-        self.browserStatePublisher = PassthroughSubject()
-        self.listenerStatePublisher = PassthroughSubject()
     }
 
     deinit {
