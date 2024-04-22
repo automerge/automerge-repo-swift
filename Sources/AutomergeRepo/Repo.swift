@@ -626,8 +626,8 @@ public final class Repo {
                 throw Errors.DocDeleted(id: handle.id)
             }
         } else {
-            throw Errors.DocUnavailable(id: id)
             Logger.repo.error("RESOLVED - X :: Error Resolving document: Repo doesn't have a handle for \(id).")
+            throw Errors.DocUnavailable(id: id)
         }
     }
 }
