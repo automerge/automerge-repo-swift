@@ -2,6 +2,7 @@ import struct Automerge.ChangeHash
 import class Automerge.Document
 import struct Automerge.SyncState
 import struct Foundation.Data
+import OSLog
 
 final class InternalDocHandle {
     enum DocHandleState {
@@ -37,7 +38,14 @@ final class InternalDocHandle {
 
     let id: DocumentId
     var doc: Automerge.Document?
-    var state: DocHandleState
+    var state: DocHandleState {
+        willSet {
+            if newValue == .unavailable {
+                print("X")
+            }
+            Logger.repo.trace("updating state of \(self.id) to \(String(describing: newValue))")
+        }
+    }
     var remoteHeads: [STORAGE_ID: Set<Automerge.ChangeHash>]
     var syncStates: [PEER_ID: SyncState]
 
