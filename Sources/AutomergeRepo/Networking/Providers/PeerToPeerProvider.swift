@@ -208,14 +208,16 @@ public final class PeerToPeerProvider: NetworkProvider {
         _ delegate: any NetworkEventReceiver,
         as peerId: PEER_ID,
         with metadata: PeerMetadata?
-    ) async {
+    ) {
         self.delegate = delegate
         self.peerId = peerId
         txtRecord[TXTRecordKeys.peer_id] = peerId
         self.peerMetadata = metadata
         if peerName.isEmpty {
-            let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
-            setName(defaultName)
+            Task.detached {
+                let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
+                await self.setName(defaultName)
+            }
         }
     }
 

@@ -97,7 +97,7 @@ public final class WebSocketProvider: NetworkProvider {
         _ delegate: any NetworkEventReceiver,
         as peer: PEER_ID,
         with metadata: PeerMetadata?
-    ) async {
+    ) {
         self.delegate = delegate
         peerId = peer
         peerMetadata = metadata

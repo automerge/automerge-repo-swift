@@ -30,25 +30,6 @@ public final class Repo {
     private let pendingRequestWaitDuration: Duration = .seconds(1)
     private var pendingRequestReadAttempts: [DocumentId: Int] = [:]
 
-//    #remoteHeadsSubscriptions = new RemoteHeadsSubscriptions()
-//    export class RemoteHeadsSubscriptions extends EventEmitter<RemoteHeadsSubscriptionEvents> {
-//      // Storage IDs we have received remote heads from
-//      #knownHeads: Map<DocumentId, Map<StorageId, LastHeads>> = new Map()
-    // ^^^ DUPLICATES DATA stored in DocHandle...
-
-//      // Storage IDs we have subscribed to via Repo.subscribeToRemoteHeads
-//      #ourSubscriptions: Set<StorageId> = new Set()
-
-//      // Storage IDs other peers have subscribed to by sending us a control message
-//      #theirSubscriptions: Map<StorageId, Set<PeerId>> = new Map()
-
-//      // Peers we will always share remote heads with even if they are not subscribed
-//      #generousPeers: Set<PeerId> = new Set()
-
-//      // Documents each peer has open, we need this information so we only send remote heads of documents that the
-//      /peer knows
-//      #subscribedDocsByPeer: Map<PeerId, Set<DocumentId>> = new Map()
-
     private var remoteHeadsGossipingEnabled = false
 
     private var _ephemeralMessageDelegate: (any EphemeralMessageDelegate)?
@@ -98,11 +79,11 @@ public final class Repo {
 
     /// Add a configured network provider to the repo
     /// - Parameter adapter: The network provider to add.
-    public func addNetworkAdapter(adapter: any NetworkProvider) async {
+    public func addNetworkAdapter(adapter: any NetworkProvider) {
         if network.repo == nil {
             network.setRepo(self)
         }
-        await network.addAdapter(adapter: adapter)
+        network.addAdapter(adapter: adapter)
     }
 
     /// Set the delegate that to receive ephemeral messages from Automerge-repo peers
@@ -128,13 +109,13 @@ public final class Repo {
     // MARK: Synchronization Pieces - Peers
 
     /// Returns a list of the ids of available peers.
-    public func peers() async -> [PEER_ID] {
+    public func peers() -> [PEER_ID] {
         peerMetadataByPeerId.keys.sorted()
     }
 
     /// Returns the storage Id of for the id of the peer that you provide.
     /// - Parameter peer: The peer to request
-    func getStorageIdOfPeer(peer: PEER_ID) async -> STORAGE_ID? {
+    func getStorageIdOfPeer(peer: PEER_ID) -> STORAGE_ID? {
         if let metaForPeer = peerMetadataByPeerId[peer] {
             metaForPeer.storageId
         } else {

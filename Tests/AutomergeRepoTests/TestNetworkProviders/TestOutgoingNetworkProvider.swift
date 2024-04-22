@@ -178,7 +178,7 @@ public final class TestOutgoingNetworkProvider: NetworkProvider {
         _ delegate: any NetworkEventReceiver,
         as _: PEER_ID,
         with _: PeerMetadata?
-    ) async {
+    ) {
         self.delegate = delegate
     }
 

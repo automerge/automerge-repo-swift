@@ -40,11 +40,11 @@ public final class NetworkSubsystem {
         self.repo = repo
     }
 
-    func addAdapter(adapter: some NetworkProvider) async {
+    func addAdapter(adapter: some NetworkProvider) {
         guard let peerId = repo?.peerId else {
             fatalError("NO REPO CONFIGURED WHEN ADDING ADAPTERS")
         }
-        await adapter.setDelegate(self, as: peerId, with: repo?.localPeerMetadata)
+        adapter.setDelegate(self, as: peerId, with: repo?.localPeerMetadata)
         adapters.append(adapter)
     }
 
