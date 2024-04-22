@@ -13,7 +13,8 @@ import PotentCBOR
 /// messages from remote peers after the connection has been established. The connection handshake and peer negotiation
 /// is
 /// the responsibility of the network provider instance.
-public actor NetworkSubsystem {
+@AutomergeRepo
+public final class NetworkSubsystem {
     // TODO: When swift allows, switch this to a class that's locked to the same local actor
     // as Repo
 
@@ -31,11 +32,11 @@ public actor NetworkSubsystem {
     weak var repo: Repo?
     var adapters: [any NetworkProvider]
 
-    init() {
+    nonisolated init() {
         adapters = []
     }
 
-    func setRepo(_ repo: Repo) async {
+    func setRepo(_ repo: Repo) {
         self.repo = repo
     }
 
@@ -58,7 +59,7 @@ public actor NetworkSubsystem {
 
         let newDocument = Document()
         for adapter in adapters {
-            for peerConnection in await adapter.peeredConnections {
+            for peerConnection in adapter.peeredConnections {
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
@@ -67,7 +68,7 @@ public actor NetworkSubsystem {
                     requestedDocuments[id] = [peerConnection.peerId]
                 }
                 // get a current sync state (creating one if needed for a fresh sync)
-                let syncState = await repo.syncState(id: id, peer: peerConnection.peerId)
+                let syncState = repo.syncState(id: id, peer: peerConnection.peerId)
 
                 if let syncRequestData = newDocument.generateSyncMessage(state: syncState) {
                     await adapter.send(message: .request(SyncV1Msg.RequestMsg(
@@ -111,7 +112,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
         case let .peerCandidate(payload):
             await repo.addPeerWithMetadata(peer: payload.peerId, metadata: payload.peerMetadata)
         case let .peerDisconnect(payload):
-            await repo.removePeer(peer: payload.peerId)
+            repo.removePeer(peer: payload.peerId)
         case let .message(payload):
             switch payload {
             case .peer, .join, .leave, .unknown:
@@ -156,7 +157,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
 
                         var currentConnectedPeers: [PEER_ID] = []
                         for adapter in adapters {
-                            let connectedPeers: [PEER_ID] = await adapter.peeredConnections
+                            let connectedPeers: [PEER_ID] = adapter.peeredConnections
                                 .map { peerConnection in
                                     peerConnection.peerId
                                 }

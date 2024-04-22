@@ -6,7 +6,8 @@ import OSLog
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/storage/StorageSubsystem.ts
 
 /// A type that provides coordinated, concurrency safe access to persist Automerge documents.
-public actor DocumentStorage {
+@AutomergeRepo
+public final class DocumentStorage {
     let chunkNamespace = "incrChanges"
     var compacting: Bool
     let _storage: any StorageProvider
@@ -20,7 +21,7 @@ public actor DocumentStorage {
 
     /// Creates a new concurrency safe document storage instance to manage changes to Automerge documents.
     /// - Parameter storage: The storage provider
-    public init(_ storage: some StorageProvider) {
+    public nonisolated init(_ storage: some StorageProvider) {
         compacting = false
         _storage = storage
         latestHeads = [:]

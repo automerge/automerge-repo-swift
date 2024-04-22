@@ -3,6 +3,7 @@ import struct Foundation.Data
 // loose adaptation from automerge-repo storage interface
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/storage/StorageAdapter.ts
 /// A type that provides a an interface for persisting the changes of Automerge documents by Id
+@AutomergeRepo
 public protocol StorageProvider: Sendable {
     var id: STORAGE_ID { get }
 

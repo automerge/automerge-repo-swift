@@ -23,7 +23,8 @@ import OSLog
 /// As soon as it is established, it attempts to commence a sync operation (send and expect to receive sync messages).
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
-public actor PeerToPeerConnection {
+@AutomergeRepo
+public final class PeerToPeerConnection {
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
     // for the connection
 
@@ -34,6 +35,10 @@ public actor PeerToPeerConnection {
     nonisolated let readyCheckDelay: ContinuousClock.Instant.Duration
     nonisolated let defaultReceiveTimeout: ContinuousClock.Instant.Duration
     nonisolated let initiated: Bool
+
+    var peered: Bool // has the connection advanced to being peered and ready to go
+    var peerId: PEER_ID? // if peered, should be non-nil
+    var peerMetadata: PeerMetadata?
 
     let connectionQueue = DispatchQueue(label: "p2pconnection", qos: .default, attributes: .concurrent)
     nonisolated let connection: NWConnection
@@ -58,6 +63,7 @@ public actor PeerToPeerConnection {
         readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
         readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
     ) async {
+        peered = false
         self.readyTimeout = readyTimeout
         self.defaultReceiveTimeout = receiveTimeout
         self.readyCheckDelay = readyCheckDelay
@@ -77,6 +83,7 @@ public actor PeerToPeerConnection {
                 " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
             )
 
+        
         startConnection()
     }
 
@@ -92,6 +99,7 @@ public actor PeerToPeerConnection {
         readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
         readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
     ) {
+        peered = false
         self.readyTimeout = readyTimeout
         self.defaultReceiveTimeout = receiveTimeout
         self.readyCheckDelay = readyCheckDelay

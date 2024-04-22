@@ -62,7 +62,7 @@ public struct InMemoryNetworkMsg: Sendable, CustomDebugStringConvertible {
     }
 }
 
-@InMemoryNetwork
+@AutomergeRepo
 public final class InMemoryNetworkConnection {
     public var description: String {
         get async {
@@ -130,7 +130,7 @@ public final class InMemoryNetworkConnection {
     }
 }
 
-@InMemoryNetwork // isolate all calls to this class using the InMemoryNetwork global actor
+@AutomergeRepo // isolate all calls to this class using the InMemoryNetwork global actor
 public final class InMemoryNetworkEndpoint: NetworkProvider {
     public typealias ProviderConfiguration = BasicNetworkConfiguration
     public typealias NetworkConnectionEndpoint = String
@@ -394,7 +394,7 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
     public func setDelegate(
         _ delegate: any NetworkEventReceiver,
         as peer: PEER_ID,
-        with metadata: AutomergeRepo.PeerMetadata?
+        with metadata: PeerMetadata?
     ) async {
         peerId = peer
         peerMetadata = metadata
