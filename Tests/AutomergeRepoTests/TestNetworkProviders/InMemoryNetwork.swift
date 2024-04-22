@@ -395,7 +395,7 @@ public final class InMemoryNetworkEndpoint: NetworkProvider {
         _ delegate: any NetworkEventReceiver,
         as peer: PEER_ID,
         with metadata: PeerMetadata?
-    ) async {
+    ) {
         peerId = peer
         peerMetadata = metadata
         self.delegate = delegate

@@ -66,7 +66,7 @@ public protocol NetworkProvider: Sendable {
     /// Sets the delegate and configures the peer information for a Network Provider
     /// - Parameter to: The instance that accepts asynchronous network events from the provider.
     /// - Parameter peer: The peer ID for the network provider to use.
-    func setDelegate(_ delegate: any NetworkEventReceiver, as peer: PEER_ID, with metadata: PeerMetadata?) async
+    func setDelegate(_ delegate: any NetworkEventReceiver, as peer: PEER_ID, with metadata: PeerMetadata?)
 }
 
 /// A type that accepts provides a method for a Network Provider to call with network events.
