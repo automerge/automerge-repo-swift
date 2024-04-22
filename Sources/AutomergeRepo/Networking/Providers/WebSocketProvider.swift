@@ -1,6 +1,7 @@
 import OSLog
 
-public actor WebSocketProvider: NetworkProvider {
+@AutomergeRepo
+public final class WebSocketProvider: NetworkProvider {
     public typealias ProviderConfiguration = WebSocketProviderConfiguration
     public struct WebSocketProviderConfiguration: Sendable {
         let reconnectOnError: Bool

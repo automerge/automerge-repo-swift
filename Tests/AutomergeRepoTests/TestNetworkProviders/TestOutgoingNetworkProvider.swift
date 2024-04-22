@@ -75,7 +75,8 @@ public struct TestOutgoingNetworkConfiguration: Sendable, CustomDebugStringConve
 /// A Test network that operates in memory
 ///
 /// Acts akin to an outbound connection - doesn't "connect" and trigger messages until you explicitly ask
-public actor TestOutgoingNetworkProvider: NetworkProvider {
+@AutomergeRepo
+public final class TestOutgoingNetworkProvider: NetworkProvider {
     public var peeredConnections: [PeerConnectionInfo] = []
 
     public typealias NetworkConnectionEndpoint = String
@@ -174,9 +175,9 @@ public actor TestOutgoingNetworkProvider: NetworkProvider {
     }
 
     public func setDelegate(
-        _ delegate: any AutomergeRepo.NetworkEventReceiver,
-        as _: AutomergeRepo.PEER_ID,
-        with _: AutomergeRepo.PeerMetadata?
+        _ delegate: any NetworkEventReceiver,
+        as _: PEER_ID,
+        with _: PeerMetadata?
     ) async {
         self.delegate = delegate
     }

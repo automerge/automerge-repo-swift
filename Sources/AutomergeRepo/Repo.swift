@@ -10,7 +10,8 @@ public protocol EphemeralMessageDelegate: Sendable {
     func receiveEphemeralMessage(_ msg: SyncV1Msg.EphemeralMsg) async
 }
 
-public actor Repo {
+@AutomergeRepo
+public final class Repo {
     public nonisolated let peerId: PEER_ID
     public var localPeerMetadata: PeerMetadata
 
@@ -78,12 +79,10 @@ public actor Repo {
     // - func storageIdForPeer(peerId) -> StorageId
     // - func subscribeToRemotes([StorageId])
 
-    public init(
+    public nonisolated init(
         sharePolicy: some SharePolicy
     ) {
         peerId = UUID().uuidString
-        handles = [:]
-        peerMetadataByPeerId = [:]
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy
@@ -100,8 +99,8 @@ public actor Repo {
     /// Add a configured network provider to the repo
     /// - Parameter adapter: The network provider to add.
     public func addNetworkAdapter(adapter: any NetworkProvider) async {
-        if await network.repo == nil {
-            await network.setRepo(self)
+        if network.repo == nil {
+            network.setRepo(self)
         }
         await network.addAdapter(adapter: adapter)
     }
@@ -116,7 +115,7 @@ public actor Repo {
     ///
     /// The list does not reflect deleted or unavailable documents that have been requested, but may return
     /// Ids for documents still being creating, stored, or transferring from a peer.
-    public func documentIds() async -> [DocumentId] {
+    public func documentIds() -> [DocumentId] {
         // FIXME: make sure that the handles are all fully "resolved" to an end state
         // _before_ attempting to filter them - we're capturing a snapshot in time here...
         handles.values
@@ -164,7 +163,7 @@ public actor Repo {
 
     func addPeerWithMetadata(peer: PEER_ID, metadata: PeerMetadata?) async {
         peerMetadataByPeerId[peer] = metadata
-        for docId in await documentIds() {
+        for docId in documentIds() {
             if await sharePolicy.share(peer: peer, docId: docId) {
                 await beginSync(docId: docId, to: peer)
             }
@@ -400,9 +399,9 @@ public actor Repo {
 
     /// The storage id of this repo, if any.
     /// - Returns: The storage id from the repo's storage provider or nil.
-    public func storageId() async -> STORAGE_ID? {
+    public func storageId() -> STORAGE_ID? {
         if let storage {
-            return await storage.id
+            return storage.id
         }
         return nil
     }

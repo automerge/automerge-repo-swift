@@ -39,12 +39,13 @@ import Automerge
 /// return an ``SyncV1/error(_:)`` message, close the connection, and emit ``NetworkAdapterEvents/close``.
 /// - When any other message is received, it is emitted with ``NetworkAdapterEvents/message(payload:)``.
 /// - When the transport receives a `leave` message, close the connection and emit ``NetworkAdapterEvents/close``.
+@AutomergeRepo
 public protocol NetworkProvider: Sendable {
     /// A list of all active, peered connections that the provider is maintaining.
     ///
     /// For an outgoing connection, this is typically a single connection.
     /// For a listening connection, this could be quite a few.
-    var peeredConnections: [PeerConnectionInfo] { get async }
+    var peeredConnections: [PeerConnectionInfo] { get }
 
     /// For outgoing connections, the type that represents the endpoint to connect
     /// For example, it could be `URL`, `NWEndpoint` for a Bonjour network, or a custom type.

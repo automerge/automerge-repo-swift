@@ -4,36 +4,37 @@ import Foundation
 import Network
 import OSLog
 
-public actor PeerToPeerProvider: NetworkProvider {
+@AutomergeRepo
+public final class PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
-    /// A wrapper around PeerToPeer connection that holds additional metadata about the connection
-    /// relevant for the PeerToPeer provider, exposing a copy of its endpoint and latest updated Peering
-    /// state so that it can be used from synchronous calls inside this actor.
-    struct ConnectionHolder: Sendable {
-        var connection: PeerToPeerConnection
-        var initiated: Bool // is this an outgoing/initiated connection
-        var endpoint: NWEndpoint
-        var peered: Bool // has the connection advanced to being peered and ready to go
-        var peerId: PEER_ID? // if peered, should be non-nil
-        var peerMetadata: PeerMetadata?
-
-        init(
-            connection: PeerToPeerConnection,
-            initiated: Bool,
-            peered: Bool,
-            endpoint: NWEndpoint,
-            peerId: PEER_ID? = nil,
-            peerMetadata: PeerMetadata? = nil
-        ) {
-            self.connection = connection
-            self.initiated = initiated
-            self.peered = peered
-            self.endpoint = endpoint
-            self.peerId = peerId
-            self.peerMetadata = peerMetadata
-        }
-    }
+//    /// A wrapper around PeerToPeer connection that holds additional metadata about the connection
+//    /// relevant for the PeerToPeer provider, exposing a copy of its endpoint and latest updated Peering
+//    /// state so that it can be used from synchronous calls inside this actor.
+//    struct ConnectionHolder: Sendable {
+//        var connection: PeerToPeerConnection
+//        var initiated: Bool // is this an outgoing/initiated connection
+//        var endpoint: NWEndpoint
+//        var peered: Bool // has the connection advanced to being peered and ready to go
+//        var peerId: PEER_ID? // if peered, should be non-nil
+//        var peerMetadata: PeerMetadata?
+//
+//        init(
+//            connection: PeerToPeerConnection,
+//            initiated: Bool,
+//            peered: Bool,
+//            endpoint: NWEndpoint,
+//            peerId: PEER_ID? = nil,
+//            peerMetadata: PeerMetadata? = nil
+//        ) {
+//            self.connection = connection
+//            self.initiated = initiated
+//            self.peered = peered
+//            self.endpoint = endpoint
+//            self.peerId = peerId
+//            self.peerMetadata = peerMetadata
+//        }
+//    }
 
     private func allConnections() -> [PeerConnectionInfo] {
         connections.values.compactMap { holder in
@@ -72,7 +73,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // (to external endpoints) - along with the retry logic to re-establish on
     // failure
     var ongoingReceiveMessageTasks: [NWEndpoint: Task<Void, any Error>]
-    var connections: [NWEndpoint: ConnectionHolder]
+    var connections: [NWEndpoint: PeerToPeerConnection]
     var availablePeers: [AvailablePeer]
 
     var browser: NWBrowser?
@@ -206,12 +207,12 @@ public actor PeerToPeerProvider: NetworkProvider {
 
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
-            let holdersWithPeer: [ConnectionHolder] = connections.values.filter { h in
+            let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
                 h.peerId == peerId
             }
             for holder in holdersWithPeer {
                 do {
-                    try await holder.connection.send(message)
+                    try await holder.send(message)
                 } catch {
                     Logger.peerProtocol
                         .warning(
@@ -225,7 +226,7 @@ public actor PeerToPeerProvider: NetworkProvider {
                 // only send to connections with a set PeerId
                 if let peerId = holder.peerId {
                     do {
-                        try await holder.connection.send(message)
+                        try await holder.send(message)
                     } catch {
                         Logger.peerProtocol
                             .warning(
@@ -257,7 +258,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     /// Cancels and removes the connection for a given peerId
     /// - Parameter peerId: the peer Id to disconnect from either receiving or initiated connection
     public func disconnect(peerId: PEER_ID) {
-        let holdersWithPeer: [ConnectionHolder] = connections.values.filter { h in
+        let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
             h.peerId == peerId
         }
         for holder in holdersWithPeer {
@@ -323,12 +324,12 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
 
         // establish the peer to peer connection
-        let connection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
-        var holder = ConnectionHolder(connection: connection, initiated: true, peered: false, endpoint: destination)
+        let peerConnection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
+//        var holder = ConnectionHolder(connection: connection, initiated: true, peered: false, endpoint: destination)
         // indicate to everything else we're starting a connection, outgoing, not yet peered
 
         // report that this connection exists to all interested
-        connections[destination] = holder
+        connections[destination] = peerConnection
         connectionPublisher.send(allConnections())
 
         do {
@@ -340,13 +341,13 @@ public actor PeerToPeerProvider: NetworkProvider {
             // since we initiated the connection, it's on us to send an initial 'join'
             // protocol message to start the handshake phase of the protocol
             let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
-            try await connection.send(.join(joinMessage))
+            try await peerConnection.send(.join(joinMessage))
             Logger.peerProtocol.trace("SENT: \(joinMessage.debugDescription)")
 
             // Race a timeout against receiving a Peer message from the other side
             // of the connection. If we fail that race, shut down the connection
             // and move into a .closed connectionState
-            let nextMessage: SyncV1Msg = try await connection.receive(withTimeout: config.waitForPeerTimeout)
+            let nextMessage: SyncV1Msg = try await peerConnection.receive(withTimeout: config.waitForPeerTimeout)
 
             // Now that we have a message, figure out if we got what we expected.
             // For the sync protocol handshake phase, it's essentially "peer or die" since
@@ -356,20 +357,20 @@ public actor PeerToPeerProvider: NetworkProvider {
                 throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
             }
 
-            holder.peerId = peerMsg.senderId
-            holder.peerMetadata = peerMsg.peerMetadata
-            holder.peered = true
+            peerConnection.peerId = peerMsg.senderId
+            peerConnection.peerMetadata = peerMsg.peerMetadata
+            peerConnection.peered = true
             let peerConnectionDetails = PeerConnectionInfo(
                 peerId: peerId,
-                peerMetadata: holder.peerMetadata,
-                endpoint: holder.endpoint.debugDescription,
-                initiated: holder.initiated,
-                peered: holder.peered
+                peerMetadata: peerConnection.peerMetadata,
+                endpoint: peerConnection.endpoint.debugDescription,
+                initiated: peerConnection.initiated,
+                peered: peerConnection.peered
             )
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
             Logger.peerProtocol.trace("Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
             // update the reference to the connection with a peered version
-            self.connections[destination] = holder
+            //self.connections[destination] = peerConnection
             connectionPublisher.send(allConnections())
             return true
         } catch {
@@ -426,14 +427,14 @@ public actor PeerToPeerProvider: NetworkProvider {
                 }
             }
 
-            guard var holder = connections[endpoint] else {
+            guard let holder = connections[endpoint] else {
                 break
             }
 
             try Task.checkCancellation()
 
             do {
-                let msg = try await holder.connection.receive(withTimeout: config.recurringNextMessageTimeout)
+                let msg = try await holder.receive(withTimeout: config.recurringNextMessageTimeout)
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the connection
@@ -707,28 +708,28 @@ public actor PeerToPeerProvider: NetworkProvider {
                     "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
                 )
             let peerConnection = PeerToPeerConnection(connection: newConnection)
-            let holder = ConnectionHolder(
-                connection: peerConnection,
-                initiated: false,
-                peered: false,
-                endpoint: newConnection.endpoint
-            )
-            connections[newConnection.endpoint] = holder
+//            let holder = ConnectionHolder(
+//                connection: peerConnection,
+//                initiated: false,
+//                peered: false,
+//                endpoint: newConnection.endpoint
+//            )
+            connections[newConnection.endpoint] = peerConnection
             connectionPublisher.send(allConnections())
 
             do {
-                if let peerConnectionDetails = try await attemptToPeer(holder) {
+                if let peerConnectionDetails = try await attemptToPeer(peerConnection) {
                     let receiveAndRetry = Task.detached {
-                        try await self.ongoingListenerReceivePeerMessages(endpoint: holder.endpoint)
+                        try await self.ongoingListenerReceivePeerMessages(endpoint: peerConnection.endpoint)
                     }
-                    ongoingReceiveMessageTasks[holder.endpoint] = receiveAndRetry
+                    ongoingReceiveMessageTasks[peerConnection.endpoint] = receiveAndRetry
 
                     await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
                 }
             } catch {
                 // error thrown during peering
-                holder.connection.cancel()
-                connections.removeValue(forKey: holder.endpoint)
+                peerConnection.connection.cancel()
+                connections.removeValue(forKey: peerConnection.endpoint)
                 connectionPublisher.send(allConnections())
             }
         } else {
@@ -746,7 +747,7 @@ public actor PeerToPeerProvider: NetworkProvider {
     // Returns a new PeerConnection to track (at which point, save the url as the endpoint)
     // OR throws an error (terminate on error - no retry)
     // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
-    private func attemptToPeer(_ holder: ConnectionHolder) async throws -> PeerConnectionInfo? {
+    private func attemptToPeer(_ holder: PeerToPeerConnection) async throws -> PeerConnectionInfo? {
         // can't/shouldn't peer if we're not yet fully configured
         guard let peerId,
               let delegate
@@ -754,11 +755,11 @@ public actor PeerToPeerProvider: NetworkProvider {
             return nil
         }
 
-        var holderCopy = holder
+//        var holderCopy = holder
         // Race a timeout against receiving a Join message from the other side
         // of the connection. If we fail that race, shut down the connection
         // and move into a .closed connectionState
-        let nextMessage: SyncV1Msg = try await holderCopy.connection.receive(withTimeout: config.waitForPeerTimeout)
+        let nextMessage: SyncV1Msg = try await holder.receive(withTimeout: config.waitForPeerTimeout)
 
         // Now that we have a message, figure out if we got what we expected.
         // For the sync protocol handshake phase, it's essentially "peer or die" since
@@ -784,10 +785,10 @@ public actor PeerToPeerProvider: NetworkProvider {
         }
 
         // update the reference to the connection with a peered version
-        holderCopy.peerId = joinMsg.senderId
-        holderCopy.peerMetadata = joinMsg.peerMetadata
-        holderCopy.peered = true
-        connections[holderCopy.endpoint] = holderCopy
+        holder.peerId = joinMsg.senderId
+        holder.peerMetadata = joinMsg.peerMetadata
+        holder.peered = true
+//        connections[holderCopy.endpoint] = holderCopy
         connectionPublisher.send(allConnections())
 
         Logger.peerProtocol
@@ -801,7 +802,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             ephemeral: self.peerMetadata?.isEphemeral ?? true
         )
 
-        try await holderCopy.connection.send(.peer(peerMessage))
+        try await holder.send(.peer(peerMessage))
         Logger.peerProtocol.trace("SEND: \(peerMessage.debugDescription)")
         return peerConnectionDetails
     }
@@ -820,7 +821,7 @@ public actor PeerToPeerProvider: NetworkProvider {
             }
 
             do {
-                let msg = try await holder.connection.receive(withTimeout: config.recurringNextMessageTimeout)
+                let msg = try await holder.receive(withTimeout: config.recurringNextMessageTimeout)
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the PeerToPeer connection

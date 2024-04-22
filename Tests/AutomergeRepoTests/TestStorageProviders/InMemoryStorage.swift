@@ -2,12 +2,8 @@ import AutomergeRepo
 import struct Foundation.Data
 import struct Foundation.UUID
 
-@globalActor public actor TestActor {
-    public static var shared = TestActor()
-}
-
 /// An in-memory only storage provider.
-@TestActor
+@AutomergeRepo
 public final class InMemoryStorage: StorageProvider {
     public nonisolated let id: STORAGE_ID = UUID().uuidString
 
