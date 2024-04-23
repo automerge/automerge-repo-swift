@@ -59,24 +59,54 @@ public final class Repo {
     // - func storageId() -> StorageId (async)
     // - func storageIdForPeer(peerId) -> StorageId
     // - func subscribeToRemotes([StorageId])
-
+    
+    /// Create a new repository with the share policy you provide
+    /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
     public nonisolated init(
-        sharePolicy: some ShareAuthorizing
+        sharePolicy: SharePolicy
     ) {
         peerId = UUID().uuidString
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
-        self.sharePolicy = sharePolicy
+        self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem()
     }
 
-    /// Add a persistent storage provider to the repo.
-    /// - Parameter provider: The storage provider to add.
-    public func addStorageProvider(_ provider: some StorageProvider) {
-        storage = DocumentStorage(provider)
-        localPeerMetadata = PeerMetadata(storageId: provider.id, isEphemeral: false)
+    /// Create a new repository with the share policy and storage provider that you provide.
+    /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
+    /// - Parameter storage: The storage provider for the repository.
+    public nonisolated init(
+        sharePolicy: SharePolicy,
+        storage: some StorageProvider
+    ) {
+        peerId = UUID().uuidString
+        self.sharePolicy = sharePolicy as any ShareAuthorizing
+        network = NetworkSubsystem()
+        self.storage = DocumentStorage(storage)
+        localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
     }
-
+    
+    /// Create a new repository with the share policy and storage provider that you provide.
+    /// - Parameters:
+    ///   - sharePolicy: The policy to use to determine if a repository shares a document.
+    ///   - storage: The storage provider for the repository.
+    ///   - networks: A list of network providers to add.
+    public init(
+        sharePolicy: SharePolicy,
+        storage: some StorageProvider,
+        networks: [(any NetworkProvider)]
+    ) {
+        self.sharePolicy = sharePolicy as any ShareAuthorizing
+        peerId = UUID().uuidString
+        self.storage = DocumentStorage(storage)
+        localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
+        network = NetworkSubsystem()
+        network.setRepo(self)
+        for adapter in network.adapters {
+            network.addAdapter(adapter: adapter)
+        }
+    }
+    
     /// Add a configured network provider to the repo
     /// - Parameter adapter: The network provider to add.
     public func addNetworkAdapter(adapter: any NetworkProvider) {

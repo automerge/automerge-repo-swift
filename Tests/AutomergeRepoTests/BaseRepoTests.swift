@@ -128,19 +128,17 @@ final class BaseRepoTests: XCTestCase {
     // - func subscribeToRemotes([StorageId])
 
     func testAsyncRepoSetup() async throws {
-        let repoA = Repo(sharePolicy: SharePolicy.agreeable)
-        let storage = await InMemoryStorage()
-        await repoA.addStorageProvider(storage)
-
+        let storage = InMemoryStorage()
+        let repoA = Repo(sharePolicy: .agreeable, storage: storage)
+        
         let storageId = await repoA.storageId()
         XCTAssertNotNil(storageId)
     }
 
     @AutomergeRepo
     func testSyncRepoSetup() throws {
-        let repoA = Repo(sharePolicy: SharePolicy.agreeable)
         let storage = InMemoryStorage()
-        repoA.addStorageProvider(storage)
+        let repoA = Repo(sharePolicy: .agreeable, storage: storage)
 
         let storageId = repoA.storageId()
         XCTAssertNotNil(storageId)

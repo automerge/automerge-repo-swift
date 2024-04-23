@@ -5,7 +5,7 @@ import struct Foundation.Data
 /// A type that provides a an interface for persisting the changes of Automerge documents by Id
 @AutomergeRepo
 public protocol StorageProvider: Sendable {
-    var id: STORAGE_ID { get }
+    nonisolated var id: STORAGE_ID { get }
 
     func load(id: DocumentId) async throws -> Data?
     func save(id: DocumentId, data: Data) async throws
