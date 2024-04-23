@@ -57,23 +57,38 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         // short "wait" here to leave the background tasks that receive WebSocket messages
         // running to catch any updates, and hoping that'll be enough time to complete it.
 
-        var alicePeers: [AvailablePeer] = []
+        let alicePeersExpectation = expectation(description: "Repo 'Alice' sees two peers")
+        let bobPeersExpectation = expectation(description: "Repo 'Bob' sees two peers")
+
         let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            print("FOUND \(peerList)")
-            alicePeers = peerList
+            if peerList.count == 2,
+               peerList.contains(where: { ap in
+                   ap.peerId == repoBob.peerId
+               }),
+               peerList.contains(where: { ap in
+                   ap.peerId == repoAlice.peerId
+               })
+            {
+                alicePeersExpectation.fulfill()
+            }
         }
         XCTAssertNotNil(a)
 
-        var bobPeers: [AvailablePeer] = []
         let b = p2pBob.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            bobPeers = peerList
+            if peerList.count == 2,
+               peerList.contains(where: { ap in
+                   ap.peerId == repoBob.peerId
+               }),
+               peerList.contains(where: { ap in
+                   ap.peerId == repoAlice.peerId
+               })
+            {
+                bobPeersExpectation.fulfill()
+            }
         }
         XCTAssertNotNil(b)
 
-        // give it a couple seconds for the networks to stabilize and see each other...
-        try await Task.sleep(for: .seconds(5))
-        XCTAssertEqual(alicePeers.count, 2)
-        XCTAssertEqual(bobPeers.count, 2)
+        await fulfillment(of: [alicePeersExpectation, bobPeersExpectation], timeout: 10, enforceOrder: false)
     }
 
     func testPeerExplicitConnect() async throws {
@@ -100,33 +115,57 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         // short "wait" here to leave the background tasks that receive WebSocket messages
         // running to catch any updates, and hoping that'll be enough time to complete it.
 
-        var alicePeers: [AvailablePeer] = []
-        let a_p = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            print("FOUND \(peerList)")
-            alicePeers = peerList
-        }
-        XCTAssertNotNil(a_p)
+        let alicePeersExpectation = expectation(description: "Repo 'Alice' sees two peers")
+        let aliceConnectionExpectation = expectation(description: "Repo 'Alice' sees a connection to Bob")
+        let bobConnectionExpectation = expectation(description: "Repo 'Bob' sees a connection to Alice")
+        var peerToConnect: AvailablePeer? = nil
 
-        var aliceConnections: [PeerConnectionInfo] = []
+        let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
+            if peerList.count == 2,
+               peerList.contains(where: { ap in
+                   ap.peerId == repoBob.peerId
+               }),
+               peerList.contains(where: { ap in
+                   ap.peerId == repoAlice.peerId
+               })
+            {
+                // stash away the endpoint so that we can connect to it.
+                peerToConnect = peerList.first { ap in
+                    ap.peerId != repoAlice.peerId
+                }
+
+                alicePeersExpectation.fulfill()
+            }
+        }
+        XCTAssertNotNil(a)
+
+        await fulfillment(of: [alicePeersExpectation], timeout: 10, enforceOrder: false)
+
         let a_c = p2pAlice.connectionPublisher.receive(on: RunLoop.main).sink { connectList in
-            aliceConnections = connectList
+            if connectList.count == 1,
+               connectList.contains(where: { connection in
+                   connection.initiated == true &&
+                       connection.peered == true &&
+                       connection.peerId == repoBob.peerId
+               })
+            {
+                aliceConnectionExpectation.fulfill()
+            }
         }
         XCTAssertNotNil(a_c)
 
-        var bobConnections: [PeerConnectionInfo] = []
         let b_c = p2pBob.connectionPublisher.receive(on: RunLoop.main).sink { connectList in
-            bobConnections = connectList
+            if connectList.count == 1,
+               connectList.contains(where: { connection in
+                   connection.initiated == false &&
+                       connection.peered == true &&
+                       connection.peerId == repoAlice.peerId
+               })
+            {
+                bobConnectionExpectation.fulfill()
+            }
         }
         XCTAssertNotNil(b_c)
-
-        // give it a couple seconds for the networks to stabilize and see each other...
-        try await Task.sleep(for: .seconds(5))
-        XCTAssertEqual(alicePeers.count, 2)
-        let peerToConnect = try XCTUnwrap(
-            alicePeers.first { ap in
-                ap.peerId != repoAlice.peerId
-            }
-        )
 
         // verify the state of documents within each of the two peer repo BEFORE we connect
 
@@ -138,23 +177,17 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
 
         // MARK: CONNECT TO PEER
 
-        try await p2pAlice.connect(to: peerToConnect.endpoint)
-        try await Task.sleep(for: .seconds(2))
+        let unwrappedPeerToConnect = try XCTUnwrap(peerToConnect)
+        try await p2pAlice.connect(to: unwrappedPeerToConnect.endpoint)
 
-        XCTAssertEqual(bobConnections.count, aliceConnections.count)
-        XCTAssertEqual(aliceConnections[0].peerId, repoBob.peerId)
-        XCTAssertEqual(aliceConnections[0].peered, true)
-        XCTAssertEqual(aliceConnections[0].initiated, true)
-
-        XCTAssertEqual(bobConnections[0].peerId, repoAlice.peerId)
-        XCTAssertEqual(bobConnections[0].peered, true)
-        XCTAssertEqual(bobConnections[0].initiated, false)
+        await fulfillment(of: [aliceConnectionExpectation, bobConnectionExpectation], timeout: 10, enforceOrder: false)
 
         // verify the state of documents within each of the two peer repo AFTER we connect
 
         aliceDocs = await repoAlice.documentIds()
         XCTAssertEqual(aliceDocs.count, 1)
         XCTAssertEqual(aliceDocs[0], handle.id)
+        // Note: no auto-sync on connect, so Bob's repo doesn't yet see the document we added to Alice's repo
         bobDocs = await repoBob.documentIds()
         XCTAssertEqual(bobDocs.count, 0)
     }
@@ -183,28 +216,29 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         // short "wait" here to leave the background tasks that receive WebSocket messages
         // running to catch any updates, and hoping that'll be enough time to complete it.
 
-        var alicePeers: [AvailablePeer] = []
-        let a_p = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            print("FOUND \(peerList)")
-            alicePeers = peerList
-        }
-        XCTAssertNotNil(a_p)
+        let alicePeersExpectation = expectation(description: "Repo 'Alice' sees two peers")
+        var peerToConnect: AvailablePeer? = nil
 
-        var aliceConnections: [PeerConnectionInfo] = []
-        let a_c = p2pAlice.connectionPublisher.receive(on: RunLoop.main).sink { connectList in
-            aliceConnections = connectList
-        }
-        XCTAssertNotNil(a_c)
+        let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
+            if peerList.count == 2,
+               peerList.contains(where: { ap in
+                   ap.peerId == repoBob.peerId
+               }),
+               peerList.contains(where: { ap in
+                   ap.peerId == repoAlice.peerId
+               })
+            {
+                // stash away the endpoint so that we can connect to it.
+                peerToConnect = peerList.first { ap in
+                    ap.peerId != repoAlice.peerId
+                }
 
-        // give it a couple seconds for the networks to stabilize and see each other...
-        try await Task.sleep(for: .seconds(6))
-
-        XCTAssertEqual(alicePeers.count, 2)
-        let peerToConnect = try XCTUnwrap(
-            alicePeers.first { ap in
-                ap.peerId != repoAlice.peerId
+                alicePeersExpectation.fulfill()
             }
-        )
+        }
+        XCTAssertNotNil(a)
+
+        await fulfillment(of: [alicePeersExpectation], timeout: 10, enforceOrder: false)
 
         // verify the state of documents within each of the two peer repo BEFORE we connect
 
@@ -216,8 +250,8 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
 
         // MARK: CONNECT TO PEER
 
-        try await p2pAlice.connect(to: peerToConnect.endpoint)
-        try await Task.sleep(for: .seconds(2))
+        let unwrappedPeerToConnect = try XCTUnwrap(peerToConnect)
+        try await p2pAlice.connect(to: unwrappedPeerToConnect.endpoint)
 
         // verify the state of documents within each of the two peer repo AFTER we connect
 

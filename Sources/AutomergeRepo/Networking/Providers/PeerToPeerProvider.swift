@@ -831,9 +831,6 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // Update the advertised name on the network.
     public func setName(_ name: String) {
-        if name == "Sparrow" {
-            print("X")
-        }
         self.peerName = name
         txtRecord[TXTRecordKeys.name] = name
 
