@@ -20,7 +20,7 @@ public final class Repo {
     private var network: NetworkSubsystem
 
     // saveDebounceRate = 100
-    var sharePolicy: any SharePolicy
+    var sharePolicy: any ShareAuthorizing
 
     /** maps peer id to to persistence information (storageId, isEphemeral), access by collection synchronizer  */
     /** @hidden */
@@ -61,7 +61,7 @@ public final class Repo {
     // - func subscribeToRemotes([StorageId])
 
     public nonisolated init(
-        sharePolicy: some SharePolicy
+        sharePolicy: some ShareAuthorizing
     ) {
         peerId = UUID().uuidString
         storage = nil
@@ -579,19 +579,26 @@ public final class Repo {
                     return DocHandle(id: id, doc: doc)
                 } else {
                     guard let previousRequests = pendingRequestReadAttempts[id] else {
-                        Logger.repo.trace("RESOLVED - X :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
+                        Logger.repo
+                            .trace("RESOLVED - X :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
                         throw Errors.DocUnavailable(id: id)
                     }
                     if previousRequests < maxRetriesForFetch {
                         // we are racing against the receipt of a network result
                         // to see what we get at the end
                         Logger.repo.trace(" :: \(id) -> [\(String(describing: handle.state))]")
-                        Logger.repo.trace(" :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch")
+                        Logger.repo
+                            .trace(
+                                " :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
+                            )
                         try await Task.sleep(for: pendingRequestWaitDuration)
                         Logger.repo.trace("RESOLVE: :: continuing to resolve")
                         return try await resolveDocHandle(id: id)
                     } else {
-                        Logger.repo.trace("RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]")
+                        Logger.repo
+                            .trace(
+                                "RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
+                            )
                         throw Errors.DocUnavailable(id: id)
                     }
                 }

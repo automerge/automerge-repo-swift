@@ -7,7 +7,7 @@ final class BaseRepoTests: XCTestCase {
     var repo: Repo!
 
     override func setUp() async throws {
-        repo = Repo(sharePolicy: SharePolicies.agreeable)
+        repo = Repo(sharePolicy: SharePolicy.agreeable)
     }
 
     func testMostBasicRepoStartingPoints() async throws {
@@ -127,12 +127,22 @@ final class BaseRepoTests: XCTestCase {
     // - func storageIdForPeer(peerId) -> StorageId
     // - func subscribeToRemotes([StorageId])
 
-    func testRepoSetup() async throws {
-        let repoA = Repo(sharePolicy: SharePolicies.agreeable)
+    func testAsyncRepoSetup() async throws {
+        let repoA = Repo(sharePolicy: SharePolicy.agreeable)
         let storage = await InMemoryStorage()
         await repoA.addStorageProvider(storage)
 
         let storageId = await repoA.storageId()
+        XCTAssertNotNil(storageId)
+    }
+
+    @AutomergeRepo
+    func testSyncRepoSetup() throws {
+        let repoA = Repo(sharePolicy: SharePolicy.agreeable)
+        let storage = InMemoryStorage()
+        repoA.addStorageProvider(storage)
+
+        let storageId = repoA.storageId()
         XCTAssertNotNil(storageId)
     }
 }
