@@ -18,7 +18,7 @@ final class BackoffTests: XCTestCase {
         XCTAssertEqual(1, Backoff.delay(1, withJitter: true))
         for i: UInt in 2 ... 50 {
             XCTAssertTrue(Backoff.delay(i, withJitter: true) <= 987)
-            print(Backoff.delay(i, withJitter: true))
+            // print(Backoff.delay(i, withJitter: true))
         }
     }
 }

@@ -59,7 +59,7 @@ public final class Repo {
     // - func storageId() -> StorageId (async)
     // - func storageIdForPeer(peerId) -> StorageId
     // - func subscribeToRemotes([StorageId])
-    
+
     /// Create a new repository with the share policy you provide
     /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
     public nonisolated init(
@@ -85,7 +85,7 @@ public final class Repo {
         self.storage = DocumentStorage(storage)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
     }
-    
+
     /// Create a new repository with the share policy and storage provider that you provide.
     /// - Parameters:
     ///   - sharePolicy: The policy to use to determine if a repository shares a document.
@@ -94,7 +94,7 @@ public final class Repo {
     public init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
-        networks: [(any NetworkProvider)]
+        networks _: [any NetworkProvider]
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
@@ -106,7 +106,7 @@ public final class Repo {
             network.addAdapter(adapter: adapter)
         }
     }
-    
+
     /// Add a configured network provider to the repo
     /// - Parameter adapter: The network provider to add.
     public func addNetworkAdapter(adapter: any NetworkProvider) {
@@ -534,22 +534,22 @@ public final class Repo {
 
     private func resolveDocHandle(id: DocumentId) async throws -> DocHandle {
         if let handle: InternalDocHandle = handles[id] {
-            Logger.repo.trace("RESOLVE document id \(id) [\(String(describing: handle.state))]")
+            Logger.resolver.trace("RESOLVE document id \(id) [\(String(describing: handle.state))]")
             switch handle.state {
             case .idle:
                 if handle.doc != nil {
                     // if there's an Automerge document in memory, jump to ready
                     handle.state = .ready
-                    Logger.repo.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                     // STRUCT ONLY handles[id] = handle
                 } else {
                     // otherwise, first attempt to load it from persistent storage
                     // (if available)
                     handle.state = .loading
-                    Logger.repo.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                     // STRUCT ONLY handles[id] = handle
                 }
-                Logger.repo.trace("RESOLVE: :: continuing to resolve")
+                Logger.resolver.trace("RESOLVE: :: continuing to resolve")
                 return try await resolveDocHandle(id: id)
             case .loading:
                 // Do we have the document
@@ -576,7 +576,7 @@ public final class Repo {
                     // peers there's a new document before jumping to the 'ready' state
                     handle.state = .ready
                     // STRUCT ONLY handles[id] = handle
-                    Logger.repo.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                     return DocHandle(id: id, doc: docFromHandle)
                 } else {
                     // We don't have the underlying Automerge document, so attempt
@@ -586,46 +586,47 @@ public final class Repo {
                     if let doc = try await loadFromStorage(id: id) {
                         handle.state = .ready
                         // STRUCT ONLY handles[id] = handle
-                        Logger.repo.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
+                        Logger.resolver.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
                         return DocHandle(id: id, doc: doc)
                     } else {
                         handle.state = .requesting
                         // STRUCT ONLY handles[id] = handle
                         pendingRequestReadAttempts[id] = 0
-                        Logger.repo.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                        Logger.repo.trace("RESOLVE: :: starting remote fetch")
+                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                        Logger.resolver.trace("RESOLVE: :: starting remote fetch")
                         try await network.startRemoteFetch(id: handle.id)
-                        Logger.repo.trace("RESOLVE: :: continuing to resolve")
+                        Logger.resolver.trace("RESOLVE: :: continuing to resolve")
                         return try await resolveDocHandle(id: id)
                     }
                 }
             case .requesting:
                 guard let updatedHandle = handles[id] else {
-                    Logger.repo.trace("RESOLVED - X :: Missing \(id) -> [UNAVAILABLE]")
+                    Logger.resolver.trace("RESOLVED - X :: Missing \(id) -> [UNAVAILABLE]")
                     throw Errors.DocUnavailable(id: handle.id)
                 }
                 if let doc = updatedHandle.doc, updatedHandle.state == .ready {
-                    Logger.repo.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
+                    Logger.resolver.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
                     return DocHandle(id: id, doc: doc)
                 } else {
                     guard let previousRequests = pendingRequestReadAttempts[id] else {
-                        Logger.repo
+                        Logger.resolver
                             .trace("RESOLVED - X :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
                         throw Errors.DocUnavailable(id: id)
                     }
                     if previousRequests < maxRetriesForFetch {
                         // we are racing against the receipt of a network result
                         // to see what we get at the end
-                        Logger.repo.trace(" :: \(id) -> [\(String(describing: handle.state))]")
-                        Logger.repo
+                        Logger.resolver.trace(" :: \(id) -> [\(String(describing: handle.state))]")
+                        Logger.resolver
                             .trace(
                                 " :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
                             )
                         try await Task.sleep(for: pendingRequestWaitDuration)
-                        Logger.repo.trace("RESOLVE: :: continuing to resolve")
+                        pendingRequestReadAttempts[id] = previousRequests + 1
+                        Logger.resolver.trace("RESOLVE: :: continuing to resolve")
                         return try await resolveDocHandle(id: id)
                     } else {
-                        Logger.repo
+                        Logger.resolver
                             .trace(
                                 "RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
                             )
@@ -634,17 +635,17 @@ public final class Repo {
                 }
             case .ready:
                 guard let doc = handle.doc else { fatalError("DocHandle state is ready, but ._doc is null") }
-                Logger.repo.trace("RESOLVED! :: \(id) [\(String(describing: handle.state))]")
+                Logger.resolver.trace("RESOLVED! :: \(id) [\(String(describing: handle.state))]")
                 return DocHandle(id: id, doc: doc)
             case .unavailable:
-                Logger.repo.trace("RESOLVED - X :: \(id) -> [MARKED UNAVAILABLE]")
+                Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED UNAVAILABLE]")
                 throw Errors.DocUnavailable(id: handle.id)
             case .deleted:
-                Logger.repo.trace("RESOLVED - X :: \(id) -> [MARKED DELETED]")
+                Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED DELETED]")
                 throw Errors.DocDeleted(id: handle.id)
             }
         } else {
-            Logger.repo.error("RESOLVED - X :: Error Resolving document: Repo doesn't have a handle for \(id).")
+            Logger.resolver.error("RESOLVED - X :: Error Resolving document: Repo doesn't have a handle for \(id).")
             throw Errors.DocUnavailable(id: id)
         }
     }

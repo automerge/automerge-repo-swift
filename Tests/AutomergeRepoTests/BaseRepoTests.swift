@@ -130,7 +130,7 @@ final class BaseRepoTests: XCTestCase {
     func testAsyncRepoSetup() async throws {
         let storage = InMemoryStorage()
         let repoA = Repo(sharePolicy: .agreeable, storage: storage)
-        
+
         let storageId = await repoA.storageId()
         XCTAssertNotNil(storageId)
     }

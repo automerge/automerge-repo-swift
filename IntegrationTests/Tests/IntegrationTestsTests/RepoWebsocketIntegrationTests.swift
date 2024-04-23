@@ -48,7 +48,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
         }
     }
 
-    func testSync() async throws {
+    func testSyncAndFind() async throws {
         // document structure for test
         struct ExampleStruct: Identifiable, Codable, Hashable {
             let id: UUID

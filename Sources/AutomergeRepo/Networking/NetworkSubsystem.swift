@@ -56,12 +56,14 @@ public final class NetworkSubsystem {
             // invariant that there should be a valid doc handle available from the repo
             throw Errors.Unavailable(id: id)
         }
-        Logger.repo.trace("   - Initiating remote fetch for \(id)")
+        Logger.network.trace("REPONET - Initiating remote fetch for \(id)")
         let newDocument = Document()
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
-                Logger.repo
-                    .trace("   - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)")
+                Logger.network
+                    .trace(
+                        "REPONET - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)"
+                    )
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
@@ -82,7 +84,7 @@ public final class NetworkSubsystem {
                 }
             }
         }
-        Logger.repo.trace("   - remote fetch for \(id) finished")
+        Logger.network.trace("REPONET - remote fetch for \(id) finished")
     }
 
     func send(message: SyncV1Msg, to: PEER_ID?) async {
@@ -100,7 +102,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
     // In automerge-repo code, it appears to update information on an ephemeral information (
     // a sort of middleware) before emitting it upwards.
     public func receiveEvent(event: NetworkAdapterEvents) async {
-        // Logger.network.trace("received event from network adapter: \(event.debugDescription)")
+        Logger.network.trace("REPONET: received event from network adapter: \(event.debugDescription)")
         guard let repo else {
             // No-op if there's no repo to update state or handle
             // further message passing
@@ -130,7 +132,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
             case let .error(errorMsg):
                 Logger.network
                     .warning(
-                        "Error message received by network subsystem: \(errorMsg.debugDescription, privacy: .public)"
+                        "REPONET: Error message received by network subsystem: \(errorMsg.debugDescription, privacy: .public)"
                     )
             case let .request(requestMsg):
                 await repo.handleRequest(msg: requestMsg)
@@ -140,15 +142,15 @@ extension NetworkSubsystem: NetworkEventReceiver {
                 guard let docId = DocumentId(unavailableMsg.documentId) else {
                     Logger.network
                         .error(
-                            "Invalid message Id \(unavailableMsg.documentId, privacy: .public) in unavailable msg: \(unavailableMsg.debugDescription, privacy: .public)"
+                            "REPONET: Invalid message Id \(unavailableMsg.documentId, privacy: .public) in unavailable msg: \(unavailableMsg.debugDescription, privacy: .public)"
                         )
                     return
                 }
                 Logger.network.trace("Received \(event.debugDescription) event")
                 if let peersRequested = requestedDocuments[docId] {
-                    Logger.network.trace("We've requested \(docId) from \(peersRequested.count) peers:")
+                    Logger.network.trace("REPONET: We've requested \(docId) from \(peersRequested.count) peers:")
                     for p in peersRequested {
-                        Logger.network.trace(" - Peer: \(p)")
+                        Logger.network.trace("REPONET: - Peer: \(p)")
                     }
                     // if we receive an unavailable from one peer, record it and wait until
                     // we receive unavailable from all available peers before marking it unavailable
@@ -157,14 +159,16 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         peerId != unavailableMsg.senderId
                     }
                     Logger.network
-                        .trace("Removing the sending peer, there are \(remainingPeersPending.count) remaining:")
+                        .trace(
+                            "REPONET: Removing the sending peer, there are \(remainingPeersPending.count) remaining:"
+                        )
                     for p in remainingPeersPending {
-                        Logger.network.trace(" - Peer: \(p)")
+                        Logger.network.trace("REPONET: - Peer: \(p)")
                     }
                     if remainingPeersPending.isEmpty {
                         Logger.network
                             .trace(
-                                "No further peers with requests outstanding, so marking document \(docId) as unavailable"
+                                "REPONET: No further peers with requests outstanding, so marking document \(docId) as unavailable"
                             )
                         await repo.markDocUnavailable(id: docId)
                         requestedDocuments.removeValue(forKey: docId)
@@ -197,17 +201,17 @@ extension NetworkSubsystem: NetworkEventReceiver {
             case let .ephemeral(ephemeralMsg):
                 Logger.network
                     .error(
-                        "UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(ephemeralMsg.debugDescription, privacy: .public)"
+                        "REPONET: UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(ephemeralMsg.debugDescription, privacy: .public)"
                     )
             case let .remoteSubscriptionChange(remoteSubscriptionChangeMsg):
                 Logger.network
                     .error(
-                        "UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(remoteSubscriptionChangeMsg.debugDescription, privacy: .public)"
+                        "REPONET: UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(remoteSubscriptionChangeMsg.debugDescription, privacy: .public)"
                     )
             case let .remoteHeadsChanged(remoteHeadsChangedMsg):
                 Logger.network
                     .error(
-                        "UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(remoteHeadsChangedMsg.debugDescription, privacy: .public)"
+                        "REPONET: UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(remoteHeadsChangedMsg.debugDescription, privacy: .public)"
                     )
             }
         }

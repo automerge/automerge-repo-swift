@@ -8,7 +8,7 @@ final class StorageSubsystemTests: XCTestCase {
     var testStorageProvider: InMemoryStorage!
 
     override func setUp() async throws {
-        let storageProvider = await InMemoryStorage()
+        let storageProvider = InMemoryStorage()
         let incrementalKeys = await storageProvider.incrementalKeys()
         let docIds = await storageProvider.storageKeys()
         XCTAssertEqual(docIds.count, 0)
