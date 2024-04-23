@@ -10,7 +10,7 @@ public final class InMemoryStorage: StorageProvider {
     var _storage: [DocumentId: Data] = [:]
     var _incrementalChunks: [CombinedKey: [Data]] = [:]
 
-    public init() {}
+    nonisolated public init() {}
 
     public struct CombinedKey: Hashable, Comparable {
         public static func < (lhs: InMemoryStorage.CombinedKey, rhs: InMemoryStorage.CombinedKey) -> Bool {

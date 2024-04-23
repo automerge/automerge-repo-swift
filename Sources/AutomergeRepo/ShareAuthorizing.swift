@@ -7,22 +7,34 @@ public protocol ShareAuthorizing: Sendable {
     func share(peer: PEER_ID, docId: DocumentId) async -> Bool
 }
 
-// it's annoying as hell to have to specify the SharePolicies.agreeable kind of setup
-// just to get this. Seems better to make SharePolicy a struct, rename the protocol to
-// allow for generics/existential use, and add some static let variants onto the type itself.
-public enum SharePolicy: Sendable {
-    public static let agreeable = AlwaysPolicy()
-    public static let readonly = NeverPolicy()
-
-    public struct AlwaysPolicy: ShareAuthorizing {
-        public func share(peer _: PEER_ID, docId _: DocumentId) async -> Bool {
-            true
-        }
+/// A type that encapsulates the logic to choose if a repository shares a document.
+public struct SharePolicy: ShareAuthorizing, Sendable {
+    /// Returns a Boolean value that indicates whether a document may be shared.
+    /// - Parameters:
+    ///   - peer: The peer to potentially share with
+    ///   - docId: The document Id to share
+    public func share(peer: PEER_ID, docId: DocumentId) async -> Bool {
+        await shareCheck(peer, docId)
     }
-
-    public struct NeverPolicy: ShareAuthorizing {
-        public func share(peer _: PEER_ID, docId _: DocumentId) async -> Bool {
-            false
-        }
+    
+    //let msgResponse: @Sendable (SyncV1Msg) async -> SyncV1Msg?
+    let shareCheck: @Sendable (_ peer: PEER_ID, _ docId: DocumentId) async -> Bool
+    
+    /// Create a new share policy that determines a repo's share authorization logic with a closure that you provide.
+    /// - Parameter closure: A closure that accepts a peer ID and a document ID and returns a Boolean value that indicates if the document may be shared with peers requesting it.
+    public init(
+        _ closure: @Sendable @escaping (_ peer: PEER_ID, _ docId: DocumentId) async -> Bool
+    ) {
+        self.shareCheck = closure
+    }
+    
+    /// A policy that always shares documents.
+    public static let agreeable = SharePolicy { peer, docId in
+        return true
+    }
+    
+    /// A policy that never shares documents.
+    public static let readonly = SharePolicy { peer, docId in
+        return false
     }
 }
