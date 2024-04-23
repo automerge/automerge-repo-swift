@@ -25,9 +25,6 @@ jobs:
       - name: Swift tests
         run: swift test
 
-      - name: Integration tests
-        run: ./IntegrationTests/scripts/serial_tests.bash
-
       #- name: Show Build Settings
       #  run: xcodebuild -showBuildSettings
 

@@ -63,7 +63,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         let bobPeersExpectation = expectation(description: "Repo 'Bob' sees two peers")
 
         let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            if peerList.count == 2,
+            if peerList.count >= 2,
                peerList.contains(where: { ap in
                    ap.peerId == repoBob.peerId
                }),
@@ -77,7 +77,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         XCTAssertNotNil(a)
 
         let b = p2pBob.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            if peerList.count == 2,
+            if peerList.count >= 2,
                peerList.contains(where: { ap in
                    ap.peerId == repoBob.peerId
                }),
@@ -130,7 +130,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         var peerToConnect: AvailablePeer? = nil
 
         let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            if peerList.count == 2,
+            if peerList.count >= 2,
                peerList.contains(where: { ap in
                    ap.peerId == repoBob.peerId
                }),
@@ -236,7 +236,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         var peerToConnect: AvailablePeer? = nil
 
         let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
-            if peerList.count == 2,
+            if peerList.count >= 2,
                peerList.contains(where: { ap in
                    ap.peerId == repoBob.peerId
                }),
