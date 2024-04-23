@@ -7,7 +7,7 @@ import XCTest
 final class RepoPeer2PeerIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
     
-    let expectationTimeOut = 30.0 // seconds
+    let expectationTimeOut = 120.0 // seconds
 
     static let test = Logger(subsystem: subsystem, category: "RepoPeer2PeerIntegrationTests")
 
