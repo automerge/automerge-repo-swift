@@ -29,10 +29,10 @@ final class TwoReposWithNetworkTests: XCTestCase {
 
             await withSpan("TwoReposWithNetworkTests_setup") { _ in
 
-                let endpoints = await network.endpoints
+                let endpoints = await self.network.endpoints
                 XCTAssertEqual(endpoints.count, 0)
 
-                repoOne = Repo(sharePolicy: SharePolicies.readonly)
+                repoOne = Repo(sharePolicy: SharePolicy.readonly)
                 // Repo setup WITHOUT any storage subsystem
                 let storageId = await repoOne.storageId()
                 XCTAssertNil(storageId)
@@ -48,7 +48,7 @@ final class TwoReposWithNetworkTests: XCTestCase {
                 let peersOne = await repoOne.peers()
                 XCTAssertEqual(peersOne, [])
 
-                repoTwo = Repo(sharePolicy: SharePolicies.agreeable)
+                repoTwo = Repo(sharePolicy: SharePolicy.agreeable)
                 adapterTwo = await network.createNetworkEndpoint(
                     config: .init(
                         listeningNetwork: true,

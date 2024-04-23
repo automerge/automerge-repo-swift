@@ -4,6 +4,9 @@ import Foundation
 import Network
 import OSLog
 
+/// A Peer to Peer Network provider
+///
+/// Provides a incoming and outgoing connections to peers available over Bonjour.
 @AutomergeRepo
 public final class PeerToPeerProvider: NetworkProvider {
     public typealias NetworkConnectionEndpoint = NWEndpoint
@@ -24,6 +27,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    /// The list of active connections that have been authorized
     public var peeredConnections: [PeerConnectionInfo] {
         allConnections().filter { conn in
             conn.peered == true
@@ -34,6 +38,7 @@ public final class PeerToPeerProvider: NetworkProvider {
     var peerId: PEER_ID? // this providers peer Id
     var peerMetadata: PeerMetadata? // this providers peer metadata
 
+    /// The name that this provider broadcasts as the human-readable identity.
     public var peerName: String
 
     // the human-readable name to advertise on Bonjour alongside peerId
@@ -78,16 +83,21 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // public let availablePeerChannel: AsyncChannel<[AvailablePeer]>
     // Combine alternate for availablePeerChannel - accessible to SwiftUI Views
+    /// A publisher that provides updates of available peers seen by the provider when active.
     public nonisolated let availablePeerPublisher: PassthroughSubject<[AvailablePeer], Never> = PassthroughSubject()
+    /// A publisher that provides updates of connections with this provider when active.
     public nonisolated let connectionPublisher: PassthroughSubject<[PeerConnectionInfo], Never> = PassthroughSubject()
-
+    /// A publisher that provides updates of the Bonjour browser state, when active.
     public nonisolated let browserStatePublisher: PassthroughSubject<NWBrowser.State, Never> = PassthroughSubject()
+    /// A publisher that provides updates of the Bonjour listener state, when active.
     public nonisolated let listenerStatePublisher: PassthroughSubject<NWListener.State, Never> = PassthroughSubject()
 
-    // this allows us to create a provider, but it's not ready to go until
-    // its fully configured by setting a delegate on it, which initializes
-    // not only delegate, but also peerId and the optional peerMetadata
-    // ``setDelegate``
+    /// Creates a new Peer to Peer network provider
+    /// - Parameter config: The configuration for the provider.
+    ///
+    /// Creating a provider by itself is insufficient to use it. Set the providers
+    /// delegate using ``setDelegate(_:as:with:)`` to fully initialize it before use.
+    /// Setting initializes a peerId and its peer metadata from the delegate.
     public nonisolated init(_ config: PeerToPeerProviderConfiguration) {
         self.config = config
         connections = [:]
@@ -130,6 +140,8 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // MARK: NetworkProvider Methods
 
+    /// Initiate a connection to a Bonjour endpoint
+    /// - Parameter destination: The endpoint to connect
     public func connect(to destination: NWEndpoint) async throws {
         do {
             if connections.values.contains(where: { ch in
@@ -157,6 +169,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    /// Disconnect all existing connections.
     public func disconnect() {
         for receivingTasks in ongoingReceiveMessageTasks {
             receivingTasks.value.cancel()
@@ -171,6 +184,10 @@ public final class PeerToPeerProvider: NetworkProvider {
         connectionPublisher.send([])
     }
 
+    /// Send an Automerge sync protocol message.
+    /// - Parameters:
+    ///   - message: The message to send
+    ///   - peer: An optional peer to send it to. If nil, send will broadcast the message to all connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
             let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
@@ -204,6 +221,15 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    /// Set the delegate for the peer to peer provider.
+    ///
+    /// This is typically called when the delegate adds the provider, and provides this network
+    /// provider with a peer ID and associated metadata, as well as an endpoint that receives
+    /// Automerge sync protocol sync message and network events.
+    /// - Parameters:
+    ///   - delegate: The delegate instance.
+    ///   - peerId: The peer ID to use for the peer to peer provider.
+    ///   - metadata: The peer metadata to use for the peer to peer provider.
     public func setDelegate(
         _ delegate: any NetworkEventReceiver,
         as peerId: PEER_ID,
@@ -223,7 +249,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // MARK: Extra provider methods for listener & multi-connection
 
-    /// Cancels and removes the connection for a given peerId
+    /// Cancels and removes the connection for a given peer
     /// - Parameter peerId: the peer Id to disconnect from either receiving or initiated connection
     public func disconnect(peerId: PEER_ID) {
         let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
@@ -242,6 +268,12 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    /// Starts the Peer to Peer networking provider.
+    ///
+    /// This initiates a listener to accept connections, and a browser to watch for available
+    /// endpoints.
+    /// - Parameter peerName: An optional human-readable name to be used when broadcasting this provider as an available
+    /// peer.
     public func startListening(as peerName: String? = nil) async throws {
         if let peerName {
             setName(peerName)
@@ -265,6 +297,9 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    /// Terminate the Peer to Peer network provider.
+    ///
+    /// This terminates all connections, incoming and outgoing, and disables future connections.
     public func stopListening() {
         Logger.peerProtocol.debug("Stopping Bonjour browser")
         self.stopBrowsing()
@@ -293,7 +328,6 @@ public final class PeerToPeerProvider: NetworkProvider {
 
         // establish the peer to peer connection
         let peerConnection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
-//        var holder = ConnectionHolder(connection: connection, initiated: true, peered: false, endpoint: destination)
         // indicate to everything else we're starting a connection, outgoing, not yet peered
 
         // report that this connection exists to all interested
@@ -337,8 +371,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             )
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
             Logger.peerProtocol.trace("Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
-            // update the reference to the connection with a peered version
-            //self.connections[destination] = peerConnection
+
             connectionPublisher.send(allConnections())
             return true
         } catch {
@@ -517,7 +550,6 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
         self.availablePeers = availablePeers
         availablePeerPublisher.send(availablePeers)
-        // await availablePeerChannel.send(availablePeers)
 
         if config.autoconnect {
             for change in update.changes {

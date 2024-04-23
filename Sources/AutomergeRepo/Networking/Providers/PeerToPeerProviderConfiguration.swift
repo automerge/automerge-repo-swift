@@ -3,6 +3,7 @@ import Foundation
 import UIKit // for UIDevice.name access
 #endif
 
+/// A type that represents a configuration for a Peer to Peer Network Provider
 public struct PeerToPeerProviderConfiguration: Sendable {
     let passcode: String
     let reconnectOnError: Bool
@@ -11,6 +12,16 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     let recurringNextMessageTimeout: ContinuousClock.Instant.Duration
     let waitForPeerTimeout: ContinuousClock.Instant.Duration
 
+    /// Creates a new Peer to Peer Network Provider configuration
+    /// - Parameters:
+    ///   - passcode: A passcode to use as a shared private key to enable TLS encryption
+    ///   - reconnectOnError: A Boolean value that indicates if outgoing connections should attempt to reconnect on
+    /// error or failure.
+    ///   - autoconnect: A Boolean value that indicates if the provider should attempt to automatically establish an
+    /// outgoing connection with an available peer that it sees.
+    ///   - recurringNextMessageTimeout: The timeout to wait for an additional Automerge sync protocol message.
+    ///   - waitForPeerTimeout: The timeout to wait for a peer to respond to a peer request for authorizing the
+    /// connection.
     public init(
         passcode: String,
         reconnectOnError: Bool = true,
@@ -35,6 +46,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
 
     // MARK: default sharing identity
 
+    /// Returns a default peer to peer sharing identity to broadcast as your human-readable peer name.
     public static func defaultSharingIdentity() async -> String {
         let defaultName: String
         #if os(iOS)

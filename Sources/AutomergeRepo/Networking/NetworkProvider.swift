@@ -70,6 +70,7 @@ public protocol NetworkProvider: Sendable {
 }
 
 /// A type that accepts provides a method for a Network Provider to call with network events.
+@AutomergeRepo
 public protocol NetworkEventReceiver: Sendable {
     /// Receive and process an event from a Network Provider.
     /// - Parameter event: The event to process.

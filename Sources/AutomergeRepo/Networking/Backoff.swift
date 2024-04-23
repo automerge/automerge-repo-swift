@@ -1,9 +1,20 @@
 import Foundation
 
+/// A type that provides a computation for a random back-off value based on an integer number of iterations.
 public enum Backoff {
     // fibonacci numbers for 0...15
     static let fibonacci = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
 
+    /// Returns an integer value that indicates a backoff value.
+    ///
+    /// The value can be interpreted as the caller desires - milliseconds, seconds, etc -
+    /// as it is not a duration.
+    ///
+    /// - Parameters:
+    ///   - step: The number of previous tries
+    ///   - withJitter: A Boolean value that indicates whether additional randomness should be applied to the base
+    /// backoff value for the step you provide.
+    /// - Returns: An integer greater than 0 that represents a growing backoff time.
     public static func delay(_ step: UInt, withJitter: Bool) -> Int {
         let boundedStep = Int(min(15, step))
 

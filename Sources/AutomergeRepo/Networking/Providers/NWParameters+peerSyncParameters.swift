@@ -57,10 +57,6 @@ extension NWParameters {
             stringToDispatchData("MeetingNotes")! as __DispatchData
         )
 
-        // DEBUG NOTE: maybe worth looking into
-        // RFC 4785 - Pre-Shared Key (PSK) Ciphersuites with NULL Encryption
-        // public var TLS_PSK_WITH_NULL_SHA: SSLCipherSuite { get } as an alternative
-
         /* RFC 5487 - PSK with SHA-256/384 and AES GCM */
         // Forcing non-standard cipher suite value to UInt16 because for
         // whatever reason, it can get returned as UInt32 - such as in

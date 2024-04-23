@@ -234,13 +234,6 @@ public final class WebSocketProvider: NetworkProvider {
         // going into the receive loop.
         try Task.checkCancellation()
 
-//        // check the invariants
-//        guard let webSocketTask
-//        else {
-//            throw SyncV1Msg.Errors
-//                .ConnectionClosed(errorDescription: "Attempting to wait for a websocket message when the task is nil")
-//        }
-
         // Race a timeout against receiving a Peer message from the other side
         // of the WebSocket connection. If we fail that race, shut down the connection
         // and move into a .closed connectionState

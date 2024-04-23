@@ -60,7 +60,8 @@ public final class NetworkSubsystem {
         let newDocument = Document()
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
-                Logger.repo.trace("   - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)")
+                Logger.repo
+                    .trace("   - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)")
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
@@ -155,12 +156,16 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         // include the peers OTHER than the one sending the unavailable msg
                         peerId != unavailableMsg.senderId
                     }
-                    Logger.network.trace("Removing the sending peer, there are \(remainingPeersPending.count) remaining:")
+                    Logger.network
+                        .trace("Removing the sending peer, there are \(remainingPeersPending.count) remaining:")
                     for p in remainingPeersPending {
                         Logger.network.trace(" - Peer: \(p)")
                     }
                     if remainingPeersPending.isEmpty {
-                        Logger.network.trace("No further peers with requests outstanding, so marking document \(docId) as unavailable")
+                        Logger.network
+                            .trace(
+                                "No further peers with requests outstanding, so marking document \(docId) as unavailable"
+                            )
                         await repo.markDocUnavailable(id: docId)
                         requestedDocuments.removeValue(forKey: docId)
                     } else {

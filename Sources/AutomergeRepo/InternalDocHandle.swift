@@ -38,13 +38,14 @@ final class InternalDocHandle {
     let id: DocumentId
     var doc: Automerge.Document?
     var state: DocHandleState
-// Uncomment for a trace/debugging point to see what's updating the state of a DocHandle, useful for setting
-// and capturing with a breakpoint...
+    // Uncomment for a trace/debugging point to see what's updating the state of a DocHandle, useful for setting
+    // and capturing with a breakpoint...
 //    {
 //        willSet {
 //            Logger.repo.trace("updating state of \(self.id) to \(String(describing: newValue))")
 //        }
 //    }
+
     var remoteHeads: [STORAGE_ID: Set<Automerge.ChangeHash>]
     var syncStates: [PEER_ID: SyncState]
 

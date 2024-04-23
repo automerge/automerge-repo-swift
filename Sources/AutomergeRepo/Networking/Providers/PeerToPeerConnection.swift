@@ -28,7 +28,9 @@ public final class PeerToPeerConnection {
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
     // for the connection
 
+    /// A published that provides updates of the connection's state.
     public nonisolated let connectionStatePublisher: PassthroughSubject<NWConnection.State, Never>
+    /// The endpoint of the connection.
     public nonisolated let endpoint: NWEndpoint
 
     nonisolated let readyTimeout: ContinuousClock.Instant.Duration
@@ -50,7 +52,7 @@ public final class PeerToPeerConnection {
         let error: NWError?
     }
 
-    /// Initiate a connection to a network endpoint to synchronise an Automerge Document.
+    /// Initiate a connection to a network endpoint to synchronize an Automerge Document.
     /// - Parameters:
     ///   - endpoint: The endpoint to attempt to connect.
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
@@ -83,11 +85,10 @@ public final class PeerToPeerConnection {
                 " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
             )
 
-        
         startConnection()
     }
 
-    /// Accept an incoming connection
+    /// Accept an incoming connection.
     /// - Parameters:
     ///   - connection: The Network provided connection to wrap
     ///   - receiveTimeout: The timeout for expecting new messages
@@ -183,6 +184,7 @@ public final class PeerToPeerConnection {
         connection.cancel()
     }
 
+    /// An error with the network connection.
     public struct NetworkConnectionError: Sendable, LocalizedError {
         public var msg: String
         public var err: NWError?
@@ -196,6 +198,7 @@ public final class PeerToPeerConnection {
         }
     }
 
+    /// The network connection exceeded the timeout waiting to become ready.
     public struct ConnectionReadyTimeout: Sendable, LocalizedError {
         public let duration: ContinuousClock.Instant.Duration
         public var errorDescription: String? {
@@ -207,6 +210,7 @@ public final class PeerToPeerConnection {
         }
     }
 
+    /// The connection terminated.
     public struct ConnectionTerminated: Sendable, LocalizedError {
         public var errorDescription: String? {
             "Connection terminated."
@@ -214,60 +218,6 @@ public final class PeerToPeerConnection {
 
         public init() {}
     }
-
-//    // function that waits for the underlying connection state to move into a
-//    // .ready state before returning, throwing an error if the state is in a terminal
-//    // mode
-//    func isReady(timeoutEnabled: Bool) async throws {
-//        try Task.checkCancellation()
-//
-//        // NOTE<heckj>: This would be a great place to use withDiscardingTaskGroup,
-//        // but it's dependent on Swift 5.9 AND is only available on macOS 14+, iOS 17+
-//        // so we'll stick with the older/original style of racing tasks with structured
-//        // concurrency
-//        try await withThrowingTaskGroup(of: Void.self) { group in
-//            group.addTask {
-//                var readyState = false
-//                // Check to see if the connection is ready
-//                repeat {
-//                    try Task.checkCancellation()
-//                    switch await self.currentConnectionState {
-//                    case .setup:
-//                        break
-//                    case let .waiting(nWError):
-//                        Logger.peerConnection
-//                            .trace(
-//                                "peer connection to \(String(describing: self.endpoint)) is in waiting state:
-//                                \(nWError.localizedDescription)"
-//                            )
-//                    case .preparing:
-//                        break
-//                    case .ready:
-//                        readyState = true
-//                    case let .failed(nWError):
-//                        throw NetworkConnectionError(msg: "failed connection", wrapping: nWError)
-//                    case .cancelled:
-//                        throw NetworkConnectionError(msg: "cancelled connection", wrapping: nil)
-//                    @unknown default:
-//                        throw NetworkConnectionError(msg: "unknown connection state", wrapping: nil)
-//                    }
-//                    try await Task.sleep(for: self.readyCheckDelay)
-//                } while readyState != true
-//            }
-//
-//            if timeoutEnabled {
-//                group.addTask { // keep the restaurant going until closing time
-//                    try await Task.sleep(for: self.readyTimeout)
-//                    Logger.peerConnection.warning("Connection Ready TimeOut \(self.readyTimeout) REACHED")
-//                    throw ConnectionReadyTimeout(self.readyTimeout)
-//                }
-//            }
-//
-//            try await group.next()
-//            // cancel all ongoing shifts
-//            group.cancelAll()
-//        }
-//    }
 
     // MARK: Automerge data to Automerge Sync Protocol transforms
 
@@ -301,9 +251,11 @@ public final class PeerToPeerConnection {
         }
     }
 
-    // throw error on timeout
-    // throw error on cancel
-    // otherwise return the msg
+    /// Receive a message.
+    /// - Parameter withTimeout: The timeout to wait for the next message.
+    /// - Returns: The Automerge sync message received, or an error indicating a network failure or timeout.
+    ///
+    /// This function throws an error on timeout exceeded, or if the task is cancelled.
     public func receive(withTimeout: ContinuousClock.Instant.Duration?) async throws -> SyncV1Msg {
         let explicitTimeout: ContinuousClock.Instant.Duration = withTimeout ?? self.defaultReceiveTimeout
         // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
@@ -339,6 +291,7 @@ public final class PeerToPeerConnection {
         return msg
     }
 
+    /// Receives and returns a single Automerge protocol sync message from the network connection.
     public func receiveSingleMessage() async throws -> SyncV1Msg {
         // schedules a single callback with the connection to provide the next, complete
         // message. That goes into an async stream (queue) help by this actor, and is
