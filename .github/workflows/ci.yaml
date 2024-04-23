@@ -26,9 +26,7 @@ jobs:
         run: swift test
 
       - name: Integration tests
-        run: |
-         cd IntegrationTests
-         swift test
+        run: ./IntegrationTests/scripts/serial_tests.bash
 
       #- name: Show Build Settings
       #  run: xcodebuild -showBuildSettings
