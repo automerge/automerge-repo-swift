@@ -239,12 +239,6 @@ public final class PeerToPeerProvider: NetworkProvider {
         self.peerId = peerId
         txtRecord[TXTRecordKeys.peer_id] = peerId
         self.peerMetadata = metadata
-        if peerName.isEmpty {
-            Task.detached {
-                let defaultName = await PeerToPeerProviderConfiguration.defaultSharingIdentity()
-                await self.setName(defaultName)
-            }
-        }
     }
 
     // MARK: Extra provider methods for listener & multi-connection
@@ -511,6 +505,7 @@ public final class PeerToPeerProvider: NetworkProvider {
     }
 
     private func reactToNWBrowserStateUpdate(_ newState: NWBrowser.State) async {
+        Logger.peerProtocol.trace("\(self.peerName) NWBrowser state -> \(String(describing: newState))")
         browserStatePublisher.send(newState)
         switch newState {
         case let .failed(error):
@@ -533,7 +528,8 @@ public final class PeerToPeerProvider: NetworkProvider {
     }
 
     private func handleNWBrowserUpdates(_ update: BrowserResultUpdate) async {
-        Logger.peerProtocol.debug("browser update shows \(update.newResults.count, privacy: .public) result(s):")
+        Logger.peerProtocol
+            .debug("\(self.peerName) NWBrowser update with \(update.newResults.count, privacy: .public) result(s):")
 
         let availablePeers = update.newResults.compactMap { browserResult in
             Logger.peerProtocol
@@ -835,6 +831,9 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // Update the advertised name on the network.
     public func setName(_ name: String) {
+        if name == "Sparrow" {
+            print("X")
+        }
         self.peerName = name
         txtRecord[TXTRecordKeys.name] = name
 

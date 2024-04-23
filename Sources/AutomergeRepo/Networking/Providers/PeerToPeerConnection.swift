@@ -313,23 +313,25 @@ public final class PeerToPeerConnection {
         }
 
         Logger.peerConnection
-            .debug(
-                "Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+            .trace(
+                "\(self.connection.debugDescription) Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
             )
         if let bytes = rawMessageData.content?.count {
-            Logger.peerConnection.trace("  - received \(bytes) bytes")
+            Logger.peerConnection.trace("\(self.connection.debugDescription)   - received \(bytes) bytes")
         } else {
-            Logger.peerConnection.trace("  - received no data with msg")
+            Logger.peerConnection.trace("\(self.connection.debugDescription)   - received no data with msg")
         }
 
         if let ctx = rawMessageData.contentContext, ctx.isFinal {
-            Logger.peerConnection.warning("  - received message is marked as final in TCP stream")
+            Logger.peerConnection
+                .warning("\(self.connection.debugDescription)   - received message is marked as final in TCP stream")
             self.cancel()
             throw ConnectionTerminated()
         }
 
         if let err = rawMessageData.error {
-            Logger.peerConnection.error("  - error on received message: \(err.localizedDescription)")
+            Logger.peerConnection
+                .error("\(self.connection.debugDescription)   - error on received message: \(err.localizedDescription)")
             // Kind of an open-question of if we should terminate the connection
             // on an error - I think so.
             self.cancel()
@@ -352,11 +354,13 @@ public final class PeerToPeerConnection {
         case .unknown:
             Logger.peerConnection
                 .warning(
-                    "received unknown msg \(data) from \(self.endpoint.debugDescription, privacy: .public)"
+                    "\(self.connection.debugDescription) received unknown msg \(data) from \(self.endpoint.debugDescription, privacy: .public)"
                 )
             return SyncV1Msg.unknown(data)
         case .syncV1data:
-            return SyncV1Msg.decode(data)
+            let msg = SyncV1Msg.decode(data)
+            Logger.peerConnection.trace("\(self.connection.debugDescription) decoded to \(msg.debugDescription)")
+            return msg
         }
     }
 }

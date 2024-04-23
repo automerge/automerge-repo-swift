@@ -28,5 +28,8 @@ extension Logger {
 
     static let repo = Logger(subsystem: subsystem, category: "automerge-repo")
 
+    /// Logs updates related to tracing the resolution of docIDs within a repo
+    static let resolver = Logger(subsystem: subsystem, category: "resolver")
+
     static let network = Logger(subsystem: subsystem, category: "networkSubsystem")
 }
