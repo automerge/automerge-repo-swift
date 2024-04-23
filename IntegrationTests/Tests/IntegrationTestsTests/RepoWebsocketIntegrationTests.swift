@@ -63,7 +63,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
         }
 
         // set up repo (with a client-websocket)
-        let repo = Repo(sharePolicy: SharePolicies.agreeable)
+        let repo = Repo(sharePolicy: SharePolicy.agreeable)
         let websocket = WebSocketProvider()
         await repo.addNetworkAdapter(adapter: websocket)
 
@@ -91,7 +91,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
         // Create a second, empty repo that doesn't have the document and request it
 
         // set up repo (with a client-websocket)
-        let repoTwo = Repo(sharePolicy: SharePolicies.agreeable)
+        let repoTwo = Repo(sharePolicy: SharePolicy.agreeable)
         let websocketTwo = WebSocketProvider()
         await repoTwo.addNetworkAdapter(adapter: websocketTwo)
 
