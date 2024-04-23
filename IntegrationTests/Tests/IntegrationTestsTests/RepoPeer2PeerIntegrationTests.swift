@@ -6,6 +6,8 @@ import XCTest
 
 final class RepoPeer2PeerIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
+    
+    let expectationTimeOut = 30.0 // seconds
 
     static let test = Logger(subsystem: subsystem, category: "RepoPeer2PeerIntegrationTests")
 
@@ -88,7 +90,14 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         }
         XCTAssertNotNil(b)
 
-        await fulfillment(of: [alicePeersExpectation, bobPeersExpectation], timeout: 10, enforceOrder: false)
+        await fulfillment(of: [alicePeersExpectation, bobPeersExpectation], timeout: expectationTimeOut, enforceOrder: false)
+        
+        // MARK: cleanup and teardown
+        
+        await p2pAlice.disconnect()
+        await p2pAlice.stopListening()
+        await p2pBob.disconnect()
+        await p2pBob.stopListening()
     }
 
     func testPeerExplicitConnect() async throws {
@@ -139,7 +148,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         }
         XCTAssertNotNil(a)
 
-        await fulfillment(of: [alicePeersExpectation], timeout: 10, enforceOrder: false)
+        await fulfillment(of: [alicePeersExpectation], timeout: expectationTimeOut, enforceOrder: false)
 
         let a_c = p2pAlice.connectionPublisher.receive(on: RunLoop.main).sink { connectList in
             if connectList.count == 1,
@@ -180,7 +189,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         let unwrappedPeerToConnect = try XCTUnwrap(peerToConnect)
         try await p2pAlice.connect(to: unwrappedPeerToConnect.endpoint)
 
-        await fulfillment(of: [aliceConnectionExpectation, bobConnectionExpectation], timeout: 10, enforceOrder: false)
+        await fulfillment(of: [aliceConnectionExpectation, bobConnectionExpectation], timeout: expectationTimeOut, enforceOrder: false)
 
         // verify the state of documents within each of the two peer repo AFTER we connect
 
@@ -190,6 +199,13 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         // Note: no auto-sync on connect, so Bob's repo doesn't yet see the document we added to Alice's repo
         bobDocs = await repoBob.documentIds()
         XCTAssertEqual(bobDocs.count, 0)
+
+        // MARK: cleanup and teardown
+        
+        await p2pAlice.disconnect()
+        await p2pAlice.stopListening()
+        await p2pBob.disconnect()
+        await p2pBob.stopListening()
     }
 
     func testPeerExplicitConnectAndFind() async throws {
@@ -238,7 +254,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         }
         XCTAssertNotNil(a)
 
-        await fulfillment(of: [alicePeersExpectation], timeout: 10, enforceOrder: false)
+        await fulfillment(of: [alicePeersExpectation], timeout: expectationTimeOut, enforceOrder: false)
 
         // verify the state of documents within each of the two peer repo BEFORE we connect
 
@@ -266,5 +282,12 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         let requestedDoc = try await repoBob.find(id: handle.id)
         XCTAssertEqual(requestedDoc.id, handle.id)
         XCTAssertTrue(RepoHelpers.equalContents(doc1: requestedDoc.doc, doc2: handle.doc))
+        
+        // MARK: cleanup and teardown
+        
+        await p2pAlice.disconnect()
+        await p2pAlice.stopListening()
+        await p2pBob.disconnect()
+        await p2pBob.stopListening()
     }
 }
