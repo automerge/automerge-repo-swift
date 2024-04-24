@@ -89,6 +89,7 @@ public final class NetworkSubsystem {
 
     func send(message: SyncV1Msg, to: PEER_ID?) async {
         for adapter in adapters {
+            Logger.network.trace("REPONET: sending message on \(String(describing: adapter)) to \(String(describing: to))")
             await adapter.send(message: message, to: to)
         }
     }
