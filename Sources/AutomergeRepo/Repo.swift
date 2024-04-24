@@ -17,10 +17,13 @@ public final class Repo {
     public var localPeerMetadata: PeerMetadata
 
     private var handles: [DocumentId: InternalDocHandle] = [:]
+    private var observerHandles: [DocumentId: AnyCancellable] = [:]
     private var storage: DocumentStorage?
     private var network: NetworkSubsystem
 
-    // saveDebounceRate = 100
+    /// The amount of time over which changes to any Document are coalesced into a single request to sync with existing
+    /// peers
+    let saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
     var sharePolicy: any ShareAuthorizing
 
     /** maps peer id to to persistence information (storageId, isEphemeral), access by collection synchronizer  */
@@ -37,6 +40,14 @@ public final class Repo {
 
     // TESTING HOOKS - for receiving state updates while testing
     nonisolated let docHandlePublisher: PassthroughSubject<InternalDocHandle.DocHandleSnapshot, Never> =
+        PassthroughSubject()
+
+    struct SyncRequest {
+        let id: DocumentId
+        let peer: PEER_ID
+    }
+
+    nonisolated let syncRequestPublisher: PassthroughSubject<SyncRequest, Never> =
         PassthroughSubject()
 
     // REPO
@@ -159,6 +170,7 @@ public final class Repo {
     }
 
     func beginSync(docId: DocumentId, to peer: PEER_ID) async {
+        syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
         do {
             let handle = try await resolveDocHandle(id: docId)
             let syncState = syncState(id: docId, peer: peer)
@@ -201,6 +213,27 @@ public final class Repo {
 
     func handleEphemeralMessage(_ msg: SyncV1Msg.EphemeralMsg) async {
         await _ephemeralMessageDelegate?.receiveEphemeralMessage(msg)
+    }
+
+    // MARK: Synchronization Pieces - Observe internal docs
+
+    func watchDocForChanges(id: DocumentId) {
+        guard let handle = handles[id] else {
+            // no such document in our set of document handles
+            return
+        }
+        if let doc = handle.doc, handle.state == .ready, observerHandles[id] == nil {
+            let handleObserver = doc.objectWillChange
+                .debounce(for: saveDebounce, scheduler: RunLoop.main)
+                .sink { _ in
+                    for peer in self.peerMetadataByPeerId.keys {
+                        Task {
+                            await self.beginSync(docId: id, to: peer)
+                        }
+                    }
+                }
+            observerHandles[id] = handleObserver
+        }
     }
 
     // MARK: Synchronization Pieces - For Network Subsystem Access
@@ -400,6 +433,11 @@ public final class Repo {
         }
         originalDocHandle.state = .deleted
         originalDocHandle.doc = nil
+        // cancel observing for changes
+        if let observerHandle = observerHandles[id] {
+            observerHandle.cancel()
+            observerHandles.removeValue(forKey: id)
+        }
         docHandlePublisher.send(originalDocHandle.snapshot())
 
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -560,13 +598,11 @@ public final class Repo {
                     // if there's an Automerge document in memory, jump to ready
                     handle.state = .ready
                     Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                    // STRUCT ONLY handles[id] = handle
                 } else {
                     // otherwise, first attempt to load it from persistent storage
                     // (if available)
                     handle.state = .loading
                     Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                    // STRUCT ONLY handles[id] = handle
                 }
                 Logger.resolver.trace("RESOLVE: :: continuing to resolve")
                 docHandlePublisher.send(handle.snapshot())
@@ -596,8 +632,7 @@ public final class Repo {
                     // peers there's a new document before jumping to the 'ready' state
                     handle.state = .ready
                     docHandlePublisher.send(handle.snapshot())
-                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                    return DocHandle(id: id, doc: docFromHandle)
+                    return try await resolveDocHandle(id: id)
                 } else {
                     // We don't have the underlying Automerge document, so attempt
                     // to load it from storage, and failing that - if the storage provider
@@ -606,8 +641,7 @@ public final class Repo {
                     if let doc = try await loadFromStorage(id: id) {
                         handle.state = .ready
                         docHandlePublisher.send(handle.snapshot())
-                        Logger.resolver.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
-                        return DocHandle(id: id, doc: doc)
+                        return try await resolveDocHandle(id: id)
                     } else {
                         handle.state = .requesting
                         pendingRequestReadAttempts[id] = 0
@@ -624,9 +658,10 @@ public final class Repo {
                     Logger.resolver.trace("RESOLVED - X :: Missing \(id) -> [UNAVAILABLE]")
                     throw Errors.DocUnavailable(id: handle.id)
                 }
-                if let doc = updatedHandle.doc, updatedHandle.state == .ready {
-                    Logger.resolver.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
-                    return DocHandle(id: id, doc: doc)
+                if updatedHandle.doc != nil, updatedHandle.state == .ready {
+                    // this may not be needed... but i'm being paranoid about when the change happens
+                    // due to re-entrancy and all the awaits in this method
+                    return try await resolveDocHandle(id: id)
                 } else {
                     guard let previousRequests = pendingRequestReadAttempts[id] else {
                         Logger.resolver
@@ -658,6 +693,7 @@ public final class Repo {
             case .ready:
                 guard let doc = handle.doc else { fatalError("DocHandle state is ready, but ._doc is null") }
                 Logger.resolver.trace("RESOLVED! :: \(id) [\(String(describing: handle.state))]")
+                watchDocForChanges(id: id)
                 return DocHandle(id: id, doc: doc)
             case .unavailable:
                 Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED UNAVAILABLE]")

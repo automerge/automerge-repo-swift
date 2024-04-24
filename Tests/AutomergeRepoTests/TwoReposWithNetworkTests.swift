@@ -164,9 +164,18 @@ final class TwoReposWithNetworkTests: XCTestCase {
                 try await adapterOne.connect(to: "Two")
             }
 
+            let twoSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
+            let two_sink = repoTwo.syncRequestPublisher.sink { syncRequest in
+                if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
+                    twoSyncExpectation.fulfill()
+                }
+            }
+            XCTAssertNotNil(twoSyncExpectation)
+            await fulfillment(of: [twoSyncExpectation], timeout: 2)
+            two_sink.cancel()
+
             // verify that after sync, both repos have a copy of the document
             knownOnOne = await repoOne.documentIds()
-            // FLAKE HERE....
             XCTAssertEqual(knownOnOne.count, 1)
             XCTAssertEqual(knownOnOne[0], newDocId)
         }
