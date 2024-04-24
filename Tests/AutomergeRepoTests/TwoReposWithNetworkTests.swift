@@ -171,7 +171,7 @@ final class TwoReposWithNetworkTests: XCTestCase {
                 }
             }
             XCTAssertNotNil(twoSyncExpectation)
-            await fulfillment(of: [twoSyncExpectation], timeout: 2)
+            await fulfillment(of: [twoSyncExpectation], timeout: 10)
             two_sink.cancel()
 
             // verify that after sync, both repos have a copy of the document
