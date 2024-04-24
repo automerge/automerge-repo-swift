@@ -4,7 +4,7 @@ import Foundation
 import Network
 import OSLog
 
-/// A Peer to Peer Network provider
+/// An Automerge-repo network provider that connects to other instances over a peer to peer network.
 ///
 /// Provides a incoming and outgoing connections to peers available over Bonjour.
 @AutomergeRepo

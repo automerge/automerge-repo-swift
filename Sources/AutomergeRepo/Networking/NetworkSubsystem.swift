@@ -14,7 +14,7 @@ import PotentCBOR
 /// is
 /// the responsibility of the network provider instance.
 @AutomergeRepo
-public final class NetworkSubsystem {
+final class NetworkSubsystem {
     // TODO: When swift allows, switch this to a class that's locked to the same local actor
     // as Repo
 

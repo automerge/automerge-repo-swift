@@ -2,7 +2,7 @@ import Base58Swift
 import struct Foundation.Data
 import struct Foundation.UUID
 
-/// A type that represents an Automerge-repo compatible document identifier
+/// A unique Automerge document identifier
 public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
     /// A bs58 encoded string that represents the identifier
     public let id: String

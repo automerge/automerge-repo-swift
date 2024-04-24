@@ -1,6 +1,7 @@
-/// Network events that an Automerge-Repo network provider sends into the repository to notify
-/// the repository and other internal components of new connections, peers, and other Automerge messages
-/// that may need to be propogateed.
+/// Network events that a network provider sends to its delegate.
+///
+/// The delegate is typically a ``Repo`` which wants to know of new connections,
+/// new or removed peers, and any other ``SyncV1Msg`` messages that may need to be propagated.
 public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
     /// A description of the event.
     public var debugDescription: String {

@@ -1,4 +1,4 @@
-import AutomergeRepo
+@testable import AutomergeRepo
 import XCTest
 
 final class BackoffTests: XCTestCase {

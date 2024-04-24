@@ -7,7 +7,7 @@ import OSLog
 
 /// A type that provides coordinated, concurrency safe access to persist Automerge documents.
 @AutomergeRepo
-public final class DocumentStorage {
+final class DocumentStorage {
     let chunkNamespace = "incrChanges"
     var compacting: Bool
     let _storage: any StorageProvider

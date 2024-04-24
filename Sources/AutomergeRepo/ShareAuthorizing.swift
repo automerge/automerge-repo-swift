@@ -8,6 +8,14 @@ public protocol ShareAuthorizing: Sendable {
 }
 
 /// A type that encapsulates the logic to choose if a repository shares a document.
+///
+/// The built-in share policies include ``agreeable`` and ``readonly``.
+/// Provide your own closure that accepts a ``PEER_ID`` and ``DocumentId`` to return a Boolean value that indicates if
+/// the document should be shared on request.
+///
+/// If you need a type that supports more state and logic to determine authorization to share,
+///  initialize a ``Repo`` with your own type that conforms to ``ShareAuthorizing`` with
+/// ``Repo/init(sharePolicy:saveDebounce:)-8umfb``.
 public struct SharePolicy: ShareAuthorizing, Sendable {
     /// Returns a Boolean value that indicates whether a document may be shared.
     /// - Parameters:
