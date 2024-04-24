@@ -46,15 +46,25 @@ final class InternalDocHandle {
 //        }
 //    }
 
+    /// A Boolean value that indicates the document was added to the repository by way of syncing with a remote peer,
+    /// and hasn't been explicitly asked for by the app using this repository.
+    var remote: Bool
     var remoteHeads: [STORAGE_ID: Set<Automerge.ChangeHash>]
     var syncStates: [PEER_ID: SyncState]
 
     // TODO: verify that we want a timeout delay per Document, as opposed to per-Repo
     var timeoutDelay: Double
 
-    init(id: DocumentId, isNew: Bool, initialValue: Automerge.Document? = nil, timeoutDelay: Double = 1.0) {
+    init(
+        id: DocumentId,
+        isNew: Bool,
+        initialValue: Automerge.Document? = nil,
+        timeoutDelay: Double = 1.0,
+        remote: Bool = false
+    ) {
         self.id = id
         self.timeoutDelay = timeoutDelay
+        self.remote = remote
         remoteHeads = [:]
         syncStates = [:]
         // isNew is when we're creating content and it needs to get stored locally in a storage
@@ -103,6 +113,7 @@ final class InternalDocHandle {
         let docExists: Bool
         let id: DocumentId
         let state: DocHandleState
+        let remote: Bool
         let remoteHeads: [STORAGE_ID: Set<Automerge.ChangeHash>]
         let syncStates: [PEER_ID: SyncState]
     }
@@ -112,6 +123,7 @@ final class InternalDocHandle {
             docExists: self.doc != nil,
             id: id,
             state: state,
+            remote: remote,
             remoteHeads: remoteHeads,
             syncStates: syncStates
         )

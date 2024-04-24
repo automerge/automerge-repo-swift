@@ -219,7 +219,7 @@ public final class Repo {
                 // There is no in-memory handle for the document being synced, so this is a request
                 // to create a local copy of the document encapsulated in the sync message.
                 let newDocument = Document()
-                let newHandle = InternalDocHandle(id: docId, isNew: true, initialValue: newDocument)
+                let newHandle = InternalDocHandle(id: docId, isNew: true, initialValue: newDocument, remote: true)
                 docHandlePublisher.send(newHandle.snapshot())
                 // must update the repo with the new handle and empty document _before_
                 // using syncState, since it needs to resolve the documentId
@@ -379,6 +379,8 @@ public final class Repo {
         let handle: InternalDocHandle
         if let knownHandle = handles[id] {
             handle = knownHandle
+            handle.remote = false
+            docHandlePublisher.send(handle.snapshot())
         } else {
             let newHandle = InternalDocHandle(id: id, isNew: false)
             handles[id] = newHandle
