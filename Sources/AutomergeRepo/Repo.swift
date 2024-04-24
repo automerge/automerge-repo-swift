@@ -23,7 +23,7 @@ public final class Repo {
 
     /// The amount of time over which changes to any Document are coalesced into a single request to sync with existing
     /// peers
-    let saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+    let saveDebounce: RunLoop.SchedulerTimeType.Stride
     var sharePolicy: any ShareAuthorizing
 
     /** maps peer id to to persistence information (storageId, isEphemeral), access by collection synchronizer  */
@@ -78,25 +78,34 @@ public final class Repo {
 
     /// Create a new repository with the share policy you provide
     /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
+    /// - Parameter saveDebounce: The delay time to accumulate changes to a document before initiating a network sync
+    /// with available peers. The default is 2 seconds.
     public nonisolated init(
-        sharePolicy: SharePolicy
+        sharePolicy: SharePolicy,
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
     ) {
         peerId = UUID().uuidString
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
+        self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
-    /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
-    /// - Parameter storage: The storage provider for the repository.
+    /// - Parameters:
+    ///   - sharePolicy: The policy to use to determine if a repository shares a document.
+    ///   - storage: The storage provider for the repository.
+    ///   - saveDebounce: The delay time to accumulate changes to a document before initiating a network sync with
+    /// available peers. The default is 2 seconds.
     public nonisolated init(
         sharePolicy: SharePolicy,
-        storage: some StorageProvider
+        storage: some StorageProvider,
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
     ) {
         peerId = UUID().uuidString
         self.sharePolicy = sharePolicy as any ShareAuthorizing
+        self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
         self.storage = DocumentStorage(storage)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
@@ -107,18 +116,22 @@ public final class Repo {
     ///   - sharePolicy: The policy to use to determine if a repository shares a document.
     ///   - storage: The storage provider for the repository.
     ///   - networks: A list of network providers to add.
+    ///   - saveDebounce: The delay time to accumulate changes to a document before initiating a network sync with
+    /// available peers. The default is 2 seconds.
     public init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
-        networks _: [any NetworkProvider]
+        networks: [any NetworkProvider],
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
         self.storage = DocumentStorage(storage)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         network = NetworkSubsystem()
+        self.saveDebounce = saveDebounce
         network.setRepo(self)
-        for adapter in network.adapters {
+        for adapter in networks {
             network.addAdapter(adapter: adapter)
         }
     }
