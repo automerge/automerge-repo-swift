@@ -9,6 +9,7 @@ import OSLog
 /// Provides a incoming and outgoing connections to peers available over Bonjour.
 @AutomergeRepo
 public final class PeerToPeerProvider: NetworkProvider {
+    public let name = "PeerToPeer"
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
     private func allConnections() -> [PeerConnectionInfo] {

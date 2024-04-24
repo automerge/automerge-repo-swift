@@ -77,6 +77,7 @@ public struct TestOutgoingNetworkConfiguration: Sendable, CustomDebugStringConve
 /// Acts akin to an outbound connection - doesn't "connect" and trigger messages until you explicitly ask
 @AutomergeRepo
 public final class TestOutgoingNetworkProvider: NetworkProvider {
+    public let name = "MockProvider"
     public var peeredConnections: [PeerConnectionInfo] = []
 
     public typealias NetworkConnectionEndpoint = String

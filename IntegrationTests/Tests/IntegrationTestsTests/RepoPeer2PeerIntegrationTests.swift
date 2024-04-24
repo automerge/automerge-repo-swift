@@ -207,7 +207,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         aliceDocs = await repoAlice.documentIds()
         XCTAssertEqual(aliceDocs.count, 1)
         XCTAssertEqual(aliceDocs[0], handle.id)
-        // Note: no auto-sync on connect, so Bob's repo doesn't yet see the document we added to Alice's repo
+
         bobDocs = await repoBob.documentIds()
         XCTAssertEqual(bobDocs.count, 1)
         XCTAssertEqual(bobDocs[1], handle.id)

@@ -132,6 +132,7 @@ public final class InMemoryNetworkConnection {
 
 @AutomergeRepo // isolate all calls to this class using the InMemoryNetwork global actor
 public final class InMemoryNetworkEndpoint: NetworkProvider {
+    public let name = "InMemory"
     public typealias ProviderConfiguration = BasicNetworkConfiguration
     public typealias NetworkConnectionEndpoint = String
 

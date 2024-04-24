@@ -41,6 +41,9 @@ import Automerge
 /// - When the transport receives a `leave` message, close the connection and emit ``NetworkAdapterEvents/close``.
 @AutomergeRepo
 public protocol NetworkProvider: Sendable {
+    /// A string that represents the name of the network provider
+    var name: String { get }
+
     /// A list of all active, peered connections that the provider is maintaining.
     ///
     /// For an outgoing connection, this is typically a single connection.
