@@ -1,5 +1,6 @@
 import Automerge
 import AutomergeUtilities
+import Combine
 import Foundation
 import OSLog
 
@@ -168,15 +169,20 @@ public final class Repo {
             }
         } catch {
             Logger.repo
-                .error("Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)")
+                .error("REPO: \(self.peerId) Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func addPeerWithMetadata(peer: PEER_ID, metadata: PeerMetadata?) async {
+        assert(peer != self.peerId)
         peerMetadataByPeerId[peer] = metadata
+        Logger.repo.trace("REPO: \(self.peerId) adding peer \(peer)")
         for docId in documentIds() {
             if await sharePolicy.share(peer: peer, docId: docId) {
+                Logger.repo.trace("REPO: \(self.peerId) starting a sync for document \(docId) to \(peer)")
                 await beginSync(docId: docId, to: peer)
+            } else {
+                Logger.repo.trace("REPO: \(self.peerId) SharePolicy DENIED sharing document \(docId) to \(peer)")
             }
         }
     }

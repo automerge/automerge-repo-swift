@@ -190,21 +190,30 @@ public final class PeerToPeerProvider: NetworkProvider {
     ///   - peer: An optional peer to send it to. If nil, send will broadcast the message to all connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
+            Logger.peerProtocol.trace("Sending \(message.debugDescription) to peer \(peerId)")
             let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
                 h.peerId == peerId
             }
-            for holder in holdersWithPeer {
-                do {
-                    try await holder.send(message)
-                } catch {
-                    Logger.peerProtocol
-                        .warning(
-                            "error encoding message \(message.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
-                        )
+            if holdersWithPeer.isEmpty {
+                Logger.peerProtocol.warning("Unable to find a connection to peer \(peerId)")
+                for c in connections.values {
+                    Logger.peerProtocol.warning("\(c.connection.debugDescription) PEERED:\(c.peered) INITIATED:\(c.initiated) peer:\(c.peerId ?? "??") metadata: \(c.peerMetadata?.debugDescription ?? "none")")
+                }
+            } else {
+                for holder in holdersWithPeer {
+                    do {
+                        try await holder.send(message)
+                    } catch {
+                        Logger.peerProtocol
+                            .warning(
+                                "error encoding message \(message.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
+                            )
+                    }
                 }
             }
         } else {
             // nil peerId means send to everyone...
+            Logger.peerProtocol.trace("Sending \(message.debugDescription) to all peers")
             for holder in connections.values {
                 // only send to connections with a set PeerId
                 if let peerId = holder.peerId {
@@ -357,7 +366,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             peerConnection.peerMetadata = peerMsg.peerMetadata
             peerConnection.peered = true
             let peerConnectionDetails = PeerConnectionInfo(
-                peerId: peerId,
+                peerId: peerMsg.senderId,
                 peerMetadata: peerConnection.peerMetadata,
                 endpoint: peerConnection.endpoint.debugDescription,
                 initiated: peerConnection.initiated,
@@ -751,7 +760,6 @@ public final class PeerToPeerProvider: NetworkProvider {
             return nil
         }
 
-//        var holderCopy = holder
         // Race a timeout against receiving a Join message from the other side
         // of the connection. If we fail that race, shut down the connection
         // and move into a .closed connectionState
@@ -784,7 +792,6 @@ public final class PeerToPeerProvider: NetworkProvider {
         holder.peerId = joinMsg.senderId
         holder.peerMetadata = joinMsg.peerMetadata
         holder.peered = true
-//        connections[holderCopy.endpoint] = holderCopy
         connectionPublisher.send(allConnections())
 
         Logger.peerProtocol
