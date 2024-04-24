@@ -201,7 +201,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
 
         print(" WAITING IN TEST TO LET AUTO_SYNC HAPPEN ")
         try await Task.sleep(for: .seconds(15))
-        
+
         // verify the state of documents within each of the two peer repo AFTER we connect
 
         aliceDocs = await repoAlice.documentIds()
@@ -211,6 +211,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         bobDocs = await repoBob.documentIds()
         XCTAssertEqual(bobDocs.count, 1)
         XCTAssertEqual(bobDocs[1], handle.id)
+
         // MARK: cleanup and teardown
 
         await p2pAlice.disconnect()

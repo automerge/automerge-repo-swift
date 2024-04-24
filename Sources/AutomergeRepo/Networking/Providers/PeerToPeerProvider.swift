@@ -197,7 +197,10 @@ public final class PeerToPeerProvider: NetworkProvider {
             if holdersWithPeer.isEmpty {
                 Logger.peerProtocol.warning("Unable to find a connection to peer \(peerId)")
                 for c in connections.values {
-                    Logger.peerProtocol.warning("\(c.connection.debugDescription) PEERED:\(c.peered) INITIATED:\(c.initiated) peer:\(c.peerId ?? "??") metadata: \(c.peerMetadata?.debugDescription ?? "none")")
+                    Logger.peerProtocol
+                        .warning(
+                            "\(c.connection.debugDescription) PEERED:\(c.peered) INITIATED:\(c.initiated) peer:\(c.peerId ?? "??") metadata: \(c.peerMetadata?.debugDescription ?? "none")"
+                        )
                 }
             } else {
                 for holder in holdersWithPeer {

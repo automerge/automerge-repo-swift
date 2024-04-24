@@ -35,6 +35,9 @@ public final class Repo {
 
     private var _ephemeralMessageDelegate: (any EphemeralMessageDelegate)?
 
+    // TESTING HOOKS - for receiving state updates while testing
+    let docHandlePublisher: PassthroughSubject<InternalDocHandle.DocHandleSnapshot, Never> = PassthroughSubject()
+
     // REPO
     // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/Repo.ts
     // - looks like it's the rough equivalent to the overall synchronization coordinator
@@ -169,7 +172,9 @@ public final class Repo {
             }
         } catch {
             Logger.repo
-                .error("REPO: \(self.peerId) Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)")
+                .error(
+                    "REPO: \(self.peerId) Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)"
+                )
         }
     }
 
