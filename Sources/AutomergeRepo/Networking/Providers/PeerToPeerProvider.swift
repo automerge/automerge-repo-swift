@@ -540,6 +540,16 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
+    private func availablePeerFromBrowserResult(_ result: NWBrowser.Result) -> AvailablePeer? {
+        if case let .bonjour(txtRecord) = result.metadata,
+           let name = txtRecord[TXTRecordKeys.name],
+           let peerId = txtRecord[TXTRecordKeys.peer_id]
+        {
+            return AvailablePeer(peerId: peerId, endpoint: result.endpoint, name: name)
+        }
+        return nil
+    }
+
     private func handleNWBrowserUpdates(_ update: BrowserResultUpdate) async {
         Logger.peerProtocol
             .debug("\(self.peerName) NWBrowser update with \(update.newResults.count, privacy: .public) result(s):")
@@ -549,13 +559,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 .debug(
                     "  \(browserResult.endpoint.debugDescription, privacy: .public) \(browserResult.metadata.debugDescription, privacy: .public)"
                 )
-            if case let .bonjour(txtRecord) = browserResult.metadata,
-               let name = txtRecord[TXTRecordKeys.name],
-               let peerId = txtRecord[TXTRecordKeys.peer_id]
-            {
-                return AvailablePeer(peerId: peerId, endpoint: browserResult.endpoint, name: name)
-            }
-            return nil
+            return availablePeerFromBrowserResult(browserResult)
         }
         self.availablePeers = availablePeers
         availablePeerPublisher.send(availablePeers)
@@ -563,23 +567,22 @@ public final class PeerToPeerProvider: NetworkProvider {
         if config.autoconnect {
             for change in update.changes {
                 if case let .added(result) = change {
-                    do {
-                        Logger.peerProtocol.debug("AutoConnect attempting to: \(result.endpoint.debugDescription)")
-                        switch result.metadata {
-                        case .none:
-                            Logger.peerProtocol.debug("  - No metadata available")
-                        case let .bonjour(txtRecord):
-                            Logger.peerProtocol.debug("  - \(txtRecord.debugDescription)")
-                        @unknown default:
-                            fatalError("Unknown metadata on Bonjour browser result")
+                    if let availablePeer = availablePeerFromBrowserResult(result),
+                       availablePeer.id != peerId,
+                       connections[availablePeer.endpoint] == nil
+                    {
+                        do {
+                            Logger.peerProtocol
+                                .debug(
+                                    "\(self.peerName) AutoConnect attempting to connect to \(availablePeer.debugDescription)"
+                                )
+                            try await connect(to: result.endpoint)
+                        } catch {
+                            Logger.peerProtocol
+                                .warning(
+                                    "Failed to connect to \(result.endpoint.debugDescription): \(error.localizedDescription)"
+                                )
                         }
-                        Logger.peerProtocol.debug("AutoConnect attempting to: \(result.interfaces)")
-                        try await connect(to: result.endpoint)
-                    } catch {
-                        Logger.peerProtocol
-                            .warning(
-                                "Failed to connect to \(result.endpoint.debugDescription): \(error.localizedDescription)"
-                            )
                     }
                 }
             }

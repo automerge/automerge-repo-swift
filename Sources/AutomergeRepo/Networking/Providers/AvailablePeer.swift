@@ -25,3 +25,9 @@ extension AvailablePeer: Comparable {
         lhs.name < rhs.name
     }
 }
+
+extension AvailablePeer: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "\(name) [\(peerId)] at \(endpoint.debugDescription)"
+    }
+}
