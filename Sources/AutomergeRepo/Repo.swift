@@ -36,7 +36,7 @@ public final class Repo {
     private var _ephemeralMessageDelegate: (any EphemeralMessageDelegate)?
 
     // TESTING HOOKS - for receiving state updates while testing
-    let docHandlePublisher: PassthroughSubject<InternalDocHandle.DocHandleSnapshot, Never> = PassthroughSubject()
+    nonisolated let docHandlePublisher: PassthroughSubject<InternalDocHandle.DocHandleSnapshot, Never> = PassthroughSubject()
 
     // REPO
     // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/Repo.ts

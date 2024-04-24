@@ -1,5 +1,5 @@
 import Automerge
-import AutomergeRepo
+@testable import AutomergeRepo
 import AutomergeUtilities
 import OSLog
 import XCTest
@@ -131,6 +131,8 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
         let alicePeersExpectation = expectation(description: "Repo 'Alice' sees two peers")
         let aliceConnectionExpectation = expectation(description: "Repo 'Alice' sees a connection to Bob")
         let bobConnectionExpectation = expectation(description: "Repo 'Bob' sees a connection to Alice")
+        let bobDocHandleExpectation = expectation(description: "Repo 'Bob' sees the now available dochandle")
+
         var peerToConnect: AvailablePeer? = nil
 
         let a = p2pAlice.availablePeerPublisher.receive(on: RunLoop.main).sink { peerList in
@@ -199,8 +201,33 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
             enforceOrder: false
         )
 
-        print(" WAITING IN TEST TO LET AUTO_SYNC HAPPEN ")
-        try await Task.sleep(for: .seconds(15))
+        // MARK: waiting for the sync, happening in the background, to fully replicate the doc from Alice to Bob
+        
+        // This is sort of stupid one-time latch fix to the fact that the test publisher generates a LOT of updates,
+        // but we're supposed to call "fulfill()" on the expectation only once. So we latch it - and the first time
+        // we match it, we'll call fulfull(), otherwise we'll just happily pass it by...
+        var foundDocAtBobYet: Bool = false
+        
+        let b_d = repoBob.docHandlePublisher.receive(on: RunLoop.main).sink { docHandleSnap in
+            if docHandleSnap.id == handle.id {
+                Logger.test.info("TEST: \(docHandleSnap.id) docExists:\(docHandleSnap.docExists) state:\(String(describing: docHandleSnap.state))")
+            }
+            if docHandleSnap.docExists, docHandleSnap.id == handle.id, docHandleSnap.state == .ready {
+                if !foundDocAtBobYet {
+                    bobDocHandleExpectation.fulfill()
+                    foundDocAtBobYet = true
+                }
+            }
+        }
+        XCTAssertNotNil(b_d)
+        
+        await fulfillment(
+            of: [bobDocHandleExpectation],
+            timeout: expectationTimeOut,
+            enforceOrder: false
+        )
+        
+        b_d.cancel()
 
         // verify the state of documents within each of the two peer repo AFTER we connect
 
@@ -210,7 +237,7 @@ final class RepoPeer2PeerIntegrationTests: XCTestCase {
 
         bobDocs = await repoBob.documentIds()
         XCTAssertEqual(bobDocs.count, 1)
-        XCTAssertEqual(bobDocs[1], handle.id)
+        XCTAssertEqual(bobDocs[0], handle.id)
 
         // MARK: cleanup and teardown
 
