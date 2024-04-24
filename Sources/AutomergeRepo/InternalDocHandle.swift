@@ -97,4 +97,23 @@ final class InternalDocHandle {
     func setRemoteHeads(id: STORAGE_ID, heads: Set<ChangeHash>) {
         remoteHeads[id] = heads
     }
+
+    // For testing only - snapshot of current state of a DocHandle
+    struct DocHandleSnapshot {
+        let docExists: Bool
+        let id: DocumentId
+        let state: DocHandleState
+        let remoteHeads: [STORAGE_ID: Set<Automerge.ChangeHash>]
+        let syncStates: [PEER_ID: SyncState]
+    }
+
+    func snapshot() -> DocHandleSnapshot {
+        DocHandleSnapshot(
+            docExists: self.doc != nil,
+            id: id,
+            state: state,
+            remoteHeads: remoteHeads,
+            syncStates: syncStates
+        )
+    }
 }
