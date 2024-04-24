@@ -219,7 +219,7 @@ public final class Repo {
                 // to create a local copy of the document encapsulated in the sync message.
                 let newDocument = Document()
                 let newHandle = InternalDocHandle(id: docId, isNew: true, initialValue: newDocument)
-
+                docHandlePublisher.send(newHandle.snapshot())
                 // must update the repo with the new handle and empty document _before_
                 // using syncState, since it needs to resolve the documentId
                 handles[docId] = newHandle
@@ -318,6 +318,7 @@ public final class Repo {
     public func create() async throws -> DocHandle {
         let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document())
         handles[handle.id] = handle
+        docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
         return resolved
     }
@@ -328,6 +329,7 @@ public final class Repo {
     public func create(id: DocumentId) async throws -> DocHandle {
         let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document())
         handles[handle.id] = handle
+        docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
         return resolved
     }
@@ -339,6 +341,7 @@ public final class Repo {
         let creationId = id ?? DocumentId()
         let handle = InternalDocHandle(id: creationId, isNew: true, initialValue: doc)
         handles[handle.id] = handle
+        docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
         return resolved
     }
@@ -350,6 +353,7 @@ public final class Repo {
         let creationId = id ?? DocumentId()
         let handle = try InternalDocHandle(id: creationId, isNew: true, initialValue: Document(data))
         handles[handle.id] = handle
+        docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
         return resolved
     }
@@ -363,6 +367,7 @@ public final class Repo {
         let newId = DocumentId()
         let newHandle = InternalDocHandle(id: newId, isNew: false, initialValue: fork)
         handles[newHandle.id] = newHandle
+        docHandlePublisher.send(newHandle.snapshot())
         let resolved = try await resolveDocHandle(id: newHandle.id)
         return resolved
     }
@@ -376,6 +381,7 @@ public final class Repo {
         } else {
             let newHandle = InternalDocHandle(id: id, isNew: false)
             handles[id] = newHandle
+            docHandlePublisher.send(newHandle.snapshot())
             handle = newHandle
         }
         return try await resolveDocHandle(id: handle.id)
@@ -391,7 +397,7 @@ public final class Repo {
         }
         originalDocHandle.state = .deleted
         originalDocHandle.doc = nil
-        // STRUCT ONLY handles[id] = originalDocHandle
+        docHandlePublisher.send(originalDocHandle.snapshot())
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -417,6 +423,7 @@ public final class Repo {
     public func `import`(data: Data) async throws -> DocHandle {
         let handle = try InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document(data))
         handles[handle.id] = handle
+        docHandlePublisher.send(handle.snapshot())
         return try await resolveDocHandle(id: handle.id)
     }
 
@@ -464,7 +471,7 @@ public final class Repo {
         }
         assert(handle.state == .requesting)
         handle.state = .unavailable
-        handles[id] = handle
+        docHandlePublisher.send(handle.snapshot())
     }
 
     func updateDoc(id: DocumentId, doc: Document) async {
@@ -473,15 +480,13 @@ public final class Repo {
             fatalError("No stored document handle for document id: \(id)")
         }
         Logger.repo.trace("Updated contents of document \(id), state: \(String(describing: handle.state))")
-        if handle.state == .requesting {
-            handle.state = .ready
-        }
         // Automerge-repo https://github.com/automerge/automerge-repo/issues/343 is sending two responses,
         // the first being UNAVAILABLE, which we use to change the state, but that triggers this unexpected
         // assertion, we we later receive the SYNC update to set the document as expected
-        assert(handle.state == .ready || handle.state == .unavailable)
+        assert(handle.state == .ready || handle.state == .unavailable || handle.state == .requesting)
         handle.doc = doc
         handle.state = .ready
+        docHandlePublisher.send(handle.snapshot())
         if let storage {
             do {
                 try await withThrowingTaskGroup(of: Void.self) { group in
@@ -561,6 +566,7 @@ public final class Repo {
                     // STRUCT ONLY handles[id] = handle
                 }
                 Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                docHandlePublisher.send(handle.snapshot())
                 return try await resolveDocHandle(id: id)
             case .loading:
                 // Do we have the document
@@ -586,7 +592,7 @@ public final class Repo {
                     // TODO: if we're allowed and prolific in gossip, notify any connected
                     // peers there's a new document before jumping to the 'ready' state
                     handle.state = .ready
-                    // STRUCT ONLY handles[id] = handle
+                    docHandlePublisher.send(handle.snapshot())
                     Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                     return DocHandle(id: id, doc: docFromHandle)
                 } else {
@@ -596,17 +602,17 @@ public final class Repo {
                     // it from a peer.
                     if let doc = try await loadFromStorage(id: id) {
                         handle.state = .ready
-                        // STRUCT ONLY handles[id] = handle
+                        docHandlePublisher.send(handle.snapshot())
                         Logger.resolver.trace("RESOLVED! :: \(id) -> [\(String(describing: handle.state))]")
                         return DocHandle(id: id, doc: doc)
                     } else {
                         handle.state = .requesting
-                        // STRUCT ONLY handles[id] = handle
                         pendingRequestReadAttempts[id] = 0
                         Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                         Logger.resolver.trace("RESOLVE: :: starting remote fetch")
                         try await network.startRemoteFetch(id: handle.id)
                         Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        docHandlePublisher.send(handle.snapshot())
                         return try await resolveDocHandle(id: id)
                     }
                 }
@@ -637,6 +643,8 @@ public final class Repo {
                         Logger.resolver.trace("RESOLVE: :: continuing to resolve")
                         return try await resolveDocHandle(id: id)
                     } else {
+                        updatedHandle.state = .unavailable
+                        docHandlePublisher.send(handle.snapshot())
                         Logger.resolver
                             .trace(
                                 "RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
