@@ -11,15 +11,9 @@ final class BaseRepoTests: XCTestCase {
     }
 
     func testMostBasicRepoStartingPoints() async throws {
-        // Repo
-        //  property: peers [PeerId] - all (currently) connected peers
         let peers = await repo.peers()
         XCTAssertEqual(peers, [])
 
-        // let peerId = await repo.peerId
-        // print(peerId)
-
-        // - func storageId() -> StorageId (async)
         let storageId = await repo.storageId()
         XCTAssertNil(storageId)
 
