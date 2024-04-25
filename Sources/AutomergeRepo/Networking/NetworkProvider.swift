@@ -18,14 +18,15 @@ import Automerge
 /// - After the underlying transport connection is established due to a call to `connect`, the provider emits
 /// ``NetworkAdapterEvents/ready(payload:)``, which includes a payload that indicates a
 /// reference to the network provider (`any NetworkAdapter`).
-/// - After the connection is established, the adapter sends a ``SyncV1/join(_:)`` message to request peering.
-/// - When the NetworkAdapter receives a ``SyncV1/peer(_:)`` message, it emits
+/// - After the connection is established, the adapter sends a ``SyncV1Msg/join(_:)`` message to request peering.
+/// - When the NetworkAdapter receives a ``SyncV1Msg/peer(_:)`` message, it emits
 /// ``NetworkAdapterEvents/peerCandidate(payload:)``.
 /// - If a message other than `peer` is received, the adapter should terminate the connection and emit
 /// ``NetworkAdapterEvents/close``.
 /// - All other messages are emitted as ``NetworkAdapterEvents/message(payload:)``.
 /// - When a transport connection is closed, the adapter should emit ``NetworkAdapterEvents/peerDisconnect(payload:)``.
-/// - When `disconnect` is invoked on a network provider, it should send a ``SyncV1/leave(_:)`` message, terminate the
+/// - When `disconnect` is invoked on a network provider, it should send a ``SyncV1Msg/leave(_:)`` message, terminate
+/// the
 /// connection, and emit ``NetworkAdapterEvents/close``.
 ///
 /// A connecting transport may optionally enable automatic reconnection on connection failure. Any configurable
@@ -36,7 +37,7 @@ import Automerge
 /// - When a connection is established, emit ``NetworkAdapterEvents/ready(payload:)``.
 /// - When the transport receives a `join` message, verify that the protocols being requested are compatible. If they
 /// are not,
-/// return an ``SyncV1/error(_:)`` message, close the connection, and emit ``NetworkAdapterEvents/close``.
+/// return an ``SyncV1Msg/error(_:)`` message, close the connection, and emit ``NetworkAdapterEvents/close``.
 /// - When any other message is received, it is emitted with ``NetworkAdapterEvents/message(payload:)``.
 /// - When the transport receives a `leave` message, close the connection and emit ``NetworkAdapterEvents/close``.
 @AutomergeRepo
@@ -73,6 +74,9 @@ public protocol NetworkProvider: Sendable {
 }
 
 /// A type that accepts provides a method for a Network Provider to call with network events.
+///
+/// Mostly commonly, this is a ``Repo`` instance, and describes the interface that a network provider
+/// uses for its delegate callbacks.
 @AutomergeRepo
 public protocol NetworkEventReceiver: Sendable {
     /// Receive and process an event from a Network Provider.

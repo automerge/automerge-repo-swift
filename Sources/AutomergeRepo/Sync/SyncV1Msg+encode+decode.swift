@@ -6,7 +6,7 @@ public extension SyncV1Msg {
     /// Attempts to decode the data you provide as a peer message.
     ///
     /// - Parameter data: The data to decode
-    /// - Returns: The decoded message, or ``SyncV1/unknown(_:)`` if the decoding attempt failed.
+    /// - Returns: The decoded message, or ``SyncV1Msg/unknown(_:)`` if the decoding attempt failed.
     static func decodePeer(_ data: Data) -> SyncV1Msg {
         if let peerMsg = attemptPeer(data) {
             .peer(peerMsg)
@@ -35,7 +35,7 @@ public extension SyncV1Msg {
     ///   - data: The data to decode.
     ///   - withGossip: A Boolean value that indicates whether to include decoding of handshake messages.
     ///   - withHandshake: A Boolean value that indicates whether to include decoding of gossip messages.
-    /// - Returns: The decoded message, or ``SyncV1/unknown(_:)`` if the previous decoding attempts failed.
+    /// - Returns: The decoded message, or ``SyncV1Msg/unknown(_:)`` if the previous decoding attempts failed.
     ///
     /// The decoding is ordered from the perspective of an initiating client expecting a response to minimize attempts.
     /// Enable `withGossip` to attempt to decode head gossip messages, and `withHandshake` to include handshake phase

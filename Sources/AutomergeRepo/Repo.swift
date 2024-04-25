@@ -11,6 +11,12 @@ public protocol EphemeralMessageDelegate: Sendable {
     func receiveEphemeralMessage(_ msg: SyncV1Msg.EphemeralMsg) async
 }
 
+/// A repository for Automerge documents that coordinates storage and synchronization.
+///
+/// Initialize a repository with a storage provider to enable automatic loading and saving of Automerge documents to
+/// persistent storage.
+/// Add one or more network adapters to support synchronization of updates between any connected peers.
+/// Documents are shared on request, or not, based on ``SharePolicy`` you provide when creating the repository.
 @AutomergeRepo
 public final class Repo {
     public nonisolated let peerId: PEER_ID
@@ -88,6 +94,23 @@ public final class Repo {
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
+        self.saveDebounce = saveDebounce
+        network = NetworkSubsystem()
+    }
+
+    /// Create a new repository with the custom share policy type you provide
+    /// - Parameter sharePolicy: A type that conforms to ``ShareAuthorizing`` to use to determine if a repository shares
+    /// a document.
+    /// - Parameter saveDebounce: The delay time to accumulate changes to a document before initiating a network sync
+    /// with available peers. The default is 2 seconds.
+    public nonisolated init(
+        sharePolicy: some ShareAuthorizing,
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+    ) {
+        peerId = UUID().uuidString
+        storage = nil
+        localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
+        self.sharePolicy = sharePolicy
         self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
     }
@@ -652,6 +675,7 @@ public final class Repo {
                     // doesn't exist, for example - jump forward to attempting to fetch
                     // it from a peer.
                     if let doc = try await loadFromStorage(id: id) {
+                        handle.doc = doc
                         handle.state = .ready
                         docHandlePublisher.send(handle.snapshot())
                         return try await resolveDocHandle(id: id)

@@ -1,7 +1,7 @@
 import Foundation
 
 /// A type that provides a computation for a random back-off value based on an integer number of iterations.
-public enum Backoff {
+enum Backoff {
     // fibonacci numbers for 0...15
     static let fibonacci = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
 

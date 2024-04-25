@@ -10,22 +10,48 @@ introduction to automerge repo and what it provides, what problem it solves
 
 ### Managing a collection of Automerge documents
 
-- ``AutomergeRepo/DocumentSyncCoordinator``
+- ``AutomergeRepo/Repo``
+- ``AutomergeRepo/DocHandle``
 - ``AutomergeRepo/DocumentId``
+- ``AutomergeRepo/EphemeralMessageDelegate``
+- ``AutomergeRepo/AutomergeRepo``
 
 ### Network Adapters
 
-- ``AutomergeRepo/NetworkSyncProvider``
-- ``AutomergeRepo/BonjourSyncConnection``
-- ``AutomergeRepo/WebsocketSyncConnection``
-
-- ``AutomergeRepo/NetworkSubsystem``
+- ``AutomergeRepo/NetworkProvider``
+- ``AutomergeRepo/NetworkEventReceiver``
 - ``AutomergeRepo/NetworkAdapterEvents``
-- ``AutomergeRepo/SyncUserDefaultsKeys``
-- ``AutomergeRepo/SynchronizerDefaultKeys
-- ``AutomergeRepo/SyncV1``
+- ``AutomergeRepo/AvailablePeer``
+
+### WebSocket Network Adapter
+
+- ``AutomergeRepo/WebSocketProvider``
+
+### Peer to Peer Network Adapter
+
+- ``AutomergeRepo/PeerToPeerProvider``
+- ``AutomergeRepo/PeerToPeerProviderConfiguration``
+- ``AutomergeRepo/PeerToPeerConnection``
+- ``AutomergeRepo/PeerConnectionInfo``
+- ``AutomergeRepo/ProtocolState``
+
+### Share Policy
+
+- ``AutomergeRepo/SharePolicy``
+- ``AutomergeRepo/ShareAuthorizing``
 
 ### Storage Adapters
 
 - ``AutomergeRepo/StorageProvider``
-- ``AutomergeRepo/StorageSubsystem`` 
+- ``AutomergeRepo/CHUNK``
+
+### Automerge-Repo Sync Protocol
+
+- ``AutomergeRepo/SyncV1Msg``
+- ``PeerMetadata``
+- ``AutomergeRepo/CBORCoder``
+- ``AutomergeRepo/MSG_DOCUMENT_ID``
+- ``AutomergeRepo/PEER_ID``
+- ``AutomergeRepo/STORAGE_ID``
+- ``AutomergeRepo/SYNC_MESSAGE``
+
