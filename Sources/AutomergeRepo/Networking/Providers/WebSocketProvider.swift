@@ -3,7 +3,7 @@ import OSLog
 /// An Automerge-repo network provider that connects to other instances using a WebSocket.
 @AutomergeRepo
 public final class WebSocketProvider: NetworkProvider {
-    public let name = "WebSockket"
+    public let name = "WebSocket"
 
     public typealias ProviderConfiguration = WebSocketProviderConfiguration
     public struct WebSocketProviderConfiguration: Sendable {
