@@ -256,7 +256,7 @@ public final class PeerToPeerConnection {
     /// - Returns: The Automerge sync message received, or an error indicating a network failure or timeout.
     ///
     /// This function throws an error on timeout exceeded, or if the task is cancelled.
-    public func receive(withTimeout: ContinuousClock.Instant.Duration?) async throws -> SyncV1Msg {
+    public nonisolated func receive(withTimeout: ContinuousClock.Instant.Duration?) async throws -> SyncV1Msg {
         let explicitTimeout: ContinuousClock.Instant.Duration = withTimeout ?? self.defaultReceiveTimeout
         // nil on timeout means we apply a default - 3.5 seconds, this setup keeps
         // the signature that _demands_ a timeout in the face of the developer (me)

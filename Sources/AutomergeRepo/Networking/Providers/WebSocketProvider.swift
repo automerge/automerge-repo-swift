@@ -219,7 +219,7 @@ public final class WebSocketProvider: NetworkProvider {
     // throw error on timeout
     // throw error on cancel
     // otherwise return the msg
-    private func nextMessage(
+    private nonisolated func nextMessage(
         on webSocketTask: URLSessionWebSocketTask,
         withTimeout: ContinuousClock.Instant
             .Duration?

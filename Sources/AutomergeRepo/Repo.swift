@@ -476,14 +476,7 @@ public final class Repo {
         }
         docHandlePublisher.send(originalDocHandle.snapshot())
 
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                try await self.purgeFromStorage(id: id)
-            }
-            // specifically call/wait in case we get an error from
-            // the delete process in purging the document.
-            try await group.next()
-        }
+        try await self.purgeFromStorage(id: id)
     }
 
     /// Export the data associated with an Automerge document from the repo.
@@ -566,14 +559,7 @@ public final class Repo {
         docHandlePublisher.send(handle.snapshot())
         if let storage {
             do {
-                try await withThrowingTaskGroup(of: Void.self) { group in
-                    group.addTask {
-                        try await storage.saveDoc(id: id, doc: doc)
-                    }
-                    // specifically call/wait in case we get an error from
-                    // the delete process in purging the document.
-                    try await group.next()
-                }
+                try await storage.saveDoc(id: id, doc: doc)
             } catch {
                 Logger.repo
                     .warning(
