@@ -2,19 +2,17 @@ import Base58Swift
 import struct Foundation.Data
 import struct Foundation.UUID
 
-/// A unique Automerge document identifier
+/// A unique identifier for an Automerge document.
 public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
     /// A bs58 encoded string that represents the identifier
     public let id: String
-    // Data?
-    // [UInt8]
 
-    /// Creates a new, random document identifier.
+    /// Creates a random document identifier.
     public init() {
         id = UUID().bs58String
     }
 
-    /// Creates a document identifier from a UUID v4
+    /// Creates a document identifier from a UUID v4.
     /// - Parameter id: the v4 UUID to use as a document identifier.
     public init(_ id: UUID) {
         self.id = id.bs58String
@@ -56,7 +54,7 @@ public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
 extension DocumentId: Codable {}
 
 extension DocumentId: CustomStringConvertible {
-    /// The string representation of the Document identifier
+    /// The string representation of the Document identifier.
     public var description: String {
         id
     }

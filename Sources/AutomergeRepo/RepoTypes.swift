@@ -1,7 +1,7 @@
 import struct Foundation.Data
 import struct Foundation.UUID
 
-/// A type that represents a peer
+/// A type that represents a peer.
 ///
 /// Typically a UUID4 in string form.
 public typealias PEER_ID = String
@@ -11,7 +11,7 @@ public typealias PEER_ID = String
 /// Typically a UUID4 in string form. Receiving peers may tie cached sync state for documents to this identifier.
 public typealias STORAGE_ID = String
 
-/// The external representation of a document Id.
+/// The type that represents the external representation of a document ID.
 ///
 /// Typically a string that is 16 bytes of data encoded in bs58 format.
 public typealias MSG_DOCUMENT_ID = String

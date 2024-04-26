@@ -5,7 +5,7 @@ import Automerge
 
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/network/NetworkAdapterInterface.ts
 
-/// A type that is responsible for establishing, and maintaining, a network connection for Automerge
+/// A type that is responsible for establishing, and maintaining, one or more network connection for a repository.
 ///
 /// Types conforming to this protocol are responsible for the setup and initial handshake with other
 /// peers, and flow through messages to component that owns the reference to the network adapter.

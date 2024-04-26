@@ -1,4 +1,4 @@
-/// Network events that a network provider sends to its delegate.
+/// Describes the network events that a network provider sends to its delegate.
 ///
 /// The delegate is typically a ``Repo`` which wants to know of new connections,
 /// new or removed peers, and any other ``SyncV1Msg`` messages that may need to be propagated.
