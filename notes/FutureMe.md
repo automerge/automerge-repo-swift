@@ -125,3 +125,27 @@ It is primarily used during the handshake process, as the ongoing receive loop d
 
 ## PeerToPeer Network Provider
 
+The Peer to Peer Provider is a more complex thing, supporting both incoming and outgoing connection, and encapsulating NWBrowser and NWListener to use Network framework's Bonjour connections.
+The internal class `PeerToPeerConnection` is a wrapper around NWConnection and captures state of the connection as well as handling state updates from the NWConnection instance.
+Because NWConnection provides only a call-back based API, PeerToPeerConnection provides the wrappers to expose sending and receiving messages with an async `send()` and `receive()` method.
+
+The peer to peer protocol is established in `NWParameters` and `P2PAutomergeSyncProtocol`, using the same CBOR encoded messages as the WebSocket protocol.
+
+The provider takes a more expansive configuration, which includes a passcode - as the PeerToPeer network protocols attempt to use a shared-private-key encrypted TLS connection.
+The provider is expected to be started and stopped by the owning application using `startListening()` and `stopListening()` respectively.
+When activated, it starts BOTH the listener and browser, reacts to state updates from those, and passes the information back to the application over a Combine publisher feed, with state updates for both.
+Like the WebSocket provider, it will attempt to reconnect on failure.
+
+The configuration for the provider includes a flag `AutoConnect`, which defaults to `true` on iOS and `false` on macOS. 
+With autoconnect enabled, once the listeners and browsers are active, if the provider finds a relevant peer, and doesn't have an existing connection with it, it will attempt to initiate a connection.
+
+The NWListener expose the PeerID and a human-readable name for the peer, using TXTRecords over ZeroConf/Bonjour. 
+The NWBrowser looks for, and feedback that data back to the application. 
+It also uses this detail for determining if the app should attempt to autoconnect (if enabled) 
+
+The async `receive()` method on the PeerToPeerConnection always uses a default timeouts, which may not ultimately be viable.
+
+Because the provider supports multiple connections, there's a public `disconnect()` method that terminates all connections, as well as a `disconnect(peerId:)` for dropping a single connection.
+
+The provider uses some default values (particularly UIDevice() on iOS, or hostname on macOS) to provide a default human-readable name, but can be overridden and updated using `setName()`. 
+The name can also be provided in `startListening(as:)` when starting the provider.
