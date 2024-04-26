@@ -17,7 +17,7 @@ import PotentCBOR
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo-network-websocket/src/BrowserWebSocketClientAdapter.ts
 // All the WebSocket messages are CBOR encoded and sent as data streams
 
-/// A type that encapsulates valid V1 Automerge-repo sync protocol messages.
+/// Describes the possible V1 Automerge sync protocol messages.
 public indirect enum SyncV1Msg: Sendable {
     // CDDL pre-amble
     // ; The base64 encoded bytes of a Peer ID

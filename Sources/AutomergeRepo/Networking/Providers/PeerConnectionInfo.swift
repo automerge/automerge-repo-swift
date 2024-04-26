@@ -1,6 +1,6 @@
 import Foundation
 
-/// A struct that represents a snapshot of the current state of a peer to peer network connection.
+/// A type that represents a snapshot of the current state of a peer-to-peer network connection.
 public struct PeerConnectionInfo: Sendable, Identifiable, CustomStringConvertible {
     /// A single-line string representation of the connection information.
     public var description: String {

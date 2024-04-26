@@ -18,7 +18,7 @@ import Foundation
 import Network
 import OSLog
 
-/// A peer to peer sync connection to receive and send sync messages.
+/// A peer-to-peer connection to receive and send sync messages.
 ///
 /// As soon as it is established, it attempts to commence a sync operation (send and expect to receive sync messages).
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
