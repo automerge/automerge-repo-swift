@@ -2,9 +2,6 @@
 
 ## Topics
 
-### Creating...
+### Authorizing a document to be shared  
 
-### Inspecting...
-
-
-
+- ``ShareAuthorizing/share(peer:docId:)``

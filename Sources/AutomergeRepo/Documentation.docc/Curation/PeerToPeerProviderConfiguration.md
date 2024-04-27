@@ -2,9 +2,13 @@
 
 ## Topics
 
-### Creating...
+### Creating a peer-to-peer provider configuration
 
-### Inspecting...
+- ``init(passcode:reconnectOnError:autoconnect:recurringNextMessageTimeout:waitForPeerTimeout:)``
+
+### Providing a default name for peer-to-peer network advertising
+
+- ``defaultSharingIdentity()``
 
 
 

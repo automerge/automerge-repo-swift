@@ -31,6 +31,7 @@ The peer-to-peer provider uses of Apple's Bonjour technology to connect to other
 - ``AutomergeRepo/DocumentId``
 - ``AutomergeRepo/EphemeralMessageReceiver``
 - ``AutomergeRepo/AutomergeRepo``
+- ``AutomergeRepo/Errors``
 
 ### WebSocket Network Adapter
 
@@ -40,7 +41,6 @@ The peer-to-peer provider uses of Apple's Bonjour technology to connect to other
 
 - ``AutomergeRepo/PeerToPeerProvider``
 - ``AutomergeRepo/PeerToPeerProviderConfiguration``
-- ``AutomergeRepo/PeerToPeerConnection``
 - ``AutomergeRepo/PeerConnectionInfo``
 
 ### Network Adapters

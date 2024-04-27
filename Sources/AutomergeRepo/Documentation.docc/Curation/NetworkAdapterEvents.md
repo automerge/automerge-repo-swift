@@ -2,9 +2,15 @@
 
 ## Topics
 
-### Creating...
+### Inspecting events from a Network Provider
 
-### Inspecting...
+- ``peerCandidate(payload:)``
+- ``ready(payload:)``
+- ``message(payload:)``
+- ``peerDisconnect(payload:)``
+- ``PeerDisconnectPayload``
+- ``close``
 
+### Inspecting an event
 
-
+- ``debugDescription``

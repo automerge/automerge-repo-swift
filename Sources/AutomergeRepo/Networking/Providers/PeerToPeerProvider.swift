@@ -9,7 +9,9 @@ import OSLog
 /// Provides a incoming and outgoing connections to peers available over Bonjour.
 @AutomergeRepo
 public final class PeerToPeerProvider: NetworkProvider {
+    /// The name of this provider.
     public let name = "PeerToPeer"
+    /// A type that represents the configuration used to create the provider.
     public typealias NetworkConnectionEndpoint = NWEndpoint
 
     private func allConnections() -> [PeerConnectionInfo] {
@@ -141,7 +143,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     // MARK: NetworkProvider Methods
 
-    /// Initiate a connection to a Bonjour endpoint
+    /// Initiates a connection to a Bonjour endpoint.
     /// - Parameter destination: The endpoint to connect
     public func connect(to destination: NWEndpoint) async throws {
         do {
@@ -170,7 +172,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
     }
 
-    /// Disconnect all existing connections.
+    /// Disconnect and terminate any existing connections.
     public func disconnect() {
         for receivingTasks in ongoingReceiveMessageTasks {
             receivingTasks.value.cancel()
@@ -185,10 +187,10 @@ public final class PeerToPeerProvider: NetworkProvider {
         connectionPublisher.send([])
     }
 
-    /// Send an Automerge sync protocol message.
-    /// - Parameters:
-    ///   - message: The message to send
-    ///   - peer: An optional peer to send it to. If nil, send will broadcast the message to all connected peers.
+    /// Requests the network transport to send a message.
+    /// - Parameter message: The message to send.
+    /// - Parameter to: An option peerId to identify the recipient for the message. If nil, the message is sent to all
+    /// connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
             Logger.peerProtocol.trace("Sending \(message.debugDescription) to peer \(peerId)")
@@ -237,14 +239,14 @@ public final class PeerToPeerProvider: NetworkProvider {
     }
 
     /// Set the delegate for the peer to peer provider.
+    /// - Parameters:
+    ///   - delegate: The delegate instance.
+    ///   - peerId: The peer ID to use for the peer to peer provider.
+    ///   - metadata: The peer metadata, if any, to use for the peer to peer provider.
     ///
     /// This is typically called when the delegate adds the provider, and provides this network
     /// provider with a peer ID and associated metadata, as well as an endpoint that receives
     /// Automerge sync protocol sync message and network events.
-    /// - Parameters:
-    ///   - delegate: The delegate instance.
-    ///   - peerId: The peer ID to use for the peer to peer provider.
-    ///   - metadata: The peer metadata to use for the peer to peer provider.
     public func setDelegate(
         _ delegate: any NetworkEventReceiver,
         as peerId: PEER_ID,
@@ -365,7 +367,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             // we were the initiating side of the connection.
 
             guard case let .peer(peerMsg) = nextMessage else {
-                throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
+                throw Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
             }
 
             peerConnection.peerId = peerMsg.senderId
@@ -779,7 +781,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         // we were the initiating side of the connection.
 
         guard case let .join(joinMsg) = nextMessage else {
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
+            throw Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
         }
 
         // send the peer candidate information

@@ -11,7 +11,7 @@ public extension SyncV1Msg {
 
     // MARK: Join/Peer
 
-    /// A message that indicates a desire to peer and sync documents.
+    /// The contents of the message to request a peer connection.
     ///
     /// Sent by the initiating peer (represented by `senderId`) to initiate a connection to manage documents between
     /// peers.
@@ -55,7 +55,7 @@ public extension SyncV1Msg {
     //   "targetId": "FA38A1B2-1433-49E7-8C3C-5F63C117DF09"
     // }
 
-    /// A message that acknowledges a join request.
+    /// The contents of a to acknowledge a join request.
     ///
     /// A response sent by a receiving peer (represented by `targetId`) after receiving a ``JoinMsg`` that indicates
     /// sync,
@@ -84,7 +84,8 @@ public extension SyncV1Msg {
     //    type: "leave"
     //    senderId: this.peerId
     // }
-
+    
+    /// The contents of a request to terminate a connection.
     struct LeaveMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type: String = SyncV1Msg.MsgTypes.leave
         public let senderId: PEER_ID
@@ -104,7 +105,7 @@ public extension SyncV1Msg {
     //    message: str,
     // }
 
-    /// A sync error message
+    /// An error message.
     struct ErrorMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type: String = SyncV1Msg.MsgTypes.error
         public let message: String
@@ -131,7 +132,7 @@ public extension SyncV1Msg {
     //    data: sync_message
     // }
 
-    /// A request to synchronize an Automerge document.
+    /// The contents of a request to synchronize an Automerge document.
     ///
     /// Sent when the initiating peer (represented by `senderId`) is asking to begin sync for the given document ID.
     /// Identical to ``SyncMsg`` but indicates to the receiving peer that the sender would like an ``UnavailableMsg``
@@ -167,7 +168,7 @@ public extension SyncV1Msg {
     //    data: sync_message
     // }
 
-    /// A request to synchronize an Automerge document.
+    /// The contents of a request to synchronize an Automerge document.
     ///
     /// Sent when the initiating peer (represented by `senderId`) is asking to begin sync for the given document ID.
     /// Use `SyncMsg` instead of `RequestMsg` when you are creating a new Automerge document that you want to share.
@@ -202,7 +203,7 @@ public extension SyncV1Msg {
     //  documentId: document_id,
     // }
 
-    /// A message that indicates a document is unavailable.
+    /// The contents of a response that indicates a document is unavailable.
     ///
     /// Generally a response for a ``RequestMsg`` from an initiating peer (represented by `senderId`) that the receiving
     /// peer (represented by `targetId`) doesn't have a copy of the requested Document, or is unable to share it.
@@ -241,7 +242,8 @@ public extension SyncV1Msg {
     //  ; The data of this message (in practice this is arbitrary CBOR)
     //  data: bstr
     // }
-
+    
+    /// The contents of an app-specific message.
     struct EphemeralMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.ephemeral
         public let senderId: PEER_ID
@@ -286,7 +288,8 @@ public extension SyncV1Msg {
     //  ; The storage IDs to remove from the subscription
     //  remove: [* storage_id]
     // }
-
+    
+    /// The contents of a message that indicate an update to a subscription to remote document changes.
     struct RemoteSubscriptionChangeMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.remoteSubscriptionChange
         public let senderId: PEER_ID
@@ -336,7 +339,8 @@ public extension SyncV1Msg {
     //    }
     //  }
     // }
-
+    
+    /// The contents of a message that indicates updates occurred on a network peer.
     struct RemoteHeadsChangedMsg: Sendable, Codable, CustomDebugStringConvertible {
         public struct HeadsAtTime: Codable, CustomDebugStringConvertible, Sendable {
             public var heads: [String]

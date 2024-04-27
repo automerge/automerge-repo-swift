@@ -12,7 +12,9 @@ import OSLog
 /// Documents are shared on request, or not, based on ``SharePolicy`` you provide when creating the repository.
 @AutomergeRepo
 public final class Repo {
+    /// The peer ID for the repository
     public nonisolated let peerId: PEER_ID
+    /// The metadata for the repository
     public var localPeerMetadata: PeerMetadata
 
     private var handles: [DocumentId: InternalDocHandle] = [:]
@@ -599,10 +601,10 @@ public final class Repo {
 
     func merge(id: DocumentId, with: DocumentId) async throws {
         guard let handle1 = handles[id] else {
-            throw Errors.DocUnavailable(id: id)
+            throw Errors.Unavailable(id: id)
         }
         guard let handle2 = handles[with] else {
-            throw Errors.DocUnavailable(id: with)
+            throw Errors.Unavailable(id: with)
         }
 
         let doc1 = try await resolveDocHandle(id: handle1.id)
@@ -705,7 +707,7 @@ public final class Repo {
             case .requesting:
                 guard let updatedHandle = handles[id] else {
                     Logger.resolver.trace("RESOLVED - X :: Missing \(id) -> [UNAVAILABLE]")
-                    throw Errors.DocUnavailable(id: handle.id)
+                    throw Errors.Unavailable(id: handle.id)
                 }
                 if updatedHandle.doc != nil, updatedHandle.state == .ready {
                     // this may not be needed... but i'm being paranoid about when the change happens
@@ -715,7 +717,7 @@ public final class Repo {
                     guard let previousRequests = pendingRequestReadAttempts[id] else {
                         Logger.resolver
                             .trace("RESOLVED - X :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
-                        throw Errors.DocUnavailable(id: id)
+                        throw Errors.Unavailable(id: id)
                     }
                     if previousRequests < maxRetriesForFetch {
                         // we are racing against the receipt of a network result
@@ -736,7 +738,7 @@ public final class Repo {
                             .trace(
                                 "RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
                             )
-                        throw Errors.DocUnavailable(id: id)
+                        throw Errors.Unavailable(id: id)
                     }
                 }
             case .ready:
@@ -746,14 +748,14 @@ public final class Repo {
                 return DocHandle(id: id, doc: doc)
             case .unavailable:
                 Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED UNAVAILABLE]")
-                throw Errors.DocUnavailable(id: handle.id)
+                throw Errors.Unavailable(id: handle.id)
             case .deleted:
                 Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED DELETED]")
                 throw Errors.DocDeleted(id: handle.id)
             }
         } else {
             Logger.resolver.error("RESOLVED - X :: Error Resolving document: Repo doesn't have a handle for \(id).")
-            throw Errors.DocUnavailable(id: id)
+            throw Errors.Unavailable(id: id)
         }
     }
 }
