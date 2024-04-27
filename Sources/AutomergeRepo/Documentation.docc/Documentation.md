@@ -33,7 +33,6 @@ introduction to automerge repo and what it provides, what problem it solves
 - ``AutomergeRepo/PeerToPeerProviderConfiguration``
 - ``AutomergeRepo/PeerToPeerConnection``
 - ``AutomergeRepo/PeerConnectionInfo``
-- ``AutomergeRepo/ProtocolState``
 
 ### Share Policy
 

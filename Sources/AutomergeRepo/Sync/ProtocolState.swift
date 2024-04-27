@@ -1,5 +1,5 @@
 /// Describes the state of an Automerge sync protocol connection.
-public enum ProtocolState: String {
+enum ProtocolState: String {
     /// The connection that has been created but not yet connected
     case setup
 
