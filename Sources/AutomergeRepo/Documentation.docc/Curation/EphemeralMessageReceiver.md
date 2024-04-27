@@ -1,4 +1,4 @@
-# ``AutomergeRepo/EphemeralMessageDelegate``
+# ``AutomergeRepo/EphemeralMessageReceiver``
 
 ## Topics
 

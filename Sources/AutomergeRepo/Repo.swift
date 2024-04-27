@@ -4,13 +4,6 @@ import Combine
 import Foundation
 import OSLog
 
-/// A type that accepts ephemeral messages as they arrive from connected network peers.
-public protocol EphemeralMessageDelegate: Sendable {
-    /// Receive and process an event from a Network Provider.
-    /// - Parameter event: The event to process.
-    func receiveEphemeralMessage(_ msg: SyncV1Msg.EphemeralMsg) async
-}
-
 /// A repository for Automerge documents that coordinates storage and synchronization.
 ///
 /// Initialize a repository with a storage provider to enable automatic loading and saving of Automerge documents to
@@ -42,7 +35,7 @@ public final class Repo {
 
     private var remoteHeadsGossipingEnabled = false
 
-    private var _ephemeralMessageDelegate: (any EphemeralMessageDelegate)?
+    private var _ephemeralMessageDelegate: (any EphemeralMessageReceiver)?
 
     // TESTING HOOKS - for receiving state updates while testing
     nonisolated let docHandlePublisher: PassthroughSubject<InternalDocHandle.DocHandleSnapshot, Never> =
@@ -170,7 +163,7 @@ public final class Repo {
 
     /// Set the delegate that to receive ephemeral messages from Automerge-repo peers
     /// - Parameter delegate: The object that Automerge-repo calls with ephemeral messages.
-    public func setDelegate(_ delegate: some EphemeralMessageDelegate) {
+    public func setDelegate(_ delegate: some EphemeralMessageReceiver) {
         _ephemeralMessageDelegate = delegate
     }
 
