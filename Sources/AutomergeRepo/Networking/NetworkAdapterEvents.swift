@@ -1,7 +1,9 @@
 /// Describes the network events that a network provider sends to its delegate.
 ///
-/// The delegate is typically a ``Repo`` which wants to know of new connections,
-/// new or removed peers, and any other ``SyncV1Msg`` messages that may need to be propagated.
+/// The ``Repo`` and its internal systems are responsible for responding to these events.
+/// Send these events when new connections are established,
+/// peers are added or removed on a connection, of for ``SyncV1Msg`` messages that are not
+/// related to establishing the connection.
 public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
     /// A description of the event.
     public var debugDescription: String {
@@ -18,15 +20,20 @@ public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
             "NetworkAdapterEvents.message[\(payload)]"
         }
     }
-
+    
+    /// The information associated with an individual peer being disconnected from a network provider.
     public struct PeerDisconnectPayload: Sendable, CustomStringConvertible {
+        /// A string representation of the payload.
         public var description: String {
             "\(peerId)"
         }
 
         // handled by Repo, relevant to Sync
-        let peerId: PEER_ID
-
+        /// The peer that disconnected.
+        public let peerId: PEER_ID
+        
+        /// Creates a new payload identifying the peer that disconnected.
+        /// - Parameter peerId: The peer that disconnected.
         public init(peerId: PEER_ID) {
             self.peerId = peerId
         }

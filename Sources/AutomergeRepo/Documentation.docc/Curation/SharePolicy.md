@@ -2,9 +2,12 @@
 
 ## Topics
 
-### Creating...
+### Creating a share policy
 
-### Inspecting...
+- ``agreeable``
+- ``readonly``
+- ``init(_:)``
 
+### Authorizing a document to be shared  
 
-
+- ``share(peer:docId:)``

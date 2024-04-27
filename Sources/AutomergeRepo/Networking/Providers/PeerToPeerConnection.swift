@@ -24,7 +24,7 @@ import OSLog
 /// In addition, it includes an optional `trigger` in its initializer that, when it receives any signal value, kicks off
 /// another attempt to sync the relevant Automerge document.
 @AutomergeRepo
-public final class PeerToPeerConnection {
+final class PeerToPeerConnection {
     // A Sendable wrapper around NWConnection to hold async handlers and relevant state
     // for the connection
 
@@ -278,7 +278,7 @@ public final class PeerToPeerConnection {
             group.addTask {
                 // Race against the receive call with a continuous timer
                 try await Task.sleep(for: explicitTimeout)
-                throw SyncV1Msg.Errors.Timeout()
+                throw Errors.Timeout()
             }
 
             guard let msg = try await group.next() else {

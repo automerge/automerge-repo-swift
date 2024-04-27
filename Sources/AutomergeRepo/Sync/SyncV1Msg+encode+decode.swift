@@ -202,43 +202,43 @@ public extension SyncV1Msg {
 
     // encode messages
 
-    static func encode(_ msg: JoinMsg) throws -> Data {
+    internal static func encode(_ msg: JoinMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: RequestMsg) throws -> Data {
+    internal static func encode(_ msg: RequestMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: LeaveMsg) throws -> Data {
+    internal static func encode(_ msg: LeaveMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: SyncMsg) throws -> Data {
+    internal static func encode(_ msg: SyncMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: PeerMsg) throws -> Data {
+    internal static func encode(_ msg: PeerMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: UnavailableMsg) throws -> Data {
+    internal static func encode(_ msg: UnavailableMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: EphemeralMsg) throws -> Data {
+    internal static func encode(_ msg: EphemeralMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: RemoteSubscriptionChangeMsg) throws -> Data {
+    internal static func encode(_ msg: RemoteSubscriptionChangeMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: RemoteHeadsChangedMsg) throws -> Data {
+    internal static func encode(_ msg: RemoteHeadsChangedMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 
-    static func encode(_ msg: ErrorMsg) throws -> Data {
+    internal static func encode(_ msg: ErrorMsg) throws -> Data {
         try CBORCoder.encoder.encode(msg)
     }
 

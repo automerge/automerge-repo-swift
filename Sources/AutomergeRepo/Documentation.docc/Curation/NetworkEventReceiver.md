@@ -2,9 +2,6 @@
 
 ## Topics
 
-### Creating...
+### A type that receives and processes network events
 
-### Inspecting...
-
-
-
+- ``NetworkEventReceiver/receiveEvent(event:)``

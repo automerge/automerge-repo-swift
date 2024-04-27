@@ -45,19 +45,32 @@ public indirect enum SyncV1Msg: Sendable {
         public static let remoteSubscriptionChange = "remote-subscription-change"
     }
 
+    /// A request for a peer connection.
     case peer(PeerMsg)
+    /// Acknowledging the request for a peer connection.
     case join(JoinMsg)
+    /// A request to terminate a peer connection.
     case leave(LeaveMsg)
+    /// An error response.
     case error(ErrorMsg)
+    /// A request to find an Automerge document.
     case request(RequestMsg)
+    /// A request to synchronize an Automerge document.
     case sync(SyncMsg)
+    /// A response to a request for a document that indicates the document is not available.
     case unavailable(UnavailableMsg)
-    // ephemeral
+    /// An app-specific message for other network connected peers.
     case ephemeral(EphemeralMsg)
     // gossip additions
+    /// A message that indicate an update to a subscription to remote document changes.
     case remoteSubscriptionChange(RemoteSubscriptionChangeMsg)
+    /// A notification that updates occurred on a network peer.
     case remoteHeadsChanged(RemoteHeadsChangedMsg)
+    
     // fall-through scenario - unknown message
+    /// An unknown message.
+    ///
+    /// These are typically ignored, and are not guaranteed to be processed.
     case unknown(Data)
 
     /// Copies a message and returns an updated version with the targetId of message set to a specific target.

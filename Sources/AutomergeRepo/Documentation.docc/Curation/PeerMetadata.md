@@ -2,9 +2,12 @@
 
 ## Topics
 
-### Creating...
+### Creating peer metadata
 
-### Inspecting...
+- ``init(storageId:isEphemeral:)``
 
+### Inspecting peer metadata
 
-
+- ``storageId``
+- ``isEphemeral``
+- ``debugDescription``

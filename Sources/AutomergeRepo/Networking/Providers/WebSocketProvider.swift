@@ -3,19 +3,32 @@ import OSLog
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
 @AutomergeRepo
 public final class WebSocketProvider: NetworkProvider {
+    /// The name of this provider.
     public let name = "WebSocket"
 
+    /// A type that represents the configuration used to create the provider.
     public typealias ProviderConfiguration = WebSocketProviderConfiguration
+    
+    /// The configuration options for a WebSocket network provider.
     public struct WebSocketProviderConfiguration: Sendable {
-        let reconnectOnError: Bool
-
+        /// A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
+        public let reconnectOnError: Bool
+        
+        /// The default configuration for the WebSocket network provider.
+        ///
+        /// In the default configuration:
+        ///
+        /// - `reconnectOnError` is `true`
         public static let `default` = WebSocketProviderConfiguration(reconnectOnError: true)
-
+        
+        /// Creates a new WebSocket network provider configuration instance.
+        /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
         public init(reconnectOnError: Bool) {
             self.reconnectOnError = reconnectOnError
         }
     }
-
+    
+    /// The active connection for this provider.
     public var peeredConnections: [PeerConnectionInfo]
     var delegate: (any NetworkEventReceiver)?
     var peerId: PEER_ID?
@@ -26,7 +39,9 @@ public final class WebSocketProvider: NetworkProvider {
     // reconnection logic variables
     var endpoint: URL?
     var peered: Bool
-
+    
+    /// Creates a new instance of a WebSocket network provider with the configuration you provide.
+    /// - Parameter config: The configuration for the provider.
     public nonisolated init(_ config: WebSocketProviderConfiguration = .default) {
         self.config = config
         peeredConnections = []
@@ -40,6 +55,7 @@ public final class WebSocketProvider: NetworkProvider {
 
     // MARK: NetworkProvider Methods
 
+    /// Initiate an outgoing connection.
     public func connect(to url: URL) async throws {
         if peered {
             throw Errors.NetworkProviderError(msg: "attempting to connect while already peered")
@@ -67,6 +83,7 @@ public final class WebSocketProvider: NetworkProvider {
         }
     }
 
+    /// Disconnect and terminate any existing connection.
     public func disconnect() async {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
@@ -82,6 +99,10 @@ public final class WebSocketProvider: NetworkProvider {
         await delegate?.receiveEvent(event: .close)
     }
 
+    /// Requests the network transport to send a message.
+    /// - Parameter message: The message to send.
+    /// - Parameter to: An option peerId to identify the recipient for the message. If nil, the message is sent to all
+    /// connected peers.
     public func send(message: SyncV1Msg, to: PEER_ID?) async {
         guard let webSocketTask, let peer = peerId else {
             Logger.webSocket.warning("Attempt to send a message without a connection or defined remote peer")
@@ -95,7 +116,16 @@ public final class WebSocketProvider: NetworkProvider {
             Logger.webSocket.error("Unable to encode and send message: \(error.localizedDescription, privacy: .public)")
         }
     }
-
+    
+    /// Set the delegate for the peer to peer provider.
+    /// - Parameters:
+    ///   - delegate: The delegate instance.
+    ///   - peerId: The peer ID to use for the peer to peer provider.
+    ///   - metadata: The peer metadata, if any, to use for the peer to peer provider.
+    ///
+    /// This is typically called when the delegate adds the provider, and provides this network
+    /// provider with a peer ID and associated metadata, as well as an endpoint that receives
+    /// Automerge sync protocol sync message and network events.
     public func setDelegate(
         _ delegate: any NetworkEventReceiver,
         as peer: PEER_ID,
@@ -125,12 +155,12 @@ public final class WebSocketProvider: NetworkProvider {
                         .warning(
                             "Decoding websocket message, expecting peer only - and it wasn't a peer message. RECEIVED MSG: \(String(describing: decodeAttempted))"
                         )
-                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: decodeAttempted))
+                    throw Errors.UnexpectedMsg(msg: String(describing: decodeAttempted))
                 }
             } else {
                 let decodedMsg = SyncV1Msg.decode(raw_data)
                 if case .unknown = decodedMsg {
-                    throw SyncV1Msg.Errors.UnexpectedMsg(msg: decodedMsg.debugDescription)
+                    throw Errors.UnexpectedMsg(msg: decodedMsg.debugDescription)
                 }
                 return decodedMsg
             }
@@ -139,12 +169,12 @@ public final class WebSocketProvider: NetworkProvider {
             // In the handshake phase and received anything other than a valid peer message
             Logger.webSocket
                 .warning("Unknown websocket message received: .string(\(string))")
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: string)
+            throw Errors.UnexpectedMsg(msg: string)
         @unknown default:
             // In the handshake phase and received anything other than a valid peer message
             Logger.webSocket
                 .error("Unknown websocket message received: \(String(describing: msg))")
-            throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: msg))
+            throw Errors.UnexpectedMsg(msg: String(describing: msg))
         }
     }
 
@@ -185,7 +215,7 @@ public final class WebSocketProvider: NetworkProvider {
             // For the sync protocol handshake phase, it's essentially "peer or die" since
             // we were the initiating side of the connection.
             guard case let .peer(peerMsg) = try attemptToDecode(websocketMsg, peerOnly: true) else {
-                throw SyncV1Msg.Errors.UnexpectedMsg(msg: String(describing: websocketMsg))
+                throw Errors.UnexpectedMsg(msg: String(describing: websocketMsg))
             }
 
             peered = true
@@ -249,7 +279,7 @@ public final class WebSocketProvider: NetworkProvider {
             group.addTask {
                 // Race against the receive call with a continuous timer
                 try await Task.sleep(for: timeout)
-                throw SyncV1Msg.Errors.Timeout()
+                throw Errors.Timeout()
             }
 
             guard let msg = try await group.next() else {

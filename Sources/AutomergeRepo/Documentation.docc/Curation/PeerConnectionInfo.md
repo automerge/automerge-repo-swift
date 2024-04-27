@@ -2,9 +2,19 @@
 
 ## Topics
 
-### Creating...
+### Inspecting information about a peer connection
 
-### Inspecting...
+- ``peerId``
+- ``peerMetadata``
+- ``endpoint``
+- ``initiated``
+- ``peered``
 
+### Creating information about a peer connection
 
+- ``init(peerId:peerMetadata:endpoint:initiated:peered:)``
 
+### Inspecting information about the notification
+
+- ``id``
+- ``description``
