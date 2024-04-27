@@ -58,6 +58,7 @@ The peer-to-peer provider uses of Apple's Bonjour technology to connect to other
 - ``AutomergeRepo/PEER_ID``
 - ``AutomergeRepo/STORAGE_ID``
 - ``AutomergeRepo/SYNC_MESSAGE``
+- ``CBORCoder``
 
 ### Share Policy
 
