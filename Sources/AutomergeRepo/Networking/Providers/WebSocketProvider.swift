@@ -82,14 +82,14 @@ public final class WebSocketProvider: NetworkProvider {
         await delegate?.receiveEvent(event: .close)
     }
 
-    public func send(message: SyncV1Msg, to _: PEER_ID?) async {
-        guard let webSocketTask else {
-            Logger.webSocket.warning("Attempt to send a message without a connection")
+    public func send(message: SyncV1Msg, to: PEER_ID?) async {
+        guard let webSocketTask, let peer = peerId else {
+            Logger.webSocket.warning("Attempt to send a message without a connection or defined remote peer")
             return
         }
-
+        let msgToSend = message.setTarget(to ?? peer)
         do {
-            let data = try SyncV1Msg.encode(message)
+            let data = try SyncV1Msg.encode(msgToSend)
             try await webSocketTask.send(.data(data))
         } catch {
             Logger.webSocket.error("Unable to encode and send message: \(error.localizedDescription, privacy: .public)")

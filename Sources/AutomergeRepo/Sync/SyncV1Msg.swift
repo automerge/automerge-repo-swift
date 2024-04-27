@@ -59,6 +59,28 @@ public indirect enum SyncV1Msg: Sendable {
     case remoteHeadsChanged(RemoteHeadsChangedMsg)
     // fall-through scenario - unknown message
     case unknown(Data)
+
+    /// Copies a message and returns an updated version with the targetId of message set to a specific target.
+    /// - Parameter peer: The peer to set as the targetId for the message.
+    /// - Returns: The updated message.
+    public func setTarget(_ peer: PEER_ID) -> Self {
+        switch self {
+        case .peer(_), .join(_), .leave(_), .request(_), .sync(_), .unavailable(_), .error(_), .unknown:
+            return self
+        case let .ephemeral(msg):
+            var copy = msg
+            copy.targetId = peer
+            return .ephemeral(copy)
+        case let .remoteSubscriptionChange(msg):
+            var copy = msg
+            copy.targetId = peer
+            return .remoteSubscriptionChange(copy)
+        case let .remoteHeadsChanged(msg):
+            var copy = msg
+            copy.targetId = peer
+            return .remoteHeadsChanged(copy)
+        }
+    }
 }
 
 extension SyncV1Msg: CustomDebugStringConvertible {

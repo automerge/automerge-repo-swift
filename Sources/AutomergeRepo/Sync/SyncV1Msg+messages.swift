@@ -245,11 +245,11 @@ public extension SyncV1Msg {
     struct EphemeralMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.ephemeral
         public let senderId: PEER_ID
-        public let targetId: PEER_ID
-        public let count: UInt
-        public let sessionId: String
-        public let documentId: MSG_DOCUMENT_ID
-        public let data: Data
+        public var targetId: PEER_ID
+        public var count: UInt
+        public var sessionId: String
+        public var documentId: MSG_DOCUMENT_ID
+        public var data: Data
 
         public init(
             senderId: PEER_ID,
@@ -290,7 +290,7 @@ public extension SyncV1Msg {
     struct RemoteSubscriptionChangeMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.remoteSubscriptionChange
         public let senderId: PEER_ID
-        public let targetId: PEER_ID
+        public var targetId: PEER_ID
         public var add: [STORAGE_ID]?
         public var remove: [STORAGE_ID]
 
@@ -354,7 +354,7 @@ public extension SyncV1Msg {
 
         public var type = SyncV1Msg.MsgTypes.remoteHeadsChanged
         public let senderId: PEER_ID
-        public let targetId: PEER_ID
+        public var targetId: PEER_ID
         public let documentId: MSG_DOCUMENT_ID
         public var newHeads: [STORAGE_ID: HeadsAtTime]
         public var add: [STORAGE_ID]

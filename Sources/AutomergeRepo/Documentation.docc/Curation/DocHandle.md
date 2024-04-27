@@ -2,9 +2,11 @@
 
 ## Topics
 
-### Creating...
+### Creating a DocHandle
 
-### Inspecting...
+- ``DocHandle/init(id:doc:)``
 
+### Inspecting a DocHandle
 
-
+- ``DocHandle/id``
+- ``DocHandle/doc``
