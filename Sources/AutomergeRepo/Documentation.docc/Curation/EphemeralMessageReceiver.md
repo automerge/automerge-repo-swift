@@ -2,9 +2,9 @@
 
 ## Topics
 
-### Creating...
+### Accepting ephemeral messages from peers connected to your repository
 
-### Inspecting...
+- ``EphemeralMessageReceiver/receiveMessage(_:)``
 
 
 

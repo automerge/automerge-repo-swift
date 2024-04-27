@@ -241,7 +241,7 @@ public final class Repo {
     // MARK: Handle pass-back of Ephemeral Messages
 
     func handleEphemeralMessage(_ msg: SyncV1Msg.EphemeralMsg) async {
-        await _ephemeralMessageDelegate?.receiveEphemeralMessage(msg)
+        await _ephemeralMessageDelegate?.receiveMessage(msg)
     }
 
     // MARK: Synchronization Pieces - Observe internal docs
@@ -499,6 +499,39 @@ public final class Repo {
             return storage.id
         }
         return nil
+    }
+
+    /// Sends an app-specific data encoded into an ephemeral message to peers on your network.
+    /// - Parameters:
+    ///   - msg: The ephemeral message to send.
+    ///   - peer: The peer to send the message to, or nil to broadcast to all connected peers.
+    public func send(_ msg: SyncV1Msg.EphemeralMsg, to peer: PEER_ID? = nil) async {
+        await network.send(message: .ephemeral(msg), to: peer)
+    }
+
+    /// Sends an app-specific data encoded into an ephemeral message to peers on your network.
+    /// - Parameters:
+    ///   - count: A count.
+    ///   - sessionId: A session Id.
+    ///   - documentId: The documentId associated with the message.
+    ///   - data: The app-specific data.
+    ///   - peer: The peer send the message to, or nil to broadcast to all connected peers.
+    public func send(
+        count: UInt,
+        sessionId: String,
+        documentId: DocumentId,
+        data: Data,
+        to peer: PEER_ID? = nil
+    ) async {
+        let msg: SyncV1Msg = .ephemeral(.init(
+            senderId: self.peerId,
+            targetId: peer ?? self.peerId,
+            count: count,
+            sessionId: sessionId,
+            documentId: documentId.id,
+            data: data
+        ))
+        await network.send(message: msg, to: peer)
     }
 
     // MARK: Methods to expose retrieving DocHandles to the subsystems

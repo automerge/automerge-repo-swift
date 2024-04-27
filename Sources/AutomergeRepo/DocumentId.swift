@@ -18,7 +18,7 @@ public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
         self.id = id.bs58String
     }
 
-    /// Creates a document identifier from an optional string.
+    /// Creates a document identifier or returns nil if the optional string you provide is not a valid DocumentID.
     /// - Parameter id: The string to use as a document identifier.
     public init?(_ id: String?) {
         guard let id else {
@@ -33,7 +33,7 @@ public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
         self.id = id
     }
 
-    /// Creates a document identifier from a string.
+    /// Creates a document identifier or returns nil if the string you provide is not a valid DocumentID.
     /// - Parameter id: The string to use as a document identifier.
     public init?(_ id: String) {
         guard let uint_array = Base58.base58CheckDecode(id) else {

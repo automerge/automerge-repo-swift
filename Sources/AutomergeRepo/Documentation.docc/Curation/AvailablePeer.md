@@ -2,8 +2,9 @@
 
 ## Topics
 
-### Creating...
+### Inspecting a Peer on the local network
 
-### Inspecting...
-
-
+- ``AvailablePeer/id``
+- ``AvailablePeer/peerId``
+- ``AvailablePeer/name``
+- ``AvailablePeer/endpoint``

@@ -205,12 +205,13 @@ public final class PeerToPeerProvider: NetworkProvider {
                 }
             } else {
                 for holder in holdersWithPeer {
+                    let targetedMessage = message.setTarget(peerId)
                     do {
-                        try await holder.send(message)
+                        try await holder.send(targetedMessage)
                     } catch {
                         Logger.peerProtocol
                             .warning(
-                                "error encoding message \(message.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
+                                "error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
                             )
                     }
                 }
@@ -221,12 +222,13 @@ public final class PeerToPeerProvider: NetworkProvider {
             for holder in connections.values {
                 // only send to connections with a set PeerId
                 if let peerId = holder.peerId {
+                    let targetedMessage = message.setTarget(peerId)
                     do {
-                        try await holder.send(message)
+                        try await holder.send(targetedMessage)
                     } catch {
                         Logger.peerProtocol
                             .warning(
-                                "error encoding message \(message.debugDescription, privacy: .public). Unable to send to endpoint \(peerId)"
+                                "error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to endpoint \(peerId)"
                             )
                     }
                 }
