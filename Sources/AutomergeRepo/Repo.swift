@@ -256,7 +256,8 @@ public final class Repo {
         if let doc = handle.doc, handle.state == .ready, observerHandles[id] == nil {
             let handleObserver = doc.objectWillChange
                 .debounce(for: saveDebounce, scheduler: RunLoop.main)
-                .sink { _ in
+                .sink { [weak self] _ in
+                    guard let self else { return }
                     for peer in self.peerMetadataByPeerId.keys {
                         Task {
                             await self.beginSync(docId: id, to: peer)
