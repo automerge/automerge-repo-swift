@@ -270,16 +270,16 @@ public final class Repo {
     // MARK: Synchronization Pieces - For Network Subsystem Access
 
     func handleSync(msg: SyncV1Msg.SyncMsg) async {
-        Logger.repo.trace("PEER: \(self.peerId) - handling a sync msg from \(msg.senderId) to \(msg.targetId)")
+        Logger.repo.trace("REPO: \(self.peerId) - handling a sync msg from \(msg.senderId) to \(msg.targetId)")
         guard let docId = DocumentId(msg.documentId) else {
             Logger.repo
-                .warning("Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
+                .warning("REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
             return
         }
-        Logger.repo.trace(" - Sync request received for document \(docId)")
+        Logger.repo.trace("REPO:  - Sync request received for document \(docId)")
         do {
             if handles[docId] == nil {
-                Logger.repo.trace(" - No recorded handle for \(docId), creating one")
+                Logger.repo.trace("REPO:  - No recorded handle for \(docId), creating one")
                 // There is no in-memory handle for the document being synced, so this is a request
                 // to create a local copy of the document encapsulated in the sync message.
                 let newDocument = Document()
@@ -291,7 +291,7 @@ public final class Repo {
                 _ = try await resolveDocHandle(id: docId)
             }
             guard let handle = handles[docId] else { fatalError("HANDLE DOESN'T EXIST") }
-            Logger.repo.trace(" - working on handle for \(docId), state: \(String(describing: handle.state))")
+            Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
             let docFromHandle = handle.doc ?? Document()
             let syncState = syncState(id: docId, peer: msg.senderId)
             // Apply the request message as a sync update
@@ -312,7 +312,7 @@ public final class Repo {
                     targetId: msg.senderId,
                     sync_message: syncData
                 ))
-                Logger.repo.trace("Sync received and applied, replying with a sync msg back to \(msg.senderId)")
+                Logger.repo.trace("REPO: Sync received and applied, replying with a sync msg back to \(msg.senderId)")
                 await network.send(message: syncMsg, to: msg.senderId)
             }
             // else no sync is needed, as the last sync state reports that it knows about
@@ -320,7 +320,7 @@ public final class Repo {
         } catch {
             let err: SyncV1Msg =
                 .error(.init(message: "Error receiving sync: \(error.localizedDescription)"))
-            Logger.repo.warning("Error receiving initial sync for \(docId, privacy: .public)")
+            Logger.repo.warning("REPO: Error receiving initial sync for \(docId, privacy: .public)")
             await network.send(message: err, to: msg.senderId)
         }
     }
@@ -328,7 +328,7 @@ public final class Repo {
     func handleRequest(msg: SyncV1Msg.RequestMsg) async {
         guard let docId = DocumentId(msg.documentId) else {
             Logger.repo
-                .warning("Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
+                .warning("REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
             return
         }
         if handles[docId] != nil {
@@ -543,12 +543,12 @@ public final class Repo {
             fatalError("No stored dochandle for id: \(id)")
         }
         if let handleSyncState = handle.syncStates[peer] {
-            Logger.repo.trace("Providing stored sync state for doc \(id)")
+            Logger.repo.trace("REPO: Providing stored sync state for doc \(id)")
             return handleSyncState
         } else {
             // TODO: add attempt to load from storage and return it before creating a new one
-            Logger.repo.trace("No stored sync state for doc \(id) and peer \(peer).")
-            Logger.repo.trace("Creating a new sync state for doc \(id)")
+            Logger.repo.trace("REPO: No stored sync state for doc \(id) and peer \(peer).")
+            Logger.repo.trace("REPO: Creating a new sync state for doc \(id)")
             return SyncState()
         }
     }
@@ -557,14 +557,14 @@ public final class Repo {
         guard let handle = handles[id] else {
             fatalError("No stored dochandle for id: \(id)")
         }
-        Logger.repo.trace("Storing updated sync state for doc \(id) and peer \(peer).")
+        Logger.repo.trace("REPO: Storing updated sync state for doc \(id) and peer \(peer).")
         handle.syncStates[peer] = syncState
     }
 
     func markDocUnavailable(id: DocumentId) async {
         // handling a requested document being marked as unavailable after all peers have been checked
         guard let handle = handles[id] else {
-            Logger.repo.error("missing handle for documentId \(id.description) while attempt to mark unavailable")
+            Logger.repo.error("REPO: missing handle for documentId \(id.description) while attempt to mark unavailable")
             return
         }
         assert(handle.state == .requesting)
@@ -577,7 +577,7 @@ public final class Repo {
         guard let handle = handles[id] else {
             fatalError("No stored document handle for document id: \(id)")
         }
-        Logger.repo.trace("Updated contents of document \(id), state: \(String(describing: handle.state))")
+        Logger.repo.trace("REPO: Updated contents of document \(id), state: \(String(describing: handle.state))")
         // Automerge-repo https://github.com/automerge/automerge-repo/issues/343 is sending two responses,
         // the first being UNAVAILABLE, which we use to change the state, but that triggers this unexpected
         // assertion, we we later receive the SYNC update to set the document as expected
@@ -591,7 +591,7 @@ public final class Repo {
             } catch {
                 Logger.repo
                     .warning(
-                        "Error received while attempting to store document ID \(id): \(error.localizedDescription)"
+                        "REPO: Error received while attempting to store document ID \(id): \(error.localizedDescription)"
                     )
             }
         }
@@ -641,7 +641,7 @@ public final class Repo {
 
     private func resolveDocHandle(id: DocumentId) async throws -> DocHandle {
         if let handle: InternalDocHandle = handles[id] {
-            Logger.resolver.trace("RESOLVE document id \(id) [\(String(describing: handle.state))]")
+            Logger.resolver.trace("RESOLVE: document id \(id) [\(String(describing: handle.state))]")
             switch handle.state {
             case .idle:
                 if handle.doc != nil {
@@ -706,7 +706,7 @@ public final class Repo {
                 }
             case .requesting:
                 guard let updatedHandle = handles[id] else {
-                    Logger.resolver.trace("RESOLVED - X :: Missing \(id) -> [UNAVAILABLE]")
+                    Logger.resolver.error("RESOLVE: :: Missing \(id) -> [UNAVAILABLE]")
                     throw Errors.Unavailable(id: handle.id)
                 }
                 if updatedHandle.doc != nil, updatedHandle.state == .ready {
@@ -716,16 +716,16 @@ public final class Repo {
                 } else {
                     guard let previousRequests = pendingRequestReadAttempts[id] else {
                         Logger.resolver
-                            .trace("RESOLVED - X :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
+                            .error("RESOLVE: :: Missing \(id) from pending request read attempts -> [UNAVAILABLE]")
                         throw Errors.Unavailable(id: id)
                     }
                     if previousRequests < maxRetriesForFetch {
                         // we are racing against the receipt of a network result
                         // to see what we get at the end
-                        Logger.resolver.trace(" :: \(id) -> [\(String(describing: handle.state))]")
+                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
                         Logger.resolver
                             .trace(
-                                " :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
+                                "RESOLVE: :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
                             )
                         try await Task.sleep(for: pendingRequestWaitDuration)
                         pendingRequestReadAttempts[id] = previousRequests + 1
@@ -735,26 +735,26 @@ public final class Repo {
                         updatedHandle.state = .unavailable
                         docHandlePublisher.send(handle.snapshot())
                         Logger.resolver
-                            .trace(
-                                "RESOLVED - X :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
+                            .error(
+                                "RESOLVE: :: failed waiting \(previousRequests) of \(self.maxRetriesForFetch) requests for  \(id) -> [UNAVAILABLE]"
                             )
                         throw Errors.Unavailable(id: id)
                     }
                 }
             case .ready:
                 guard let doc = handle.doc else { fatalError("DocHandle state is ready, but ._doc is null") }
-                Logger.resolver.trace("RESOLVED! :: \(id) [\(String(describing: handle.state))]")
+                Logger.resolver.trace("RESOLVE :: \(id) [\(String(describing: handle.state))]")
                 watchDocForChanges(id: id)
                 return DocHandle(id: id, doc: doc)
             case .unavailable:
-                Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED UNAVAILABLE]")
+                Logger.resolver.error("RESOLVE: :: \(id) -> [MARKED UNAVAILABLE]")
                 throw Errors.Unavailable(id: handle.id)
             case .deleted:
-                Logger.resolver.trace("RESOLVED - X :: \(id) -> [MARKED DELETED]")
+                Logger.resolver.error("RESOLVE: :: \(id) -> [MARKED DELETED]")
                 throw Errors.DocDeleted(id: handle.id)
             }
         } else {
-            Logger.resolver.error("RESOLVED - X :: Error Resolving document: Repo doesn't have a handle for \(id).")
+            Logger.resolver.error("RESOLVE: :: Error Resolving document: Repo doesn't have a handle for \(id).")
             throw Errors.Unavailable(id: id)
         }
     }

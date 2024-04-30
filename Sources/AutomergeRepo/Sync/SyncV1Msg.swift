@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import OSLog
 import PotentCBOR
 
 // Automerge Repo WebSocket sync details:

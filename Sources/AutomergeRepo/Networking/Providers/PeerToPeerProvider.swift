@@ -181,7 +181,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         for holder in connections.values {
             holder.connection.cancel()
         }
-        Logger.peerProtocol.debug("Terminating \(self.connections.count) connections")
+        Logger.peerProtocol.debug("P2PNET: Terminating \(self.connections.count) connections")
         connections.removeAll()
         // could be connectionPublisher.send(allConnections()), but we just removed them all...
         connectionPublisher.send([])
@@ -193,12 +193,12 @@ public final class PeerToPeerProvider: NetworkProvider {
     /// connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
-            Logger.peerProtocol.trace("Sending \(message.debugDescription) to peer \(peerId)")
+            Logger.peerProtocol.trace("P2PNET: Sending \(message.debugDescription) to peer \(peerId)")
             let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
                 h.peerId == peerId
             }
             if holdersWithPeer.isEmpty {
-                Logger.peerProtocol.warning("Unable to find a connection to peer \(peerId)")
+                Logger.peerProtocol.warning("P2PNET: Unable to find a connection to peer \(peerId)")
                 for c in connections.values {
                     Logger.peerProtocol
                         .warning(
@@ -213,14 +213,14 @@ public final class PeerToPeerProvider: NetworkProvider {
                     } catch {
                         Logger.peerProtocol
                             .warning(
-                                "error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
+                                "P2PNET: error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to peer \(peerId)"
                             )
                     }
                 }
             }
         } else {
             // nil peerId means send to everyone...
-            Logger.peerProtocol.trace("Sending \(message.debugDescription) to all peers")
+            Logger.peerProtocol.trace("P2PNET: Sending \(message.debugDescription) to all peers")
             for holder in connections.values {
                 // only send to connections with a set PeerId
                 if let peerId = holder.peerId {
@@ -230,7 +230,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                     } catch {
                         Logger.peerProtocol
                             .warning(
-                                "error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to endpoint \(peerId)"
+                                "P2PNET: error encoding message \(targetedMessage.debugDescription, privacy: .public). Unable to send to endpoint \(peerId)"
                             )
                     }
                 }
@@ -293,16 +293,16 @@ public final class PeerToPeerProvider: NetworkProvider {
             throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
         }
 
-        Logger.peerProtocol.debug("Starting Bonjour browser")
+        Logger.peerProtocol.debug("P2PNET: Starting Bonjour browser")
         if browser == nil {
             self.startBrowsing()
         }
 
-        Logger.peerProtocol.debug("Starting Bonjour listener as \(self.peerName)")
-        Logger.peerProtocol.debug(" - PeerId: \(self.peerId ?? "unset")")
-        Logger.peerProtocol.debug(" - PeerMetadata: \(self.peerMetadata?.debugDescription ?? "nil")")
-        Logger.peerProtocol.debug(" - Autoconnect on appearing host: \(self.config.autoconnect)")
-        Logger.peerProtocol.debug(" - Delegate: \(String(describing: self.delegate))")
+        Logger.peerProtocol.debug("P2PNET: Starting Bonjour listener as \(self.peerName)")
+        Logger.peerProtocol.debug("P2PNET:  - PeerId: \(self.peerId ?? "unset")")
+        Logger.peerProtocol.debug("P2PNET:  - PeerMetadata: \(self.peerMetadata?.debugDescription ?? "nil")")
+        Logger.peerProtocol.debug("P2PNET:  - Autoconnect on appearing host: \(self.config.autoconnect)")
+        Logger.peerProtocol.debug("P2PNET:  - Delegate: \(String(describing: self.delegate))")
         if listener == nil {
             self.setupBonjourListener()
         }
@@ -312,11 +312,11 @@ public final class PeerToPeerProvider: NetworkProvider {
     ///
     /// This terminates all connections, incoming and outgoing, and disables future connections.
     public func stopListening() {
-        Logger.peerProtocol.debug("Stopping Bonjour browser")
+        Logger.peerProtocol.debug("P2PNET: Stopping Bonjour browser")
         self.stopBrowsing()
         browser = nil
 
-        Logger.peerProtocol.debug("Stopping Bonjour listener")
+        Logger.peerProtocol.debug("P2PNET: Stopping Bonjour listener")
         disconnect()
         listener?.cancel()
         listener = nil
@@ -349,7 +349,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             // start process to "peer" with endpoint
             Logger.peerProtocol
                 .trace(
-                    "Connection established, requesting peering with \(destination.debugDescription, privacy: .public)"
+                    "P2PNET: Connection established, requesting peering with \(destination.debugDescription, privacy: .public)"
                 )
             // since we initiated the connection, it's on us to send an initial 'join'
             // protocol message to start the handshake phase of the protocol
@@ -381,7 +381,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 peered: peerConnection.peered
             )
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
-            Logger.peerProtocol.trace("Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+            Logger.peerProtocol.trace("P2PNET: Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
 
             connectionPublisher.send(allConnections())
             return true
@@ -395,7 +395,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             connectionPublisher.send(allConnections())
             Logger.peerProtocol
                 .error(
-                    "Failed to peer with \(destination.debugDescription, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    "P2PNET: Failed to peer with \(destination.debugDescription, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             throw error
         }
@@ -450,7 +450,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the connection
-                Logger.peerProtocol.warning("Error reading from connection: \(error.localizedDescription)")
+                Logger.peerProtocol.warning("P2PNET: Error reading from connection: \(error.localizedDescription)")
                 // update the stored copy of the holder with peered as false to indicate a
                 // broken connection that can be re-attempted
                 holder.peered = false
@@ -458,7 +458,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 connectionPublisher.send(allConnections())
             }
         }
-        Logger.peerProtocol.log("receive and reconnect loop terminated")
+        Logger.peerProtocol.log("P2PNET: receive and reconnect loop terminated")
     }
 
     private func handleMessage(msg: SyncV1Msg) async {
@@ -468,12 +468,12 @@ public final class PeerToPeerProvider: NetworkProvider {
         // - otherwise forward the message to the delegate to work with
         switch msg {
         case let .leave(msg):
-            Logger.peerProtocol.trace("\(msg.senderId) requests to kill the connection")
+            Logger.peerProtocol.trace("P2PNET: \(msg.senderId) requests to kill the connection")
             disconnect(peerId: msg.senderId)
         case let .join(msg):
-            Logger.peerProtocol.error("Unexpected message received: \(msg.debugDescription)")
+            Logger.peerProtocol.error("P2PNET: Unexpected message received: \(msg.debugDescription)")
         case let .peer(msg):
-            Logger.peerProtocol.error("Unexpected message received: \(msg.debugDescription)")
+            Logger.peerProtocol.error("P2PNET: Unexpected message received: \(msg.debugDescription)")
         default:
             await delegate?.receiveEvent(event: .message(payload: msg))
         }
@@ -515,24 +515,24 @@ public final class PeerToPeerProvider: NetworkProvider {
             self.browserResultUpdateContinuation.yield(BrowserResultUpdate(newResults: results, changes: changes))
         }
 
-        Logger.peerProtocol.info("Activating NWBrowser \(newNetworkBrowser.debugDescription, privacy: .public)")
+        Logger.peerProtocol.info("P2PNET: Activating NWBrowser \(newNetworkBrowser.debugDescription, privacy: .public)")
         browser = newNetworkBrowser
         // Start browsing and ask for updates on the main queue.
         newNetworkBrowser.start(queue: .main)
     }
 
     private func reactToNWBrowserStateUpdate(_ newState: NWBrowser.State) async {
-        Logger.peerProtocol.trace("\(self.peerName) NWBrowser state -> \(String(describing: newState))")
+        Logger.peerProtocol.trace("P2PNET: \(self.peerName) NWBrowser state -> \(String(describing: newState))")
         browserStatePublisher.send(newState)
         switch newState {
         case let .failed(error):
             // Restart the browser if it loses its connection.
             if error == NWError.dns(DNSServiceErrorType(kDNSServiceErr_DefunctConnection)) {
-                Logger.peerProtocol.info("Browser failed with \(error, privacy: .public), restarting")
+                Logger.peerProtocol.info("P2PNET: Browser failed with \(error, privacy: .public), restarting")
                 self.browser?.cancel()
                 self.startBrowsing()
             } else {
-                Logger.peerProtocol.warning("Browser failed with \(error, privacy: .public), stopping")
+                Logger.peerProtocol.warning("P2PNET: Browser failed with \(error, privacy: .public), stopping")
                 self.browser?.cancel()
             }
         case .ready:
@@ -556,7 +556,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     private func handleNWBrowserUpdates(_ update: BrowserResultUpdate) async {
         Logger.peerProtocol
-            .debug("\(self.peerName) NWBrowser update with \(update.newResults.count, privacy: .public) result(s):")
+            .debug("P2PNET: NWBrowser update with \(update.newResults.count, privacy: .public) result(s):")
 
         let availablePeers = update.newResults.compactMap { browserResult in
             Logger.peerProtocol
@@ -578,13 +578,13 @@ public final class PeerToPeerProvider: NetworkProvider {
                         do {
                             Logger.peerProtocol
                                 .debug(
-                                    "\(self.peerName) AutoConnect attempting to connect to \(availablePeer.debugDescription)"
+                                    "P2PNET: AutoConnect attempting to connect to \(availablePeer.debugDescription)"
                                 )
                             try await connect(to: result.endpoint)
                         } catch {
                             Logger.peerProtocol
                                 .warning(
-                                    "Failed to connect to \(result.endpoint.debugDescription): \(error.localizedDescription)"
+                                    "P2PNET: Failed to connect to \(result.endpoint.debugDescription): \(error.localizedDescription)"
                                 )
                         }
                     }
@@ -595,7 +595,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     fileprivate func stopBrowsing() {
         guard let browser else { return }
-        Logger.peerProtocol.info("Terminating NWBrowser")
+        Logger.peerProtocol.info("P2PNET: Terminating NWBrowser")
         browser.cancel()
         self.browser = nil
     }
@@ -614,21 +614,21 @@ public final class PeerToPeerProvider: NetworkProvider {
         case .ready:
             if let port = listener.port {
                 Logger.peerProtocol
-                    .info("Bonjour listener ready on \(port.rawValue, privacy: .public)")
+                    .info("P2PNET: Bonjour listener ready on \(port.rawValue, privacy: .public)")
             } else {
                 Logger.peerProtocol
-                    .info("Bonjour listener ready (no port listed)")
+                    .info("P2PNET: Bonjour listener ready (no port listed)")
             }
         case let .failed(error):
             if error == NWError.dns(DNSServiceErrorType(kDNSServiceErr_DefunctConnection)) {
                 Logger.peerProtocol
-                    .warning("Bonjour listener failed with \(error, privacy: .public), restarting.")
+                    .warning("P2PNET: Bonjour listener failed with \(error, privacy: .public), restarting.")
                 listener.cancel()
                 self.listener = nil
                 self.setupBonjourListener()
             } else {
                 Logger.peerProtocol
-                    .error("Bonjour listener failed with \(error, privacy: .public), stopping.")
+                    .error("P2PNET: Bonjour listener failed with \(error, privacy: .public), stopping.")
                 listener.cancel()
             }
         case .setup:
@@ -679,11 +679,11 @@ public final class PeerToPeerProvider: NetworkProvider {
             listener.start(queue: .main)
             self.listener = listener
             Logger.peerProtocol
-                .debug("Starting bonjour network listener")
+                .debug("P2PNET: Starting bonjour network listener")
 
         } catch {
             Logger.peerProtocol
-                .critical("Failed to create bonjour listener")
+                .critical("P2PNET: Failed to create bonjour listener")
         }
     }
 
@@ -695,25 +695,25 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
         Logger.peerProtocol
             .debug(
-                "Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
+                "P2PNET: Receiving connection request from \(newConnection.endpoint.debugDescription, privacy: .public)"
             )
         Logger.peerProtocol
             .debug(
-                "  Connection details: \(newConnection.debugDescription, privacy: .public)"
+                "P2PNET:   Connection details: \(newConnection.debugDescription, privacy: .public)"
             )
 
-        Logger.peerProtocol.debug("Existing connections:")
-        Logger.peerProtocol.debug("----------------------------------------------------------")
+        Logger.peerProtocol.debug("P2PNET: Existing connections:")
+        Logger.peerProtocol.debug("P2PNET: ----------------------------------------------------------")
         for (k, v) in connections {
             let peeredString = v.peered ? "true" : "false"
             let initiatedString = v.initiated ? "true" : "false"
             let peerString = v.peerId ?? "nil"
 
-            Logger.peerProtocol.debug("\(k.debugDescription)")
-            Logger.peerProtocol.debug(" :: peerId: \(peerString)")
-            Logger.peerProtocol.debug(" :: initiated: \(initiatedString)")
-            Logger.peerProtocol.debug(" :: peered: \(peeredString)")
-            Logger.peerProtocol.debug("----------------------------------------------------------")
+            Logger.peerProtocol.debug("P2PNET: \(k.debugDescription)")
+            Logger.peerProtocol.debug("P2PNET:  :: peerId: \(peerString)")
+            Logger.peerProtocol.debug("P2PNET:  :: initiated: \(initiatedString)")
+            Logger.peerProtocol.debug("P2PNET:  :: peered: \(peeredString)")
+            Logger.peerProtocol.debug("P2PNET: ----------------------------------------------------------")
         }
 
         // check to see if there's already a connection with this endpoint, if there is
@@ -721,15 +721,9 @@ public final class PeerToPeerProvider: NetworkProvider {
         if connections[newConnection.endpoint] == nil {
             Logger.peerProtocol
                 .info(
-                    "Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
+                    "P2PNET: Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
                 )
             let peerConnection = PeerToPeerConnection(connection: newConnection)
-//            let holder = ConnectionHolder(
-//                connection: peerConnection,
-//                initiated: false,
-//                peered: false,
-//                endpoint: newConnection.endpoint
-//            )
             connections[newConnection.endpoint] = peerConnection
             connectionPublisher.send(allConnections())
 
@@ -751,7 +745,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         } else {
             Logger.peerProtocol
                 .info(
-                    "Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
+                    "P2PNET: Inbound connection already exists for \(newConnection.endpoint.debugDescription, privacy: .public), cancelling the connection request."
                 )
             // If we already have a connection to that endpoint, don't add another
             newConnection.cancel()
@@ -806,7 +800,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         connectionPublisher.send(allConnections())
 
         Logger.peerProtocol
-            .trace("Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
+            .trace("P2PNET: Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
 
         // reply with the corresponding "peer" message
         let peerMessage = SyncV1Msg.PeerMsg(
@@ -817,7 +811,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         )
 
         try await holder.send(.peer(peerMessage))
-        Logger.peerProtocol.trace("SEND: \(peerMessage.debugDescription)")
+        Logger.peerProtocol.trace("P2PNET: SEND: \(peerMessage.debugDescription)")
         return peerConnectionDetails
     }
 
@@ -839,12 +833,12 @@ public final class PeerToPeerProvider: NetworkProvider {
                 await handleMessage(msg: msg)
             } catch {
                 // error scenario with the PeerToPeer connection
-                Logger.peerProtocol.warning("Error reading connection: \(error.localizedDescription)")
+                Logger.peerProtocol.warning("P2PNET: Error reading connection: \(error.localizedDescription)")
                 disconnect(peerId: peerId)
                 break
             }
         }
-        Logger.peerProtocol.warning("receive and reconnect loop for \(endpoint.debugDescription) terminated")
+        Logger.peerProtocol.warning("P2PNET: receive and reconnect loop for \(endpoint.debugDescription) terminated")
     }
 
     // Update the advertised name on the network.
@@ -857,6 +851,6 @@ public final class PeerToPeerProvider: NetworkProvider {
             type: P2PAutomergeSyncProtocol.bonjourType,
             txtRecord: txtRecord
         )
-        Logger.peerProtocol.info("Updated bonjour network listener to advertise name \(name, privacy: .public)")
+        Logger.peerProtocol.info("P2PNET: Updated bonjour network listener to advertise name \(name, privacy: .public)")
     }
 }
