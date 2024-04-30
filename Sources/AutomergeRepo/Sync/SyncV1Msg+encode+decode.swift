@@ -48,7 +48,7 @@ public extension SyncV1Msg {
         do {
             cborMsg = try CBORSerialization.cbor(from: data)
         } catch {
-            Logger.webSocket.warning("Unable to CBOR decode incoming data: \(data)")
+            Logger.coder.warning("CBOR: Unable to CBOR decode incoming data: \(data)")
             return .unknown(data)
         }
         // read the "type" of the message in order to choose the appropriate decoding path
@@ -106,7 +106,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(SyncMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as SyncMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as SyncMsg")
         }
         return nil
     }
@@ -115,7 +115,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(RequestMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as RequestMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as RequestMsg")
         }
         return nil
     }
@@ -124,7 +124,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(UnavailableMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as UnavailableMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as UnavailableMsg")
         }
         return nil
     }
@@ -135,7 +135,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(PeerMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as PeerMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as PeerMsg")
         }
         return nil
     }
@@ -144,7 +144,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(JoinMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as JoinMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as JoinMsg")
         }
         return nil
     }
@@ -153,7 +153,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(LeaveMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as LeaveMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as LeaveMsg")
         }
         return nil
     }
@@ -164,7 +164,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(ErrorMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as ErrorMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as ErrorMsg")
         }
         return nil
     }
@@ -175,7 +175,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(EphemeralMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as EphemeralMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as EphemeralMsg")
         }
         return nil
     }
@@ -186,7 +186,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(RemoteHeadsChangedMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as RemoteHeadsChangedMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as RemoteHeadsChangedMsg")
         }
         return nil
     }
@@ -195,7 +195,7 @@ public extension SyncV1Msg {
         do {
             return try CBORCoder.decoder.decode(RemoteSubscriptionChangeMsg.self, from: data)
         } catch {
-            Logger.webSocket.warning("Failed to decode data as RemoteSubscriptionChangeMsg")
+            Logger.coder.warning("CBOR: Failed to decode data as RemoteSubscriptionChangeMsg")
         }
         return nil
     }

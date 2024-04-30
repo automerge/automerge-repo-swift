@@ -1,6 +1,5 @@
 import Automerge
 import Foundation
-import OSLog
 
 // inspired from automerge-repo:
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/storage/StorageSubsystem.ts

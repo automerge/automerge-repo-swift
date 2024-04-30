@@ -56,13 +56,13 @@ final class NetworkSubsystem {
             // invariant that there should be a valid doc handle available from the repo
             throw Errors.Unavailable(id: id)
         }
-        Logger.network.trace("REPONET - Initiating remote fetch for \(id)")
+        Logger.network.trace("REPONET: Initiating remote fetch for \(id)")
         let newDocument = Document()
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
                 Logger.network
                     .trace(
-                        "REPONET - requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)"
+                        "REPONET: requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)"
                     )
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
@@ -84,7 +84,7 @@ final class NetworkSubsystem {
                 }
             }
         }
-        Logger.network.trace("REPONET - remote fetch for \(id) finished")
+        Logger.network.trace("REPONET: remote fetch for \(id) finished")
     }
 
     func send(message: SyncV1Msg, to: PEER_ID?) async {
@@ -126,7 +126,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
                 // ERROR FOR THESE MSG TYPES - expected to be handled at adapter
                 Logger.network
                     .error(
-                        "Unexpected message type received by network subsystem: \(payload.debugDescription, privacy: .public)"
+                        "REPONET: Unexpected message type received by network subsystem: \(payload.debugDescription, privacy: .public)"
                     )
                 #if DEBUG
                 fatalError("UNEXPECTED MSG")
@@ -148,7 +148,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         )
                     return
                 }
-                Logger.network.trace("Received \(event.debugDescription) event")
+                Logger.network.trace("REPONET: Received \(event.debugDescription) event")
                 if let peersRequested = requestedDocuments[docId] {
                     Logger.network.trace("REPONET: We've requested \(docId) from \(peersRequested.count) peers:")
                     for p in peersRequested {
