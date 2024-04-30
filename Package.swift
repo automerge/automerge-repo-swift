@@ -22,17 +22,12 @@ let package = Package(
         .package(url: "https://github.com/automerge/automerge-swift", .upToNextMajor(from: "0.5.7")),
         .package(url: "https://github.com/outfoxx/PotentCodables", .upToNextMajor(from: "3.1.0")),
         .package(url: "https://github.com/keefertaylor/Base58Swift", .upToNextMajor(from: "2.1.14")),
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
+        // Distributed Tracing support
+        .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
 
         // Documentation plugin
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
-
-        // Combine replacement for OSS
-        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
-        // Distributed Tracing
-        .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
-        // Testing Tracing
-        .package(url: "https://github.com/heckj/DistributedTracer", branch: "main"),
-        // this ^^ brings in a MASSIVE cascade of dependencies
     ],
     targets: [
         .target(
@@ -43,12 +38,10 @@ let package = Package(
                 .product(name: "PotentCodables", package: "PotentCodables"),
                 // BS58 representations of data
                 .product(name: "Base58Swift", package: "Base58Swift"),
-
-                // Combine replacement for OSS
+                // Async functional algorithms
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-
-                // Distributed Tracing
-                .product(name: "Tracing", package: "swift-distributed-tracing"),
+                // Support for distributed tracing
+                .product(name: "Tracing", package: "swift-distributed-tracing")
             ],
             // borrowing a set of Swift6 enabling features to double-check against
             // future proofing concurrency, safety, and exportable feature-creep.
@@ -63,7 +56,6 @@ let package = Package(
             name: "AutomergeRepoTests",
             dependencies: [
                 "AutomergeRepo",
-                .product(name: "DistributedTracer", package: "DistributedTracer"),
             ]
         ),
     ]

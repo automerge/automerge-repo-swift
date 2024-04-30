@@ -1,17 +1,12 @@
 import Automerge
 @testable import AutomergeRepo
 import AutomergeUtilities
-import DistributedTracer
 import Foundation
-import Logging
-import OTel
-import OTLPGRPC
 import RegexBuilder
-import ServiceLifecycle
 import Tracing
 import XCTest
 
-final class TwoReposWithNetworkTests: XCTestCase {
+final class TwoReposWithInMemoryNetworkTests: XCTestCase {
     let network = InMemoryNetwork.shared
     var repoOne: Repo!
     var repoTwo: Repo!
@@ -20,7 +15,7 @@ final class TwoReposWithNetworkTests: XCTestCase {
     var adapterTwo: InMemoryNetworkEndpoint!
 
     override func setUp() async throws {
-        await TestTracer.shared.bootstrap(serviceName: "RepoTests")
+        //await TestTracer.shared.bootstrap(serviceName: "RepoTests")
         await withSpan("setUp") { _ in
 
             await withSpan("resetTestNetwork") { _ in
@@ -70,12 +65,12 @@ final class TwoReposWithNetworkTests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        if let tracer = await TestTracer.shared.tracer {
-            tracer.forceFlush()
-            // Testing does NOT have a polite shutdown waiting for a flush to complete, so
-            // we explicitly give it some extra time here to flush out any spans remaining.
-            try await Task.sleep(for: .seconds(1))
-        }
+//        if let tracer = await TestTracer.shared.tracer {
+//            tracer.forceFlush()
+//            // Testing does NOT have a polite shutdown waiting for a flush to complete, so
+//            // we explicitly give it some extra time here to flush out any spans remaining.
+//            try await Task.sleep(for: .seconds(1))
+//        }
     }
 
     func testMostBasicRepoStartingPoints() async throws {
