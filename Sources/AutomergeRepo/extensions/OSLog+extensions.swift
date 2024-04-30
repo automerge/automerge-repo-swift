@@ -1,4 +1,5 @@
 import OSLog
+import Automerge
 
 extension Logger: @unchecked Sendable {}
 // https://forums.developer.apple.com/forums/thread/747816?answerId=781922022#781922022
@@ -35,4 +36,31 @@ extension Logger {
     static let resolver = Logger(subsystem: subsystem, category: "resolver")
 
     static let network = Logger(subsystem: subsystem, category: "networkSubsystem")
+}
+
+struct LogProxy {
+    let verbosity: LogVerbosity
+    let category: String
+    let logger: Logger
+    
+    init(verbosity: LogVerbosity, category: String) {
+        self.verbosity = verbosity
+        self.category = category
+        self.logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: category)
+    }
+    
+    public func trace(_ message: OSLogInterpolation) {
+        // ExpressibleByStringInterpolation, ExpressibleByStringLiteral
+        // 8
+        if verbosity.rawValue >= LogVerbosity.tracing.rawValue {
+            logger.trace(OSLogMessage.init(stringInterpolation: message))
+        }
+    }
+//    public func debug(_ message: OSLogMessage) // 7
+//    public func info(_ message: OSLogMessage) // 6
+//    public func notice(_ message: OSLogMessage) // 5
+//    public func warning(_ message: OSLogMessage) // 4
+//    public func error(_ message: OSLogMessage) // 3
+//    public func critical(_ message: OSLogMessage) // 2
+//    public func fault(_ message: OSLogMessage) // 1    
 }
