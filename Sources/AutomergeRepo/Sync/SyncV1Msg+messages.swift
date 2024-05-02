@@ -84,7 +84,7 @@ public extension SyncV1Msg {
     //    type: "leave"
     //    senderId: this.peerId
     // }
-    
+
     /// The contents of a request to terminate a connection.
     struct LeaveMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type: String = SyncV1Msg.MsgTypes.leave
@@ -242,7 +242,7 @@ public extension SyncV1Msg {
     //  ; The data of this message (in practice this is arbitrary CBOR)
     //  data: bstr
     // }
-    
+
     /// The contents of an app-specific message.
     struct EphemeralMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.ephemeral
@@ -288,7 +288,7 @@ public extension SyncV1Msg {
     //  ; The storage IDs to remove from the subscription
     //  remove: [* storage_id]
     // }
-    
+
     /// The contents of a message that indicate an update to a subscription to remote document changes.
     struct RemoteSubscriptionChangeMsg: Sendable, Codable, CustomDebugStringConvertible {
         public var type = SyncV1Msg.MsgTypes.remoteSubscriptionChange
@@ -339,7 +339,7 @@ public extension SyncV1Msg {
     //    }
     //  }
     // }
-    
+
     /// The contents of a message that indicates updates occurred on a network peer.
     struct RemoteHeadsChangedMsg: Sendable, Codable, CustomDebugStringConvertible {
         public struct HeadsAtTime: Codable, CustomDebugStringConvertible, Sendable {

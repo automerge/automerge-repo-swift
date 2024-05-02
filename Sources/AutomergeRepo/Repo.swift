@@ -22,10 +22,11 @@ public final class Repo {
     private var storage: DocumentStorage?
     private var network: NetworkSubsystem
 
-    /// The amount of time over which changes to any Document are coalesced into a single request to sync with existing
-    /// peers
-    let saveDebounce: RunLoop.SchedulerTimeType.Stride
     var sharePolicy: any ShareAuthorizing
+
+    nonisolated let saveSignalPublisher: PassthroughSubject<DocumentId, Never> = PassthroughSubject()
+    private var saveSignalHandler: AnyCancellable?
+    nonisolated let saveDebounceDelay: RunLoop.SchedulerTimeType.Stride
 
     /** maps peer id to to persistence information (storageId, isEphemeral), access by collection synchronizer  */
     /** @hidden */
@@ -83,14 +84,14 @@ public final class Repo {
     /// with available peers. The default is 2 seconds.
     public nonisolated init(
         sharePolicy: SharePolicy,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
     ) {
         peerId = UUID().uuidString
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
+        saveDebounceDelay = saveDebounce
     }
 
     /// Create a new repository with the custom share policy type you provide
@@ -100,14 +101,14 @@ public final class Repo {
     /// with available peers. The default is 2 seconds.
     public nonisolated init(
         sharePolicy: some ShareAuthorizing,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
     ) {
         peerId = UUID().uuidString
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy
-        self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
+        saveDebounceDelay = saveDebounce
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
@@ -119,14 +120,15 @@ public final class Repo {
     public nonisolated init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
     ) {
         peerId = UUID().uuidString
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        self.saveDebounce = saveDebounce
         network = NetworkSubsystem()
         self.storage = DocumentStorage(storage)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
+        saveDebounceDelay = saveDebounce
+        Task { await self.setupSaveHandler() }
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
@@ -140,18 +142,37 @@ public final class Repo {
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
         networks: [any NetworkProvider],
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(2)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
         self.storage = DocumentStorage(storage)
+        self.saveDebounceDelay = saveDebounce
+
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         network = NetworkSubsystem()
-        self.saveDebounce = saveDebounce
+        self.setupSaveHandler()
         network.setRepo(self)
         for adapter in networks {
             network.addAdapter(adapter: adapter)
         }
+    }
+
+    public func setupSaveHandler() {
+        saveSignalHandler = saveSignalPublisher
+            .debounce(for: saveDebounceDelay, scheduler: RunLoop.main)
+            .sink(receiveValue: { [weak self] id in
+                guard let self,
+                      let storage = self.storage,
+                      let docHandle = self.handles[id],
+                      let docFromHandle = docHandle.doc
+                else {
+                    return
+                }
+                Task {
+                    try await storage.saveDoc(id: id, doc: docFromHandle)
+                }
+            })
     }
 
     /// Add a configured network provider to the repo
@@ -201,7 +222,6 @@ public final class Repo {
     }
 
     func beginSync(docId: DocumentId, to peer: PEER_ID) async {
-        syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
         do {
             let handle = try await resolveDocHandle(id: docId)
             let syncState = syncState(id: docId, peer: peer)
@@ -212,6 +232,7 @@ public final class Repo {
                     targetId: peer,
                     sync_message: syncData
                 ))
+                syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
                 await network.send(message: syncMsg, to: peer)
             }
         } catch {
@@ -254,13 +275,15 @@ public final class Repo {
             return
         }
         if let doc = handle.doc, handle.state == .ready, observerHandles[id] == nil {
+            // sync changes should be invoked as rapidly as possible to allow for best possible
+            // collaborative editing experiences.
             let handleObserver = doc.objectWillChange
-                .debounce(for: saveDebounce, scheduler: RunLoop.main)
                 .sink { [weak self] _ in
                     guard let self else { return }
                     for peer in self.peerMetadataByPeerId.keys {
                         Task {
                             await self.beginSync(docId: id, to: peer)
+                            self.saveSignalPublisher.send(id)
                         }
                     }
                 }
@@ -274,7 +297,9 @@ public final class Repo {
         Logger.repo.trace("REPO: \(self.peerId) - handling a sync msg from \(msg.senderId) to \(msg.targetId)")
         guard let docId = DocumentId(msg.documentId) else {
             Logger.repo
-                .warning("REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
+                .warning(
+                    "REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)"
+                )
             return
         }
         Logger.repo.trace("REPO:  - Sync request received for document \(docId)")
@@ -329,7 +354,9 @@ public final class Repo {
     func handleRequest(msg: SyncV1Msg.RequestMsg) async {
         guard let docId = DocumentId(msg.documentId) else {
             Logger.repo
-                .warning("REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)")
+                .warning(
+                    "REPO: Invalid documentId \(msg.documentId) received in a sync message \(msg.debugDescription)"
+                )
             return
         }
         if handles[docId] != nil {

@@ -15,7 +15,7 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
     var adapterTwo: InMemoryNetworkEndpoint!
 
     override func setUp() async throws {
-        //await TestTracer.shared.bootstrap(serviceName: "RepoTests")
+        // await TestTracer.shared.bootstrap(serviceName: "RepoTests")
         await withSpan("setUp") { _ in
 
             await withSpan("resetTestNetwork") { _ in
@@ -152,6 +152,18 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
             knownOnOne = await repoOne.documentIds()
             XCTAssertEqual(knownOnOne.count, 0)
 
+            let twoSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
+            var expectationMet = false
+            let two_sink = repoTwo.syncRequestPublisher.sink { syncRequest in
+                if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
+                    if !expectationMet {
+                        expectationMet = true
+                        twoSyncExpectation.fulfill()
+                    }
+                }
+            }
+            XCTAssertNotNil(twoSyncExpectation)
+
             // "GO ONLINE"
             // await network.traceConnections(true)
             // await adapterTwo.logReceivedMessages(true)
@@ -159,14 +171,7 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
                 try await adapterOne.connect(to: "Two")
             }
 
-            let twoSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
-            let two_sink = repoTwo.syncRequestPublisher.sink { syncRequest in
-                if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
-                    twoSyncExpectation.fulfill()
-                }
-            }
-            XCTAssertNotNil(twoSyncExpectation)
-            await fulfillment(of: [twoSyncExpectation], timeout: 10)
+            await fulfillment(of: [twoSyncExpectation], timeout: 30)
             two_sink.cancel()
 
             // verify that after sync, both repos have a copy of the document

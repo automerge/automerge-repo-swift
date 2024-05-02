@@ -1,4 +1,5 @@
 import Automerge
+import Combine
 import Foundation
 
 // inspired from automerge-repo:
@@ -25,7 +26,6 @@ final class DocumentStorage {
         _storage = storage
         latestHeads = [:]
         chunks = [:]
-
         // memo-ized sizes of documents and chunks so that we don't always have to
         // iterate through the storage provider (disk accesses, or even network accesses)
         // to get a size determination to know if we should compact or not.

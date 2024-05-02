@@ -13,7 +13,7 @@ public enum Errors: Sendable {
             self.msg = msg
         }
     }
-    
+
     /// The sync protocol requested is unsupported.
     public struct UnsupportedProtocolError: Sendable, LocalizedError {
         public var msg: String
@@ -49,7 +49,7 @@ public enum Errors: Sendable {
             self.id = id
         }
     }
-    
+
     /// A request timed out before completion.
     public struct Timeout: Sendable, LocalizedError {
         public var errorDescription: String = "Task timed out before completion"
@@ -59,7 +59,7 @@ public enum Errors: Sendable {
             }
         }
     }
-    
+
     /// The connection closed or does not exist.
     public struct ConnectionClosed: Sendable, LocalizedError {
         public var errorDescription: String = "The connection closed or is nil"
@@ -69,7 +69,7 @@ public enum Errors: Sendable {
             }
         }
     }
-    
+
     /// The URL provided is invalid.
     public struct InvalidURL: Sendable, LocalizedError {
         public var urlString: String
@@ -81,7 +81,7 @@ public enum Errors: Sendable {
             self.urlString = urlString
         }
     }
-    
+
     /// Received an unexpected message.
     public struct UnexpectedMsg: Sendable, LocalizedError {
         public var msg: String

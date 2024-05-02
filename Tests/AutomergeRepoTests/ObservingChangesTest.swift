@@ -1,5 +1,6 @@
 import Automerge
 @testable import AutomergeRepo
+import OSLog
 import XCTest
 
 final class ObservingChangesTest: XCTestCase {
@@ -65,15 +66,21 @@ final class ObservingChangesTest: XCTestCase {
         // await network.traceConnections(true)
         // await adapterTwo.logReceivedMessages(true)
 
-        try await adapterOne.connect(to: "EndpointTwo")
-
+        var expectationTriggered = false
         let twoSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
         let two_sink = repoTwo.syncRequestPublisher.sink { syncRequest in
+            // Logger.testNetwork.error("SYNC PUB: \(syncRequest.id) peer: \(syncRequest.peer)")
             if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
-                twoSyncExpectation.fulfill()
+                if !expectationTriggered {
+                    expectationTriggered = true
+                    twoSyncExpectation.fulfill()
+                }
             }
         }
         XCTAssertNotNil(twoSyncExpectation)
+
+        try await adapterOne.connect(to: "EndpointTwo")
+
         await fulfillment(of: [twoSyncExpectation], timeout: 10)
         two_sink.cancel()
 

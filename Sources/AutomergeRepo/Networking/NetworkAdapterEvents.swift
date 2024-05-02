@@ -20,7 +20,7 @@ public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
             "NetworkAdapterEvents.message[\(payload)]"
         }
     }
-    
+
     /// The information associated with an individual peer being disconnected from a network provider.
     public struct PeerDisconnectPayload: Sendable, CustomStringConvertible {
         /// A string representation of the payload.
@@ -31,7 +31,7 @@ public enum NetworkAdapterEvents: Sendable, CustomDebugStringConvertible {
         // handled by Repo, relevant to Sync
         /// The peer that disconnected.
         public let peerId: PEER_ID
-        
+
         /// Creates a new payload identifying the peer that disconnected.
         /// - Parameter peerId: The peer that disconnected.
         public init(peerId: PEER_ID) {
