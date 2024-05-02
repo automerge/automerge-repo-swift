@@ -1,4 +1,5 @@
 import OSLog
+import Automerge
 
 extension Logger: @unchecked Sendable {}
 // https://forums.developer.apple.com/forums/thread/747816?answerId=781922022#781922022
@@ -15,7 +16,7 @@ extension Logger {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     /// Logs updates and interaction related to watching for external peer systems.
-    static let peerProtocol = Logger(subsystem: subsystem, category: "SyncController")
+    static let peer2peer = Logger(subsystem: subsystem, category: "SyncController")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
     static let peerConnection = Logger(subsystem: subsystem, category: "SyncConnection")

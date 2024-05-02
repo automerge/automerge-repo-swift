@@ -23,6 +23,8 @@ public final class Repo {
     private var network: NetworkSubsystem
 
     var sharePolicy: any ShareAuthorizing
+    
+    let logProvider: LogProvider
 
     nonisolated let saveSignalPublisher: PassthroughSubject<DocumentId, Never> = PassthroughSubject()
     private var saveSignalHandler: AnyCancellable?
@@ -92,6 +94,7 @@ public final class Repo {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem()
         saveDebounceDelay = saveDebounce
+        logProvider = LogProvider()
     }
 
     /// Create a new repository with the custom share policy type you provide
@@ -109,6 +112,7 @@ public final class Repo {
         self.sharePolicy = sharePolicy
         network = NetworkSubsystem()
         saveDebounceDelay = saveDebounce
+        logProvider = LogProvider()
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
@@ -128,6 +132,7 @@ public final class Repo {
         self.storage = DocumentStorage(storage)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         saveDebounceDelay = saveDebounce
+        logProvider = LogProvider()
         Task { await self.setupSaveHandler() }
     }
 
@@ -151,6 +156,7 @@ public final class Repo {
 
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         network = NetworkSubsystem()
+        logProvider = LogProvider()
         self.setupSaveHandler()
         network.setRepo(self)
         for adapter in networks {
@@ -158,7 +164,11 @@ public final class Repo {
         }
     }
 
-    public func setupSaveHandler() {
+    public func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
+        self.logProvider.setLevel(component, to: to)
+    }
+    
+    private func setupSaveHandler() {
         saveSignalHandler = saveSignalPublisher
             .debounce(for: saveDebounceDelay, scheduler: RunLoop.main)
             .sink(receiveValue: { [weak self] id in
