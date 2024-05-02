@@ -15,7 +15,7 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
     var adapterTwo: InMemoryNetworkEndpoint!
 
     override func setUp() async throws {
-        //await TestTracer.shared.bootstrap(serviceName: "RepoTests")
+        // await TestTracer.shared.bootstrap(serviceName: "RepoTests")
         await withSpan("setUp") { _ in
 
             await withSpan("resetTestNetwork") { _ in

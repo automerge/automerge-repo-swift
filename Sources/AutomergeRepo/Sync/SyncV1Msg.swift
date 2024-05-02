@@ -65,7 +65,7 @@ public indirect enum SyncV1Msg: Sendable {
     case remoteSubscriptionChange(RemoteSubscriptionChangeMsg)
     /// A notification that updates occurred on a network peer.
     case remoteHeadsChanged(RemoteHeadsChangedMsg)
-    
+
     // fall-through scenario - unknown message
     /// An unknown message.
     ///

@@ -18,28 +18,31 @@ import Automerge
 /// The expected behavior when a network provider initiates a connection:
 ///
 /// - After the underlying transport connection is established due to a call to `connect`, the emit
-/// ``NetworkAdapterEvents/ready(payload:)``, which includes a payload that provides information about the peer that is now connected.
+/// ``NetworkAdapterEvents/ready(payload:)``, which includes a payload that provides information about the peer that is
+/// now connected.
 /// - After the connection is established, send a ``SyncV1Msg/join(_:)`` message to request peering.
 /// - When the NetworkAdapter receives a ``SyncV1Msg/peer(_:)`` message, emit
 /// ``NetworkAdapterEvents/peerCandidate(payload:)``.
-/// - If the provider receives a message other than `peer`, terminate the connection and emit ``NetworkAdapterEvents/close``.
+/// - If the provider receives a message other than `peer`, terminate the connection and emit
+/// ``NetworkAdapterEvents/close``.
 /// - For any other message, emit it to the delegate using ``NetworkAdapterEvents/message(payload:)``.
 /// - When a transport connection is closed, emit ``NetworkAdapterEvents/peerDisconnect(payload:)``.
 /// - When `disconnect` is invoked on a network provider, send a ``SyncV1Msg/leave(_:)`` message then terminate
 /// the connection, and emit ``NetworkAdapterEvents/close``.
 ///
-/// A connecting transport may optionally enable automatic reconnection on connection failure. 
+/// A connecting transport may optionally enable automatic reconnection on connection failure.
 /// If the provider supports configurable reconnection logic, it should be configured with a `configure`
 /// call with the relevant configuration type for the network provider.
 ///
 /// The expected behavior when listening for, and responding to, an incoming connection:
 ///
 /// - When a connection is established, emit ``NetworkAdapterEvents/ready(payload:)``.
-/// - When the transport receives a `join` message, verify that the protocols being requested are compatible. 
-/// If it is not, return an ``SyncV1Msg/error(_:)`` message, close the connection, and emit ``NetworkAdapterEvents/close``.
+/// - When the transport receives a `join` message, verify that the protocols being requested are compatible.
+/// If it is not, return an ``SyncV1Msg/error(_:)`` message, close the connection, and emit
+/// ``NetworkAdapterEvents/close``.
 /// - When any other message is received, emit it using ``NetworkAdapterEvents/message(payload:)``.
 /// - When the transport receives a `leave` message, close the connection and emit ``NetworkAdapterEvents/close``.
-/// 
+///
 @AutomergeRepo
 public protocol NetworkProvider: Sendable {
     /// A string that represents the name of the network provider

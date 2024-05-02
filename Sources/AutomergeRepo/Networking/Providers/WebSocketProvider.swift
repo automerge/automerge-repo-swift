@@ -8,26 +8,27 @@ public final class WebSocketProvider: NetworkProvider {
 
     /// A type that represents the configuration used to create the provider.
     public typealias ProviderConfiguration = WebSocketProviderConfiguration
-    
+
     /// The configuration options for a WebSocket network provider.
     public struct WebSocketProviderConfiguration: Sendable {
         /// A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
         public let reconnectOnError: Bool
-        
+
         /// The default configuration for the WebSocket network provider.
         ///
         /// In the default configuration:
         ///
         /// - `reconnectOnError` is `true`
         public static let `default` = WebSocketProviderConfiguration(reconnectOnError: true)
-        
+
         /// Creates a new WebSocket network provider configuration instance.
-        /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
+        /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect
+        /// when it fails with an error.
         public init(reconnectOnError: Bool) {
             self.reconnectOnError = reconnectOnError
         }
     }
-    
+
     /// The active connection for this provider.
     public var peeredConnections: [PeerConnectionInfo]
     var delegate: (any NetworkEventReceiver)?
@@ -39,7 +40,7 @@ public final class WebSocketProvider: NetworkProvider {
     // reconnection logic variables
     var endpoint: URL?
     var peered: Bool
-    
+
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
     public nonisolated init(_ config: WebSocketProviderConfiguration = .default) {
@@ -113,10 +114,11 @@ public final class WebSocketProvider: NetworkProvider {
             let data = try SyncV1Msg.encode(msgToSend)
             try await webSocketTask.send(.data(data))
         } catch {
-            Logger.webSocket.error("WEBSOCKET: Unable to encode and send message: \(error.localizedDescription, privacy: .public)")
+            Logger.webSocket
+                .error("WEBSOCKET: Unable to encode and send message: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     /// Set the delegate for the peer to peer provider.
     /// - Parameters:
     ///   - delegate: The delegate instance.
@@ -352,7 +354,9 @@ public final class WebSocketProvider: NetworkProvider {
                     // catch decode failures, but don't terminate the whole shebang
                     // on a failure
                     Logger.webSocket
-                        .warning("WEBSOCKET: Unable to decode websocket message: \(error.localizedDescription, privacy: .public)")
+                        .warning(
+                            "WEBSOCKET: Unable to decode websocket message: \(error.localizedDescription, privacy: .public)"
+                        )
                 }
             }
         }

@@ -41,7 +41,7 @@ let package = Package(
                 // Async functional algorithms
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 // Support for distributed tracing
-                .product(name: "Tracing", package: "swift-distributed-tracing")
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
             ],
             // borrowing a set of Swift6 enabling features to double-check against
             // future proofing concurrency, safety, and exportable feature-creep.
