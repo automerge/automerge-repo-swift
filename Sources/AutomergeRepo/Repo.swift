@@ -161,8 +161,9 @@ public final class Repo {
     public func setupSaveHandler() {
         saveSignalHandler = saveSignalPublisher
             .debounce(for: saveDebounceDelay, scheduler: RunLoop.main)
-            .sink(receiveValue: { id in
-                guard let storage = self.storage,
+            .sink(receiveValue: { [weak self] id in
+                guard let self,
+                      let storage = self.storage,
                       let docHandle = self.handles[id],
                       let docFromHandle = docHandle.doc
                 else {
@@ -221,7 +222,6 @@ public final class Repo {
     }
 
     func beginSync(docId: DocumentId, to peer: PEER_ID) async {
-        syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
         do {
             let handle = try await resolveDocHandle(id: docId)
             let syncState = syncState(id: docId, peer: peer)
@@ -232,6 +232,7 @@ public final class Repo {
                     targetId: peer,
                     sync_message: syncData
                 ))
+                syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
                 await network.send(message: syncMsg, to: peer)
             }
         } catch {
