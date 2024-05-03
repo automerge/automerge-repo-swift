@@ -167,7 +167,7 @@ public final class Repo {
 
     // MARK: log filtering
 
-    func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
+    public func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
         levels[component] = to
         if component == .network {
             network.setLogVerbosity(to)
