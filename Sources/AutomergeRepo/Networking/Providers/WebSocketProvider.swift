@@ -1,3 +1,4 @@
+import Automerge
 import OSLog
 
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
@@ -13,7 +14,7 @@ public final class WebSocketProvider: NetworkProvider {
     public struct WebSocketProviderConfiguration: Sendable {
         /// A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
         public let reconnectOnError: Bool
-
+        public let logLevel: LogVerbosity
         /// The default configuration for the WebSocket network provider.
         ///
         /// In the default configuration:
@@ -24,8 +25,9 @@ public final class WebSocketProvider: NetworkProvider {
         /// Creates a new WebSocket network provider configuration instance.
         /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect
         /// when it fails with an error.
-        public init(reconnectOnError: Bool) {
+        public init(reconnectOnError: Bool, loggingAt: LogVerbosity = .errorOnly) {
             self.reconnectOnError = reconnectOnError
+            self.logLevel = loggingAt
         }
     }
 
@@ -106,7 +108,7 @@ public final class WebSocketProvider: NetworkProvider {
     /// connected peers.
     public func send(message: SyncV1Msg, to: PEER_ID?) async {
         guard let webSocketTask, let peer = peerId else {
-            Logger.webSocket.warning("WEBSOCKET: Attempt to send a message without a connection or defined remote peer")
+            Logger.websocket.warning("WEBSOCKET: Attempt to send a message without a connection or defined remote peer")
             return
         }
         let msgToSend = message.setTarget(to ?? peer)
@@ -114,7 +116,7 @@ public final class WebSocketProvider: NetworkProvider {
             let data = try SyncV1Msg.encode(msgToSend)
             try await webSocketTask.send(.data(data))
         } catch {
-            Logger.webSocket
+            Logger.websocket
                 .error("WEBSOCKET: Unable to encode and send message: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -153,7 +155,7 @@ public final class WebSocketProvider: NetworkProvider {
                 } else {
                     // In the handshake phase and received anything other than a valid peer message
                     let decodeAttempted = SyncV1Msg.decode(raw_data)
-                    Logger.webSocket
+                    Logger.websocket
                         .warning(
                             "WEBSOCKET: Decoding message, expecting peer only - and it wasn't a peer message. RECEIVED MSG: \(String(describing: decodeAttempted))"
                         )
@@ -169,12 +171,12 @@ public final class WebSocketProvider: NetworkProvider {
 
         case let .string(string):
             // In the handshake phase and received anything other than a valid peer message
-            Logger.webSocket
+            Logger.websocket
                 .warning("WEBSOCKET: Unknown message received: .string(\(string))")
             throw Errors.UnexpectedMsg(msg: string)
         @unknown default:
             // In the handshake phase and received anything other than a valid peer message
-            Logger.webSocket
+            Logger.websocket
                 .error("WEBSOCKET: Unknown message received: \(String(describing: msg))")
             throw Errors.UnexpectedMsg(msg: String(describing: msg))
         }
@@ -196,7 +198,9 @@ public final class WebSocketProvider: NetworkProvider {
 
         let request = URLRequest(url: url)
         let webSocketTask = URLSession.shared.webSocketTask(with: request)
-        Logger.webSocket.trace("WEBSOCKET: Activating websocket to \(url, privacy: .public)")
+        if config.logLevel.canTrace() {
+            Logger.websocket.trace("WEBSOCKET: Activating websocket to \(url, privacy: .public)")
+        }
         // start the websocket processing things
         webSocketTask.resume()
 
@@ -205,8 +209,9 @@ public final class WebSocketProvider: NetworkProvider {
         let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
         let data = try SyncV1Msg.encode(joinMessage)
         try await webSocketTask.send(.data(data))
-        Logger.webSocket.trace("WEBSOCKET: SEND: \(joinMessage.debugDescription)")
-
+        if config.logLevel.canTrace() {
+            Logger.websocket.trace("WEBSOCKET: SEND: \(joinMessage.debugDescription)")
+        }
         do {
             // Race a timeout against receiving a Peer message from the other side
             // of the WebSocket connection. If we fail that race, shut down the connection
@@ -230,14 +235,16 @@ public final class WebSocketProvider: NetworkProvider {
             )
             peeredConnections = [peerConnectionDetails]
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
-            Logger.webSocket.trace("WEBSOCKET: Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+            }
         } catch {
             // if there's an error, disconnect anything that's lingering and cancel it down.
             // an error here means we contacted the server successfully, but were unable to
             // peer, so we don't want to continue to attempt to reconnect. Because the "should
             // we reconnect" is a constant in the config, we can erase the URL endpoint instead
             // which will force us to fail reconnects.
-            Logger.webSocket
+            Logger.websocket
                 .error(
                     "WEBSOCKET: Failed to peer with \(url.absoluteString, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
@@ -333,7 +340,7 @@ public final class WebSocketProvider: NetworkProvider {
             }
 
             guard let webSocketTask else {
-                Logger.webSocket.warning("WEBSOCKET: Receive Handler: webSocketTask is nil, terminating handler loop")
+                Logger.websocket.warning("WEBSOCKET: Receive Handler: webSocketTask is nil, terminating handler loop")
                 break // terminates the while loop - no more reconnect attempts
             }
 
@@ -343,7 +350,7 @@ public final class WebSocketProvider: NetworkProvider {
                 msgFromWebSocket = try await webSocketTask.receive()
             } catch {
                 // error scenario with the WebSocket connection
-                Logger.webSocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
+                Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
             }
 
             if let encodedMessage = msgFromWebSocket {
@@ -353,14 +360,16 @@ public final class WebSocketProvider: NetworkProvider {
                 } catch {
                     // catch decode failures, but don't terminate the whole shebang
                     // on a failure
-                    Logger.webSocket
+                    Logger.websocket
                         .warning(
                             "WEBSOCKET: Unable to decode websocket message: \(error.localizedDescription, privacy: .public)"
                         )
                 }
             }
         }
-        Logger.webSocket.log("WEBSOCKET: receive and reconnect loop terminated")
+        if config.logLevel.canDebug() {
+            Logger.websocket.debug("WEBSOCKET: receive and reconnect loop terminated")
+        }
     }
 
     func handleMessage(msg: SyncV1Msg) async {
@@ -368,15 +377,19 @@ public final class WebSocketProvider: NetworkProvider {
         //   in this method (all handling of them should happen before getting here)
         // - .leave invokes the disconnect, and associated messages to the delegate
         // - otherwise forward the message to the delegate to work with
-        Logger.webSocket.trace("WEBSOCKET: handle message: \(msg.debugDescription)")
+        if config.logLevel.canTrace() {
+            Logger.websocket.trace("WEBSOCKET: handle message: \(msg.debugDescription)")
+        }
         switch msg {
         case let .leave(msg):
-            Logger.webSocket.trace("WEBSOCKET: \(msg.senderId) requests to kill the connection")
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: \(msg.senderId) requests to kill the connection")
+            }
             await disconnect()
         case let .join(msg):
-            Logger.webSocket.error("WEBSOCKET: Unexpected message received: \(msg.debugDescription)")
+            Logger.websocket.error("WEBSOCKET: Unexpected message received: \(msg.debugDescription)")
         case let .peer(msg):
-            Logger.webSocket.error("WEBSOCKET: Unexpected message received: \(msg.debugDescription)")
+            Logger.websocket.error("WEBSOCKET: Unexpected message received: \(msg.debugDescription)")
         default:
             await delegate?.receiveEvent(event: .message(payload: msg))
         }

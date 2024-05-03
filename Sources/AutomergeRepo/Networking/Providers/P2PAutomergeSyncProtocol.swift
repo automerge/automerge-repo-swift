@@ -67,7 +67,7 @@ class P2PAutomergeSyncProtocol: NWProtocolFramerImplementation {
         do {
             try framer.writeOutputNoCopy(length: messageLength)
         } catch {
-            Logger.peerProtocol.error("Error writing protocol data into frame: \(error, privacy: .public)")
+            Logger.peer2peer.error("Error writing protocol data into frame: \(error, privacy: .public)")
         }
     }
 

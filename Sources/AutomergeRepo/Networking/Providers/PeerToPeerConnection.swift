@@ -38,6 +38,8 @@ final class PeerToPeerConnection {
     nonisolated let defaultReceiveTimeout: ContinuousClock.Instant.Duration
     nonisolated let initiated: Bool
 
+    let logLevel: LogVerbosity
+
     var peered: Bool // has the connection advanced to being peered and ready to go
     var peerId: PEER_ID? // if peered, should be non-nil
     var peerMetadata: PeerMetadata?
@@ -61,6 +63,7 @@ final class PeerToPeerConnection {
     public init(
         to destination: NWEndpoint,
         passcode: String,
+        logVerbosity: LogVerbosity,
         receiveTimeout: ContinuousClock.Instant.Duration = .seconds(3.5),
         readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
         readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
@@ -77,14 +80,16 @@ final class PeerToPeerConnection {
         endpoint = destination
         self.connectionStatePublisher = PassthroughSubject()
         self.connection = connection
+        self.logLevel = logVerbosity
 
-        Logger.peerConnection
-            .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
-        Logger.peerConnection
-            .debug(
-                " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
-            )
-
+        if logVerbosity.canDebug() {
+            Logger.peerconnection
+                .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")
+            Logger.peerconnection
+                .debug(
+                    " - Initial state: \(String(describing: connection.state)) on path: \(String(describing: connection.currentPath))"
+                )
+        }
         startConnection()
     }
 
@@ -96,6 +101,7 @@ final class PeerToPeerConnection {
     ///   - readyCheckDelay: The delay while checking the network connections state
     public init(
         connection: NWConnection,
+        logVerbosity: LogVerbosity,
         receiveTimeout: ContinuousClock.Instant.Duration = .seconds(3.5),
         readyTimeout: ContinuousClock.Instant.Duration = .seconds(5),
         readyCheckDelay: ContinuousClock.Instant.Duration = .milliseconds(50)
@@ -108,6 +114,7 @@ final class PeerToPeerConnection {
         self.connection = connection
         endpoint = connection.endpoint
         connectionStatePublisher = PassthroughSubject()
+        self.logLevel = logVerbosity
 
         startConnection()
     }
@@ -125,14 +132,14 @@ final class PeerToPeerConnection {
             let direction: String = self.initiated ? "to" : "from"
             switch newState {
             case .ready:
-                Logger.peerConnection
+                Logger.peerconnection
                     .debug(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) ready."
                     )
             // Ideally, we don't start attempting to receive connections until AFTER we're in a .ready state
             // START RECEIVING MESSAGES HERE
             case let .failed(error):
-                Logger.peerConnection
+                Logger.peerconnection
                     .warning(
                         "FAILED: NWConnection \(direction) \(String(describing: self.connection), privacy: .public) : \(error, privacy: .public)"
                     )
@@ -140,7 +147,7 @@ final class PeerToPeerConnection {
                 connection.cancel()
 
             case .cancelled:
-                Logger.peerConnection
+                Logger.peerconnection
                     .debug(
                         "CANCELLED: NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) connection."
                     )
@@ -154,19 +161,19 @@ final class PeerToPeerConnection {
                 // Unclear if this is something we should retry ourselves when the associated network
                 // path is again viable, or if this is something that the Network framework does on our
                 // behalf.
-                Logger.peerConnection
+                Logger.peerconnection
                     .warning(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) waiting: \(nWError.debugDescription, privacy: .public)."
                     )
 
             case .preparing:
-                Logger.peerConnection
+                Logger.peerconnection
                     .debug(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) preparing."
                     )
 
             case .setup:
-                Logger.peerConnection
+                Logger.peerconnection
                     .debug(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
                     )
@@ -224,7 +231,9 @@ final class PeerToPeerConnection {
     /// Sends an Automerge sync data packet.
     /// - Parameter syncMsg: The data to send.
     public func send(_ msg: SyncV1Msg) async throws {
-        Logger.peerConnection.trace("CONN[\(String(describing: self.endpoint))] Sending: \(msg.debugDescription)")
+        if logLevel.canTrace() {
+            Logger.peerconnection.trace("CONN[\(String(describing: self.endpoint))] Sending: \(msg.debugDescription)")
+        }
         // Create a message object to hold the command type.
         let message = NWProtocolFramer.Message(syncMessageType: .syncV1data)
         let context = NWConnection.ContentContext(
@@ -312,25 +321,26 @@ final class PeerToPeerConnection {
             }
         }
 
-        Logger.peerConnection
-            .trace(
-                "\(self.connection.debugDescription) Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
-            )
-        if let bytes = rawMessageData.content?.count {
-            Logger.peerConnection.trace("\(self.connection.debugDescription)   - received \(bytes) bytes")
-        } else {
-            Logger.peerConnection.trace("\(self.connection.debugDescription)   - received no data with msg")
+        if logLevel.canTrace() {
+            Logger.peerconnection
+                .trace(
+                    "\(self.connection.debugDescription) Received a \(rawMessageData.isComplete ? "complete" : "incomplete", privacy: .public) msg on connection"
+                )
+            if let bytes = rawMessageData.content?.count {
+                Logger.peerconnection.trace("\(self.connection.debugDescription)   - received \(bytes) bytes")
+            } else {
+                Logger.peerconnection.trace("\(self.connection.debugDescription)   - received no data with msg")
+            }
         }
-
         if let ctx = rawMessageData.contentContext, ctx.isFinal {
-            Logger.peerConnection
+            Logger.peerconnection
                 .warning("\(self.connection.debugDescription)   - received message is marked as final in TCP stream")
             self.cancel()
             throw ConnectionTerminated()
         }
 
         if let err = rawMessageData.error {
-            Logger.peerConnection
+            Logger.peerconnection
                 .error("\(self.connection.debugDescription)   - error on received message: \(err.localizedDescription)")
             // Kind of an open-question of if we should terminate the connection
             // on an error - I think so.
@@ -352,14 +362,16 @@ final class PeerToPeerConnection {
 
         switch protocolMessage.syncMessageType {
         case .unknown:
-            Logger.peerConnection
+            Logger.peerconnection
                 .warning(
                     "\(self.connection.debugDescription) received unknown msg \(data) from \(self.endpoint.debugDescription, privacy: .public)"
                 )
             return SyncV1Msg.unknown(data)
         case .syncV1data:
             let msg = SyncV1Msg.decode(data)
-            Logger.peerConnection.trace("\(self.connection.debugDescription) decoded to \(msg.debugDescription)")
+            if logLevel.canTrace() {
+                Logger.peerconnection.trace("\(self.connection.debugDescription) decoded to \(msg.debugDescription)")
+            }
             return msg
         }
     }
