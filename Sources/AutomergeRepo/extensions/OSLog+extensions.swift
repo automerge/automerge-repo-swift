@@ -1,5 +1,5 @@
-import OSLog
 import Automerge
+import OSLog
 
 extension Logger: @unchecked Sendable {}
 // https://forums.developer.apple.com/forums/thread/747816?answerId=781922022#781922022

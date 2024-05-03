@@ -39,7 +39,7 @@ final class PeerToPeerConnection {
     nonisolated let initiated: Bool
 
     let logLevel: LogVerbosity
-    
+
     var peered: Bool // has the connection advanced to being peered and ready to go
     var peerId: PEER_ID? // if peered, should be non-nil
     var peerMetadata: PeerMetadata?
@@ -81,7 +81,7 @@ final class PeerToPeerConnection {
         self.connectionStatePublisher = PassthroughSubject()
         self.connection = connection
         self.logLevel = logVerbosity
-        
+
         if logVerbosity.canDebug() {
             Logger.peerconnection
                 .debug("Initiating connection to \(destination.debugDescription, privacy: .public)")

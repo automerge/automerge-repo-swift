@@ -1,5 +1,5 @@
-import OSLog
 import Automerge
+import OSLog
 
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
 @AutomergeRepo
@@ -42,7 +42,7 @@ public final class WebSocketProvider: NetworkProvider {
     // reconnection logic variables
     var endpoint: URL?
     var peered: Bool
-    
+
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
     public nonisolated init(_ config: WebSocketProviderConfiguration = .default) {

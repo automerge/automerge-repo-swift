@@ -18,11 +18,12 @@ final class DocumentStorage {
     var storedDocSize: [DocumentId: Int]
 
     var chunks: [DocumentId: [Data]]
-    
-    let logProvider: LogProvider
+
+    var loglevel: LogVerbosity
+
     /// Creates a new concurrency safe document storage instance to manage changes to Automerge documents.
     /// - Parameter storage: The storage provider
-    public nonisolated init(_ storage: some StorageProvider, logProvider: LogProvider) {
+    public nonisolated init(_ storage: some StorageProvider, verbosity: LogVerbosity) {
         compacting = false
         _storage = storage
         latestHeads = [:]
@@ -34,7 +35,11 @@ final class DocumentStorage {
         storedChunkSize = [:]
         memoryChunkSize = [:]
         storedDocSize = [:]
-        self.logProvider = logProvider
+        self.loglevel = verbosity
+    }
+
+    func setLogVerbosity(_ level: LogVerbosity) {
+        self.loglevel = level
     }
 
     public var id: STORAGE_ID {

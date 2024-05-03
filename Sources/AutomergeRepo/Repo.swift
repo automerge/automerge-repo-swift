@@ -23,8 +23,13 @@ public final class Repo {
     private var network: NetworkSubsystem
 
     var sharePolicy: any ShareAuthorizing
-    
-    let logProvider: LogProvider
+
+    // MARK: log filtering
+
+    let defaultVerbosity: LogVerbosity = .errorOnly
+    private var levels: [LogComponent: LogVerbosity] = [:]
+
+    // MARK: log filtering
 
     nonisolated let saveSignalPublisher: PassthroughSubject<DocumentId, Never> = PassthroughSubject()
     private var saveSignalHandler: AnyCancellable?
@@ -90,10 +95,9 @@ public final class Repo {
     ) {
         peerId = UUID().uuidString
         storage = nil
-        logProvider = LogProvider()
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        network = NetworkSubsystem(logProvider: logProvider)
+        network = NetworkSubsystem(verbosity: .errorOnly)
         saveDebounceDelay = saveDebounce
     }
 
@@ -110,8 +114,7 @@ public final class Repo {
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy
-        logProvider = LogProvider()
-        network = NetworkSubsystem(logProvider: logProvider)
+        network = NetworkSubsystem(verbosity: .errorOnly)
         saveDebounceDelay = saveDebounce
     }
 
@@ -128,9 +131,8 @@ public final class Repo {
     ) {
         peerId = UUID().uuidString
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        logProvider = LogProvider()
-        network = NetworkSubsystem(logProvider: logProvider)
-        self.storage = DocumentStorage(storage, logProvider: logProvider)
+        network = NetworkSubsystem(verbosity: .errorOnly)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         saveDebounceDelay = saveDebounce
         Task { await self.setupSaveHandler() }
@@ -151,12 +153,11 @@ public final class Repo {
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
-        logProvider = LogProvider()
-        self.storage = DocumentStorage(storage, logProvider: logProvider)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly)
         self.saveDebounceDelay = saveDebounce
 
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
-        network = NetworkSubsystem(logProvider: logProvider)
+        network = NetworkSubsystem(verbosity: .errorOnly)
         self.setupSaveHandler()
         network.setRepo(self)
         for adapter in networks {
@@ -164,10 +165,27 @@ public final class Repo {
         }
     }
 
-    public func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
-        self.logProvider.setLevel(component, to: to)
+    // MARK: log filtering
+
+    func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
+        levels[component] = to
+        if component == .network {
+            network.setLogVerbosity(to)
+        }
+        if let storage, component == .storage {
+            storage.setLogVerbosity(to)
+        }
     }
-    
+
+    func logLevel(_ component: LogComponent) -> LogVerbosity {
+        if let level = levels[component] {
+            return level
+        }
+        return defaultVerbosity
+    }
+
+    // MARK: log filtering
+
     private func setupSaveHandler() {
         saveSignalHandler = saveSignalPublisher
             .debounce(for: saveDebounceDelay, scheduler: RunLoop.main)
@@ -256,13 +274,19 @@ public final class Repo {
     func addPeerWithMetadata(peer: PEER_ID, metadata: PeerMetadata?) async {
         assert(peer != self.peerId)
         peerMetadataByPeerId[peer] = metadata
-        Logger.repo.trace("REPO: \(self.peerId) adding peer \(peer)")
+        if logLevel(.repo).canTrace() {
+            Logger.repo.trace("REPO: \(self.peerId) adding peer \(peer)")
+        }
         for docId in documentIds() {
             if await sharePolicy.share(peer: peer, docId: docId) {
-                Logger.repo.trace("REPO: \(self.peerId) starting a sync for document \(docId) to \(peer)")
+                if logLevel(.repo).canTrace() {
+                    Logger.repo.trace("REPO: \(self.peerId) starting a sync for document \(docId) to \(peer)")
+                }
                 await beginSync(docId: docId, to: peer)
             } else {
-                Logger.repo.trace("REPO: \(self.peerId) SharePolicy DENIED sharing document \(docId) to \(peer)")
+                if logLevel(.repo).canTrace() {
+                    Logger.repo.trace("REPO: \(self.peerId) SharePolicy DENIED sharing document \(docId) to \(peer)")
+                }
             }
         }
     }
@@ -304,7 +328,9 @@ public final class Repo {
     // MARK: Synchronization Pieces - For Network Subsystem Access
 
     func handleSync(msg: SyncV1Msg.SyncMsg) async {
-        Logger.repo.trace("REPO: \(self.peerId) - handling a sync msg from \(msg.senderId) to \(msg.targetId)")
+        if logLevel(.repo).canTrace() {
+            Logger.repo.trace("REPO: \(self.peerId) - handling a sync msg from \(msg.senderId) to \(msg.targetId)")
+        }
         guard let docId = DocumentId(msg.documentId) else {
             Logger.repo
                 .warning(
@@ -312,10 +338,14 @@ public final class Repo {
                 )
             return
         }
-        Logger.repo.trace("REPO:  - Sync request received for document \(docId)")
+        if logLevel(.repo).canTrace() {
+            Logger.repo.trace("REPO:  - Sync request received for document \(docId)")
+        }
         do {
             if handles[docId] == nil {
-                Logger.repo.trace("REPO:  - No recorded handle for \(docId), creating one")
+                if logLevel(.repo).canTrace() {
+                    Logger.repo.trace("REPO:  - No recorded handle for \(docId), creating one")
+                }
                 // There is no in-memory handle for the document being synced, so this is a request
                 // to create a local copy of the document encapsulated in the sync message.
                 let newDocument = Document()
@@ -327,7 +357,9 @@ public final class Repo {
                 _ = try await resolveDocHandle(id: docId)
             }
             guard let handle = handles[docId] else { fatalError("HANDLE DOESN'T EXIST") }
-            Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
+            if logLevel(.repo).canTrace() {
+                Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
+            }
             let docFromHandle = handle.doc ?? Document()
             let syncState = syncState(id: docId, peer: msg.senderId)
             // Apply the request message as a sync update
@@ -348,7 +380,10 @@ public final class Repo {
                     targetId: msg.senderId,
                     sync_message: syncData
                 ))
-                Logger.repo.trace("REPO: Sync received and applied, replying with a sync msg back to \(msg.senderId)")
+                if logLevel(.repo).canTrace() {
+                    Logger.repo
+                        .trace("REPO: Sync received and applied, replying with a sync msg back to \(msg.senderId)")
+                }
                 await network.send(message: syncMsg, to: msg.senderId)
             }
             // else no sync is needed, as the last sync state reports that it knows about
@@ -581,12 +616,16 @@ public final class Repo {
             fatalError("No stored dochandle for id: \(id)")
         }
         if let handleSyncState = handle.syncStates[peer] {
-            Logger.repo.trace("REPO: Providing stored sync state for doc \(id)")
+            if logLevel(.repo).canTrace() {
+                Logger.repo.trace("REPO: Providing stored sync state for doc \(id)")
+            }
             return handleSyncState
         } else {
             // TODO: add attempt to load from storage and return it before creating a new one
-            Logger.repo.trace("REPO: No stored sync state for doc \(id) and peer \(peer).")
-            Logger.repo.trace("REPO: Creating a new sync state for doc \(id)")
+            if logLevel(.repo).canTrace() {
+                Logger.repo.trace("REPO: No stored sync state for doc \(id) and peer \(peer).")
+                Logger.repo.trace("REPO: Creating a new sync state for doc \(id)")
+            }
             return SyncState()
         }
     }
@@ -595,7 +634,9 @@ public final class Repo {
         guard let handle = handles[id] else {
             fatalError("No stored dochandle for id: \(id)")
         }
-        Logger.repo.trace("REPO: Storing updated sync state for doc \(id) and peer \(peer).")
+        if logLevel(.repo).canTrace() {
+            Logger.repo.trace("REPO: Storing updated sync state for doc \(id) and peer \(peer).")
+        }
         handle.syncStates[peer] = syncState
     }
 
@@ -615,7 +656,9 @@ public final class Repo {
         guard let handle = handles[id] else {
             fatalError("No stored document handle for document id: \(id)")
         }
-        Logger.repo.trace("REPO: Updated contents of document \(id), state: \(String(describing: handle.state))")
+        if logLevel(.repo).canTrace() {
+            Logger.repo.trace("REPO: Updated contents of document \(id), state: \(String(describing: handle.state))")
+        }
         // Automerge-repo https://github.com/automerge/automerge-repo/issues/343 is sending two responses,
         // the first being UNAVAILABLE, which we use to change the state, but that triggers this unexpected
         // assertion, we we later receive the SYNC update to set the document as expected
@@ -678,21 +721,30 @@ public final class Repo {
     }
 
     private func resolveDocHandle(id: DocumentId) async throws -> DocHandle {
+        let loglevel = self.logLevel(.resolver)
         if let handle: InternalDocHandle = handles[id] {
-            Logger.resolver.trace("RESOLVE: document id \(id) [\(String(describing: handle.state))]")
+            if loglevel.canTrace() {
+                Logger.resolver.trace("RESOLVE: document id \(id) [\(String(describing: handle.state))]")
+            }
             switch handle.state {
             case .idle:
                 if handle.doc != nil {
                     // if there's an Automerge document in memory, jump to ready
                     handle.state = .ready
-                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    if loglevel.canTrace() {
+                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    }
                 } else {
                     // otherwise, first attempt to load it from persistent storage
                     // (if available)
                     handle.state = .loading
-                    Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    if loglevel.canTrace() {
+                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    }
                 }
-                Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                if loglevel.canTrace() {
+                    Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                }
                 docHandlePublisher.send(handle.snapshot())
                 return try await resolveDocHandle(id: id)
             case .loading:
@@ -734,10 +786,14 @@ public final class Repo {
                     } else {
                         handle.state = .requesting
                         pendingRequestReadAttempts[id] = 0
-                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                        Logger.resolver.trace("RESOLVE: :: starting remote fetch")
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                            Logger.resolver.trace("RESOLVE: :: starting remote fetch")
+                        }
                         try await network.startRemoteFetch(id: handle.id)
-                        Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        }
                         docHandlePublisher.send(handle.snapshot())
                         return try await resolveDocHandle(id: id)
                     }
@@ -760,14 +816,18 @@ public final class Repo {
                     if previousRequests < maxRetriesForFetch {
                         // we are racing against the receipt of a network result
                         // to see what we get at the end
-                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
-                        Logger.resolver
-                            .trace(
-                                "RESOLVE: :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
-                            )
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                            Logger.resolver
+                                .trace(
+                                    "RESOLVE: :: check # \(previousRequests) (of \(self.maxRetriesForFetch), waiting \(self.pendingRequestWaitDuration) seconds for remote fetch"
+                                )
+                        }
                         try await Task.sleep(for: pendingRequestWaitDuration)
                         pendingRequestReadAttempts[id] = previousRequests + 1
-                        Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        }
                         return try await resolveDocHandle(id: id)
                     } else {
                         updatedHandle.state = .unavailable
@@ -781,7 +841,9 @@ public final class Repo {
                 }
             case .ready:
                 guard let doc = handle.doc else { fatalError("DocHandle state is ready, but ._doc is null") }
-                Logger.resolver.trace("RESOLVE :: \(id) [\(String(describing: handle.state))]")
+                if loglevel.canTrace() {
+                    Logger.resolver.trace("RESOLVE :: \(id) [\(String(describing: handle.state))]")
+                }
                 watchDocForChanges(id: id)
                 return DocHandle(id: id, doc: doc)
             case .unavailable:

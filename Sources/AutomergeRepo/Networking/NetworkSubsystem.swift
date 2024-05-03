@@ -31,15 +31,19 @@ final class NetworkSubsystem {
     // TODO: revisit this and consider if the callbacks to repo should be exposed as a delegate
     weak var repo: Repo?
     var adapters: [any NetworkProvider]
-    let logProvider: LogProvider
+    var loglevel: LogVerbosity
 
-    nonisolated init(logProvider: LogProvider) {
+    nonisolated init(verbosity: LogVerbosity) {
         adapters = []
-        self.logProvider = logProvider
+        self.loglevel = verbosity
     }
 
     func setRepo(_ repo: Repo) {
         self.repo = repo
+    }
+
+    func setLogVerbosity(_ level: LogVerbosity) {
+        self.loglevel = level
     }
 
     func addAdapter(adapter: some NetworkProvider) {
@@ -58,14 +62,18 @@ final class NetworkSubsystem {
             // invariant that there should be a valid doc handle available from the repo
             throw Errors.Unavailable(id: id)
         }
-        Logger.network.trace("REPONET: Initiating remote fetch for \(id)")
+        if loglevel.canTrace() {
+            Logger.network.trace("REPONET: Initiating remote fetch for \(id)")
+        }
         let newDocument = Document()
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
-                Logger.network
-                    .trace(
-                        "REPONET: requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)"
-                    )
+                if loglevel.canTrace() {
+                    Logger.network
+                        .trace(
+                            "REPONET: requesting \(id) from peer \(peerConnection.peerId) at \(peerConnection.endpoint)"
+                        )
+                }
                 // upsert the requested document into the list by peer
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
@@ -86,13 +94,17 @@ final class NetworkSubsystem {
                 }
             }
         }
-        Logger.network.trace("REPONET: remote fetch for \(id) finished")
+        if loglevel.canTrace() {
+            Logger.network.trace("REPONET: remote fetch for \(id) finished")
+        }
     }
 
     func send(message: SyncV1Msg, to: PEER_ID?) async {
         for adapter in adapters {
-            Logger.network
-                .trace("REPONET: sending message on \(String(describing: adapter)) to \(String(describing: to))")
+            if loglevel.canTrace() {
+                Logger.network
+                    .trace("REPONET: sending message on \(String(describing: adapter)) to \(String(describing: to))")
+            }
             await adapter.send(message: message, to: to)
         }
     }
@@ -106,7 +118,9 @@ extension NetworkSubsystem: NetworkEventReceiver {
     // In automerge-repo code, it appears to update information on an ephemeral information (
     // a sort of middleware) before emitting it upwards.
     public func receiveEvent(event: NetworkAdapterEvents) async {
-        Logger.network.trace("REPONET: received event from network adapter: \(event.debugDescription)")
+        if loglevel.canTrace() {
+            Logger.network.trace("REPONET: received event from network adapter: \(event.debugDescription)")
+        }
         guard let repo else {
             // No-op if there's no repo to update state or handle
             // further message passing
@@ -150,11 +164,15 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         )
                     return
                 }
-                Logger.network.trace("REPONET: Received \(event.debugDescription) event")
+                if loglevel.canTrace() {
+                    Logger.network.trace("REPONET: Received \(event.debugDescription) event")
+                }
                 if let peersRequested = requestedDocuments[docId] {
-                    Logger.network.trace("REPONET: We've requested \(docId) from \(peersRequested.count) peers:")
-                    for p in peersRequested {
-                        Logger.network.trace("REPONET: - Peer: \(p)")
+                    if loglevel.canTrace() {
+                        Logger.network.trace("REPONET: We've requested \(docId) from \(peersRequested.count) peers:")
+                        for p in peersRequested {
+                            Logger.network.trace("REPONET: - Peer: \(p)")
+                        }
                     }
                     // if we receive an unavailable from one peer, record it and wait until
                     // we receive unavailable from all available peers before marking it unavailable
@@ -162,18 +180,23 @@ extension NetworkSubsystem: NetworkEventReceiver {
                         // include the peers OTHER than the one sending the unavailable msg
                         peerId != unavailableMsg.senderId
                     }
-                    Logger.network
-                        .trace(
-                            "REPONET: Removing the sending peer, there are \(remainingPeersPending.count) remaining:"
-                        )
-                    for p in remainingPeersPending {
-                        Logger.network.trace("REPONET: - Peer: \(p)")
-                    }
-                    if remainingPeersPending.isEmpty {
+                    if loglevel.canTrace() {
                         Logger.network
                             .trace(
-                                "REPONET: No further peers with requests outstanding, so marking document \(docId) as unavailable"
+                                "REPONET: Removing the sending peer, there are \(remainingPeersPending.count) remaining:"
                             )
+
+                        for p in remainingPeersPending {
+                            Logger.network.trace("REPONET: - Peer: \(p)")
+                        }
+                    }
+                    if remainingPeersPending.isEmpty {
+                        if loglevel.canTrace() {
+                            Logger.network
+                                .trace(
+                                    "REPONET: No further peers with requests outstanding, so marking document \(docId) as unavailable"
+                                )
+                        }
                         await repo.markDocUnavailable(id: docId)
                         requestedDocuments.removeValue(forKey: docId)
                     } else {

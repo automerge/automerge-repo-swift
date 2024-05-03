@@ -1,5 +1,5 @@
-import Foundation
 import Automerge
+import Foundation
 #if os(iOS)
 import UIKit // for UIDevice.name access
 #endif

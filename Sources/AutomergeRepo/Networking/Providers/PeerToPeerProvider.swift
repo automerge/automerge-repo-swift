@@ -344,7 +344,11 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
 
         // establish the peer to peer connection
-        let peerConnection = await PeerToPeerConnection(to: destination, passcode: config.passcode, logVerbosity: config.logLevel)
+        let peerConnection = await PeerToPeerConnection(
+            to: destination,
+            passcode: config.passcode,
+            logVerbosity: config.logLevel
+        )
         // indicate to everything else we're starting a connection, outgoing, not yet peered
 
         // report that this connection exists to all interested
