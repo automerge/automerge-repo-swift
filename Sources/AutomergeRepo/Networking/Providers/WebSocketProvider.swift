@@ -199,6 +199,12 @@ public final class WebSocketProvider: NetworkProvider {
               let peerId,
               let delegate
         else {
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("Pre-requisites not available for attemptConnect, returning nil")
+                Logger.websocket.trace("URL: \(String(describing: url))")
+                Logger.websocket.trace("PeerID: \(String(describing: self.peerId))")
+                Logger.websocket.trace("Delegate: \(String(describing: self.delegate))")
+            }
             return nil
         }
 
@@ -341,6 +347,12 @@ public final class WebSocketProvider: NetworkProvider {
             // (if we're configured to do so)
             if !peered, config.reconnectOnError {
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
+                if config.logLevel.canTrace() {
+                    Logger.websocket
+                        .trace(
+                            "WEBSOCKET: Reconnect attempt #\(reconnectAttempts), waiting for \(waitBeforeReconnect) seconds."
+                        )
+                }
                 try await Task.sleep(for: .seconds(waitBeforeReconnect))
                 // if endpoint is nil, this returns nil
                 if let newWebSocketTask = try await attemptConnect(to: endpoint) {
