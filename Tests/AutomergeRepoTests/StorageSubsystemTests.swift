@@ -14,7 +14,7 @@ final class StorageSubsystemTests: XCTestCase {
         XCTAssertEqual(docIds.count, 0)
         XCTAssertEqual(incrementalKeys.count, 0)
 
-        subsystem = DocumentStorage(storageProvider)
+        subsystem = DocumentStorage(storageProvider, logProvider: LogProvider())
         testStorageProvider = storageProvider
     }
 
