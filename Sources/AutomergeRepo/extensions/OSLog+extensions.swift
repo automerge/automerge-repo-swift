@@ -19,13 +19,13 @@ extension Logger {
     static let peer2peer = Logger(subsystem: subsystem, category: "SyncController")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
-    static let peerConnection = Logger(subsystem: subsystem, category: "SyncConnection")
+    static let peerconnection = Logger(subsystem: subsystem, category: "SyncConnection")
 
     /// Logs updates and interations performed by the sync protocol encoder and decoder.
     static let coder = Logger(subsystem: subsystem, category: "SyncCoderDecoder")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
-    static let webSocket = Logger(subsystem: subsystem, category: "WebSocket")
+    static let websocket = Logger(subsystem: subsystem, category: "WebSocket")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
     static let storage = Logger(subsystem: subsystem, category: "storageSubsystem")

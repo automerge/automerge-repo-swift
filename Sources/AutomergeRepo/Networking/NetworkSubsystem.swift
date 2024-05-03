@@ -31,9 +31,11 @@ final class NetworkSubsystem {
     // TODO: revisit this and consider if the callbacks to repo should be exposed as a delegate
     weak var repo: Repo?
     var adapters: [any NetworkProvider]
+    let logProvider: LogProvider
 
-    nonisolated init() {
+    nonisolated init(logProvider: LogProvider) {
         adapters = []
+        self.logProvider = logProvider
     }
 
     func setRepo(_ repo: Repo) {

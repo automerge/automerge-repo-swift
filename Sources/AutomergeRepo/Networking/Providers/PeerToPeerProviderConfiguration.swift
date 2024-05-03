@@ -1,4 +1,5 @@
 import Foundation
+import Automerge
 #if os(iOS)
 import UIKit // for UIDevice.name access
 #endif
@@ -12,6 +13,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     let recurringNextMessageTimeout: ContinuousClock.Instant.Duration
     let waitForPeerTimeout: ContinuousClock.Instant.Duration
 
+    let logLevel: LogVerbosity
     /// Creates a new Peer to Peer Network Provider configuration
     /// - Parameters:
     ///   - passcode: A passcode to use as a shared private key to enable TLS encryption
@@ -26,6 +28,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
         passcode: String,
         reconnectOnError: Bool = true,
         autoconnect: Bool? = nil,
+        logVerbosity: LogVerbosity = .errorOnly,
         recurringNextMessageTimeout: ContinuousClock.Instant.Duration = .seconds(30),
         waitForPeerTimeout: ContinuousClock.Instant.Duration = .seconds(5)
     ) {
@@ -42,6 +45,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
         self.passcode = passcode
         self.waitForPeerTimeout = waitForPeerTimeout
         self.recurringNextMessageTimeout = recurringNextMessageTimeout
+        self.logLevel = logVerbosity
     }
 
     // MARK: default sharing identity

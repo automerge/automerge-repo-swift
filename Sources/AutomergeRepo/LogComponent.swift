@@ -6,7 +6,6 @@ public enum LogComponent: String, Hashable, Sendable {
     case repo
     case resolver
     case storage
-    case coder
     case websocket
     case peer2peer
     case peerconnection
@@ -19,9 +18,6 @@ public enum LogComponent: String, Hashable, Sendable {
 
     /// Logs updates and interaction related to the process of synchronization over the network.
     private static let _peerconnection = Logger(subsystem: subsystem, category: "SyncConnection")
-
-    /// Logs updates and interations performed by the sync protocol encoder and decoder.
-    private static let _coder = Logger(subsystem: subsystem, category: "SyncCoderDecoder")
 
     /// Logs updates and interaction related to the process of synchronization over the network.
     private static let _websocket = Logger(subsystem: subsystem, category: "WebSocket")
@@ -48,8 +44,6 @@ public enum LogComponent: String, Hashable, Sendable {
             return Self._resolver
         case .storage:
             return Self._storage
-        case .coder:
-            return Self._coder
         case .websocket:
             return Self._websocket
         case .peer2peer:

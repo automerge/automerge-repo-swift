@@ -90,11 +90,11 @@ public final class Repo {
     ) {
         peerId = UUID().uuidString
         storage = nil
+        logProvider = LogProvider()
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        network = NetworkSubsystem()
+        network = NetworkSubsystem(logProvider: logProvider)
         saveDebounceDelay = saveDebounce
-        logProvider = LogProvider()
     }
 
     /// Create a new repository with the custom share policy type you provide
@@ -110,9 +110,9 @@ public final class Repo {
         storage = nil
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy
-        network = NetworkSubsystem()
-        saveDebounceDelay = saveDebounce
         logProvider = LogProvider()
+        network = NetworkSubsystem(logProvider: logProvider)
+        saveDebounceDelay = saveDebounce
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
@@ -128,11 +128,11 @@ public final class Repo {
     ) {
         peerId = UUID().uuidString
         self.sharePolicy = sharePolicy as any ShareAuthorizing
-        network = NetworkSubsystem()
-        self.storage = DocumentStorage(storage)
+        logProvider = LogProvider()
+        network = NetworkSubsystem(logProvider: logProvider)
+        self.storage = DocumentStorage(storage, logProvider: logProvider)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         saveDebounceDelay = saveDebounce
-        logProvider = LogProvider()
         Task { await self.setupSaveHandler() }
     }
 
@@ -151,12 +151,12 @@ public final class Repo {
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
-        self.storage = DocumentStorage(storage)
+        logProvider = LogProvider()
+        self.storage = DocumentStorage(storage, logProvider: logProvider)
         self.saveDebounceDelay = saveDebounce
 
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
-        network = NetworkSubsystem()
-        logProvider = LogProvider()
+        network = NetworkSubsystem(logProvider: logProvider)
         self.setupSaveHandler()
         network.setRepo(self)
         for adapter in networks {

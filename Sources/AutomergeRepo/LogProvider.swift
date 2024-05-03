@@ -14,25 +14,10 @@ final class LogProvider {
         levels[component] = to
     }
     
-    // example: LogProvider.canTrace(.repo)?.trace
-    func canTrace(_ component: LogComponent) -> Logger? {
-        if let level = levels[component], level >= LogVerbosity.tracing {
-            return component.logger()
+    func logLevel(_ component: LogComponent) -> LogVerbosity {
+        if let level = levels[component] {
+            return level
         }
-        // nothing recorded, default to error only
-        return nil
-    }
-
-    func canDebug(_ component: LogComponent) -> Logger? {
-        if let level = levels[component], level >= LogVerbosity.debug {
-            return component.logger()
-        }
-        // nothing recorded, default to error only
-        return nil
-    }
-
-    func logger(for component: LogComponent) -> Logger? {
-        return component.logger()
+        return defaultVerbosity
     }
 }
-

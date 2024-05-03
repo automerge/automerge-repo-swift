@@ -158,7 +158,9 @@ public final class PeerToPeerProvider: NetworkProvider {
             }
 
             if try await attemptConnect(to: destination) {
-                Logger.peer2peer.trace("P2PNET: Connection established to \(destination.debugDescription)")
+                if config.logLevel.canTrace() {
+                    Logger.peer2peer.trace("P2PNET: Connection established to \(destination.debugDescription)")
+                }
                 let receiveAndRetry = Task.detached {
                     try await self.ongoingReceivePeerMessages(endpoint: destination)
                 }
@@ -193,7 +195,9 @@ public final class PeerToPeerProvider: NetworkProvider {
     /// connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {
-            Logger.peer2peer.trace("P2PNET: Sending \(message.debugDescription) to peer \(peerId)")
+            if config.logLevel.canTrace() {
+                Logger.peer2peer.trace("P2PNET: Sending \(message.debugDescription) to peer \(peerId)")
+            }
             let holdersWithPeer: [PeerToPeerConnection] = connections.values.filter { h in
                 h.peerId == peerId
             }
@@ -220,7 +224,9 @@ public final class PeerToPeerProvider: NetworkProvider {
             }
         } else {
             // nil peerId means send to everyone...
-            Logger.peer2peer.trace("P2PNET: Sending \(message.debugDescription) to all peers")
+            if config.logLevel.canTrace() {
+                Logger.peer2peer.trace("P2PNET: Sending \(message.debugDescription) to all peers")
+            }
             for holder in connections.values {
                 // only send to connections with a set PeerId
                 if let peerId = holder.peerId {
@@ -338,7 +344,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         }
 
         // establish the peer to peer connection
-        let peerConnection = await PeerToPeerConnection(to: destination, passcode: config.passcode)
+        let peerConnection = await PeerToPeerConnection(to: destination, passcode: config.passcode, logVerbosity: config.logLevel)
         // indicate to everything else we're starting a connection, outgoing, not yet peered
 
         // report that this connection exists to all interested
@@ -347,16 +353,19 @@ public final class PeerToPeerProvider: NetworkProvider {
 
         do {
             // start process to "peer" with endpoint
-            Logger.peer2peer
-                .trace(
-                    "P2PNET: Connection established, requesting peering with \(destination.debugDescription, privacy: .public)"
-                )
+            if config.logLevel.canTrace() {
+                Logger.peer2peer
+                    .trace(
+                        "P2PNET: Connection established, requesting peering with \(destination.debugDescription, privacy: .public)"
+                    )
+            }
             // since we initiated the connection, it's on us to send an initial 'join'
             // protocol message to start the handshake phase of the protocol
             let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
             try await peerConnection.send(.join(joinMessage))
-            Logger.peer2peer.trace("P2PNET: SENT: \(joinMessage.debugDescription)")
-
+            if config.logLevel.canTrace() {
+                Logger.peer2peer.trace("P2PNET: SENT: \(joinMessage.debugDescription)")
+            }
             // Race a timeout against receiving a Peer message from the other side
             // of the connection. If we fail that race, shut down the connection
             // and move into a .closed connectionState
@@ -381,8 +390,9 @@ public final class PeerToPeerProvider: NetworkProvider {
                 peered: peerConnection.peered
             )
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
-            Logger.peer2peer.trace("P2PNET: Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
-
+            if config.logLevel.canTrace() {
+                Logger.peer2peer.trace("P2PNET: Peered to: \(peerMsg.senderId) \(peerMsg.debugDescription)")
+            }
             connectionPublisher.send(allConnections())
             return true
         } catch {
@@ -468,7 +478,9 @@ public final class PeerToPeerProvider: NetworkProvider {
         // - otherwise forward the message to the delegate to work with
         switch msg {
         case let .leave(msg):
-            Logger.peer2peer.trace("P2PNET: \(msg.senderId) requests to kill the connection")
+            if config.logLevel.canTrace() {
+                Logger.peer2peer.trace("P2PNET: \(msg.senderId) requests to kill the connection")
+            }
             disconnect(peerId: msg.senderId)
         case let .join(msg):
             Logger.peer2peer.error("P2PNET: Unexpected message received: \(msg.debugDescription)")
@@ -522,7 +534,9 @@ public final class PeerToPeerProvider: NetworkProvider {
     }
 
     private func reactToNWBrowserStateUpdate(_ newState: NWBrowser.State) async {
-        Logger.peer2peer.trace("P2PNET: \(self.peerName) NWBrowser state -> \(String(describing: newState))")
+        if config.logLevel.canTrace() {
+            Logger.peer2peer.trace("P2PNET: \(self.peerName) NWBrowser state -> \(String(describing: newState))")
+        }
         browserStatePublisher.send(newState)
         switch newState {
         case let .failed(error):
@@ -723,7 +737,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 .info(
                     "P2PNET: Endpoint not yet recorded, accepting connection from \(newConnection.endpoint.debugDescription, privacy: .public)"
                 )
-            let peerConnection = PeerToPeerConnection(connection: newConnection)
+            let peerConnection = PeerToPeerConnection(connection: newConnection, logVerbosity: config.logLevel)
             connections[newConnection.endpoint] = peerConnection
             connectionPublisher.send(allConnections())
 
@@ -799,9 +813,10 @@ public final class PeerToPeerProvider: NetworkProvider {
         holder.peered = true
         connectionPublisher.send(allConnections())
 
-        Logger.peer2peer
-            .trace("P2PNET: Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
-
+        if config.logLevel.canTrace() {
+            Logger.peer2peer
+                .trace("P2PNET: Accepting peer connection from \(holder.endpoint.debugDescription, privacy: .public)")
+        }
         // reply with the corresponding "peer" message
         let peerMessage = SyncV1Msg.PeerMsg(
             senderId: peerId,
@@ -811,7 +826,9 @@ public final class PeerToPeerProvider: NetworkProvider {
         )
 
         try await holder.send(.peer(peerMessage))
-        Logger.peer2peer.trace("P2PNET: SEND: \(peerMessage.debugDescription)")
+        if config.logLevel.canTrace() {
+            Logger.peer2peer.trace("P2PNET: SEND: \(peerMessage.debugDescription)")
+        }
         return peerConnectionDetails
     }
 
