@@ -244,7 +244,7 @@ final class PeerToPeerConnection {
         let encodedMsg = try SyncV1Msg.encode(msg)
         // Send the app content along with the message.
 
-        _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, any Error>) in
+        let result = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, any Error>) in
             connection.send(
                 content: encodedMsg,
                 contentContext: context,
@@ -257,6 +257,9 @@ final class PeerToPeerConnection {
                     }
                 }
             )
+        }
+        if logLevel.canTrace() {
+            Logger.peerconnection.trace("CONN[\(String(describing: self.endpoint))] Message sent: \(result)")
         }
     }
 
