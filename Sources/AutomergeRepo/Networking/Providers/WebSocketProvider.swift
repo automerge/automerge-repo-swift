@@ -68,9 +68,16 @@ public final class WebSocketProvider: NetworkProvider {
             throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
         }
 
-        if let websocket = try await attemptConnect(to: url) {
+        if try await attemptConnect(to: url) {
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: connected to \(url)")
+            }
             endpoint = url
-            webSocketTask = websocket
+        } else {
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: failed to connect to \(url)")
+            }
+            return
         }
 
         assert(peered == true)
@@ -109,6 +116,9 @@ public final class WebSocketProvider: NetworkProvider {
     public func send(message: SyncV1Msg, to: PEER_ID?) async {
         guard let webSocketTask else {
             Logger.websocket.warning("WEBSOCKET: Attempt to send a message without a connection")
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: - msg \(message.debugDescription) to peer \(String(describing: to))")
+            }
             return
         }
         var msgToSend = message
@@ -193,7 +203,7 @@ public final class WebSocketProvider: NetworkProvider {
     // Returns a new websocketTask to track (at which point, save the url as the endpoint)
     // OR throws an error (log the error, but can retry)
     // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
-    func attemptConnect(to url: URL?) async throws -> URLSessionWebSocketTask? {
+    func attemptConnect(to url: URL?) async throws -> Bool {
         precondition(peered == false)
         guard let url,
               let peerId,
@@ -205,7 +215,7 @@ public final class WebSocketProvider: NetworkProvider {
                 Logger.websocket.trace("PeerID: \(String(describing: self.peerId))")
                 Logger.websocket.trace("Delegate: \(String(describing: self.delegate))")
             }
-            return nil
+            return false
         }
 
         // establish the WebSocket connection
@@ -248,6 +258,11 @@ public final class WebSocketProvider: NetworkProvider {
                 peered: peered
             )
             peeredConnections = [peerConnectionDetails]
+            // these need to be set _before_ we send the delegate message that we're
+            // peered, because that process in turn (can trigger/triggers) a sync
+            endpoint = url
+            self.webSocketTask = webSocketTask
+
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
             if config.logLevel.canTrace() {
                 Logger.websocket.trace("WEBSOCKET: Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
@@ -266,7 +281,7 @@ public final class WebSocketProvider: NetworkProvider {
             throw error
         }
 
-        return webSocketTask
+        return true
     }
 
     // throw error on timeout
@@ -355,9 +370,8 @@ public final class WebSocketProvider: NetworkProvider {
                 }
                 try await Task.sleep(for: .seconds(waitBeforeReconnect))
                 // if endpoint is nil, this returns nil
-                if let newWebSocketTask = try await attemptConnect(to: endpoint) {
+                if try await attemptConnect(to: endpoint) {
                     reconnectAttempts += 1
-                    webSocketTask = newWebSocketTask
                     peered = true
                 } else {
                     webSocketTask = nil
