@@ -109,6 +109,9 @@ public final class WebSocketProvider: NetworkProvider {
     public func send(message: SyncV1Msg, to: PEER_ID?) async {
         guard let webSocketTask else {
             Logger.websocket.warning("WEBSOCKET: Attempt to send a message without a connection")
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: - msg \(message.debugDescription) to peer \(String(describing: to))")
+            }
             return
         }
         var msgToSend = message
