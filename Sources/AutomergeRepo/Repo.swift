@@ -303,6 +303,9 @@ public final class Repo {
 
     // MARK: Synchronization Pieces - Observe internal docs
 
+    /// Creates an observer, if one doesn't already exist, to watch for `objectWillChange`
+    /// notifications from the Automerge document.
+    /// - Parameter id: The document Id to track with this observer
     func watchDocForChanges(id: DocumentId) {
         guard let handle = handles[id] else {
             // no such document in our set of document handles
@@ -314,10 +317,10 @@ public final class Repo {
             let handleObserver = doc.objectWillChange
                 .sink { [weak self] _ in
                     guard let self else { return }
+                    self.saveSignalPublisher.send(id)
                     for peer in self.peerMetadataByPeerId.keys {
                         Task {
                             await self.beginSync(docId: id, to: peer)
-                            self.saveSignalPublisher.send(id)
                         }
                     }
                 }
