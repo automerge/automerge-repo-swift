@@ -150,10 +150,12 @@ public final class PeerToPeerProvider: NetworkProvider {
             if connections.values.contains(where: { ch in
                 ch.endpoint == destination && ch.peered == true
             }) {
+                Logger.peer2peer.error("Attempting to connect while already peered")
                 throw Errors.NetworkProviderError(msg: "Attempting to connect while already peered")
             }
 
             guard peerId != nil, delegate != nil else {
+                Logger.peer2peer.error("Attempting to connect before connected to a delegate")
                 throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
             }
 
@@ -166,6 +168,7 @@ public final class PeerToPeerProvider: NetworkProvider {
                 }
                 ongoingReceiveMessageTasks[destination] = receiveAndRetry
             } else {
+                Logger.peer2peer.error("Unable to connect to \(destination.debugDescription)")
                 throw Errors.NetworkProviderError(msg: "Unable to connect to \(destination.debugDescription)")
             }
         } catch {
@@ -296,6 +299,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             setName(peerName)
         }
         if self.peerName.isEmpty {
+            Logger.peer2peer.error("No peer name is set on the provider")
             throw Errors.NetworkProviderError(msg: "No peer name is set on the provider")
         }
 
@@ -380,6 +384,7 @@ public final class PeerToPeerProvider: NetworkProvider {
             // we were the initiating side of the connection.
 
             guard case let .peer(peerMsg) = nextMessage else {
+                Logger.peer2peer.warning("unexpected message: \(nextMessage.debugDescription)")
                 throw Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
             }
 
@@ -793,6 +798,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         // we were the initiating side of the connection.
 
         guard case let .join(joinMsg) = nextMessage else {
+            Logger.peer2peer.warning("unexpected message: \(nextMessage.debugDescription)")
             throw Errors.UnexpectedMsg(msg: nextMessage.debugDescription)
         }
 
@@ -808,6 +814,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
         // check to verify the requested protocol version matches what we're expecting
         if joinMsg.supportedProtocolVersions != supportedProtocolVersion {
+            Logger.peer2peer.error("Unsupported protocol requested: \(joinMsg.supportedProtocolVersions)")
             throw Errors.UnsupportedProtocolError(msg: joinMsg.supportedProtocolVersions)
         }
 

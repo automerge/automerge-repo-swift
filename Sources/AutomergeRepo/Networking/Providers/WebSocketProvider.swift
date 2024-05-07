@@ -61,10 +61,12 @@ public final class WebSocketProvider: NetworkProvider {
     /// Initiate an outgoing connection.
     public func connect(to url: URL) async throws {
         if peered {
-            throw Errors.NetworkProviderError(msg: "attempting to connect while already peered")
+            Logger.websocket.error("Attempting to connect while already peered")
+            throw Errors.NetworkProviderError(msg: "Attempting to connect while already peered")
         }
 
         guard peerId != nil, delegate != nil else {
+            Logger.websocket.error("Attempting to connect before connected to a delegate")
             throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
         }
 
@@ -182,6 +184,7 @@ public final class WebSocketProvider: NetworkProvider {
             } else {
                 let decodedMsg = SyncV1Msg.decode(raw_data)
                 if case .unknown = decodedMsg {
+                    Logger.websocket.warning("Unexpected message: \(decodedMsg.debugDescription)")
                     throw Errors.UnexpectedMsg(msg: decodedMsg.debugDescription)
                 }
                 return decodedMsg
@@ -243,6 +246,7 @@ public final class WebSocketProvider: NetworkProvider {
             // For the sync protocol handshake phase, it's essentially "peer or die" since
             // we were the initiating side of the connection.
             guard case let .peer(peerMsg) = try attemptToDecode(websocketMsg, peerOnly: true) else {
+                Logger.websocket.warning("Unexpected message: \(String(describing: websocketMsg))")
                 throw Errors.UnexpectedMsg(msg: String(describing: websocketMsg))
             }
             if config.logLevel.canTrace() {
