@@ -1,5 +1,14 @@
 # ``AutomergeRepo/Repo``
 
+## Overview
+
+Initialize a repository with a storage provider to enable automatic loading and saving of Automerge documents to persistent storage.
+Add one or more network adapters to support synchronization of updates between any connected peers.
+Documents are shared on request, or not, based on ``SharePolicy`` you provide when creating the repository.
+
+Enable network providers with async calls to ``addNetworkAdapter(adapter:)``.
+When network providers are active, the repository attempts to sync documents with connected peers on any update to the an Automerge document.
+
 ## Topics
 
 ### Creating a repository
@@ -13,6 +22,8 @@
 
 - ``addNetworkAdapter(adapter:)``
 - ``setDelegate(_:)``
+- ``setLogLevel(_:to:)``
+- ``LogComponent``
 
 ### Creating documents
 
@@ -20,11 +31,6 @@
 - ``create(id:)``
 - ``create(data:id:)``
 - ``create(doc:id:)``
-
-### Importing and exporting documents
-
-- ``import(data:)``
-- ``export(id:)``
 
 ### Cloning a document
 

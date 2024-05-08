@@ -19,8 +19,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // .package(url: "https://github.com/automerge/automerge-swift", .upToNextMajor(from: "0.5.7")),
-        .package(url: "https://github.com/automerge/automerge-swift", branch: "main"),
+        .package(url: "https://github.com/automerge/automerge-swift", .upToNextMajor(from: "0.5.7")),
         .package(url: "https://github.com/outfoxx/PotentCodables", .upToNextMajor(from: "3.1.0")),
         .package(url: "https://github.com/keefertaylor/Base58Swift", .upToNextMajor(from: "2.1.14")),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),

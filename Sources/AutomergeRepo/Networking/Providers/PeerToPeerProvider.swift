@@ -869,7 +869,7 @@ public final class PeerToPeerProvider: NetworkProvider {
         Logger.peer2peer.warning("P2PNET: receive and reconnect loop for \(endpoint.debugDescription) terminated")
     }
 
-    // Update the advertised name on the network.
+    /// Sets or updates the name used to advertise this peer on the local network.
     public func setName(_ name: String) {
         self.peerName = name
         txtRecord[TXTRecordKeys.name] = name

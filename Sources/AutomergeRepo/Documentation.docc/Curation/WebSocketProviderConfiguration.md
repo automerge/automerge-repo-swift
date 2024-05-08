@@ -8,7 +8,8 @@
 
 ### Creating a configuration
 
-- ``init(reconnectOnError:)``
+- ``init(_:)``
+- ``init(reconnectOnError:loggingAt:)``
 
 ### Inspecting a configuration 
 
