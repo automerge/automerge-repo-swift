@@ -5,11 +5,6 @@ import Foundation
 import OSLog
 
 /// A repository for Automerge documents that coordinates storage and synchronization.
-///
-/// Initialize a repository with a storage provider to enable automatic loading and saving of Automerge documents to
-/// persistent storage.
-/// Add one or more network adapters to support synchronization of updates between any connected peers.
-/// Documents are shared on request, or not, based on ``SharePolicy`` you provide when creating the repository.
 @AutomergeRepo
 public final class Repo {
     /// The peer ID for the repository
@@ -167,6 +162,12 @@ public final class Repo {
 
     // MARK: log filtering
 
+    /// Update the verbosity of logging for the repository component you identify.
+    /// - Parameters:
+    ///   - component: The component to adjust.
+    ///   - to: The logging verbosity to use.
+    ///
+    /// By default, all components log at `.errorOnly`, which sends errors and warnings to the unified logging system.
     public func setLogLevel(_ component: LogComponent, to: LogVerbosity) {
         levels[component] = to
         if component == .network {
@@ -548,24 +549,6 @@ public final class Repo {
         docHandlePublisher.send(originalDocHandle.snapshot())
 
         try await self.purgeFromStorage(id: id)
-    }
-
-    /// Export the data associated with an Automerge document from the repo.
-    /// - Parameter id: The id of the document to export.
-    /// - Returns: The latest, compacted data of the Automerge document.
-    public func export(id: DocumentId) async throws -> Data {
-        let handle = try await resolveDocHandle(id: id)
-        return handle.doc.save()
-    }
-
-    /// Imports data as a new Automerge document
-    /// - Parameter data: The data to import as an Automerge document
-    /// - Returns: The id of the document that was created on import.
-    public func `import`(data: Data) async throws -> DocHandle {
-        let handle = try InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document(data))
-        handles[handle.id] = handle
-        docHandlePublisher.send(handle.snapshot())
-        return try await resolveDocHandle(id: handle.id)
     }
 
     public func subscribeToRemotes(remotes _: [STORAGE_ID]) async {}

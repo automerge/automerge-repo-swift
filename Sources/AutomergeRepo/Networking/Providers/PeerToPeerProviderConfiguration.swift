@@ -18,9 +18,9 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     /// - Parameters:
     ///   - passcode: A passcode to use as a shared private key to enable TLS encryption
     ///   - reconnectOnError: A Boolean value that indicates if outgoing connections should attempt to reconnect on
-    /// error or failure.
-    ///   - autoconnect: A Boolean value that indicates if the provider should attempt to automatically establish an
-    /// outgoing connection with an available peer that it sees.
+    ///   - autoconnect: An option Boolean value that indicates wether the connection should automatically attempt to
+    /// connect to found peers. The default if unset is `true` for iOS , `false` for macOS.
+    ///   - logVerbosity: The verbosity of the logs sent to the unified logging system.
     ///   - recurringNextMessageTimeout: The timeout to wait for an additional Automerge sync protocol message.
     ///   - waitForPeerTimeout: The timeout to wait for a peer to respond to a peer request for authorizing the
     /// connection.

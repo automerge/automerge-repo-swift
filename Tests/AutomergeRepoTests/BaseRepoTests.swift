@@ -95,28 +95,6 @@ final class BaseRepoTests: XCTestCase {
         XCTAssertEqual(knownIds.count, 2)
     }
 
-    func testExportFailureUnknownId() async throws {
-        do {
-            _ = try await repo.export(id: DocumentId())
-            XCTFail()
-        } catch {}
-    }
-
-    func testExport() async throws {
-        let newDoc = try RepoHelpers.documentWithData()
-        let newHandle = try await repo.create(doc: newDoc)
-
-        let exported = try await repo.export(id: newHandle.id)
-        XCTAssertEqual(exported, newDoc.save())
-    }
-
-    func testImport() async throws {
-        let newDoc = try RepoHelpers.documentWithData()
-
-        let handle = try await repo.import(data: newDoc.save())
-        XCTAssertTrue(RepoHelpers.equalContents(doc1: handle.doc, doc2: newDoc))
-    }
-
     // TBD:
     // - func storageIdForPeer(peerId) -> StorageId
     // - func subscribeToRemotes([StorageId])

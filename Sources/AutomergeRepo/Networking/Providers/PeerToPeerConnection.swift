@@ -56,10 +56,16 @@ final class PeerToPeerConnection {
 
     /// Initiate a connection to a network endpoint to synchronize an Automerge Document.
     /// - Parameters:
-    ///   - endpoint: The endpoint to attempt to connect.
+    ///   - endpoint:
     ///   - delegate: A delegate that can process Automerge sync protocol messages.
     ///   - trigger: A publisher that provides a recurring signal to trigger a sync request.
     ///   - docId: The document Id to use as a pre-shared key in TLS establishment of the connection.
+    ///   - destination: The endpoint to attempt to connect.
+    ///   - passcode: The passcode to use to secure the connection.
+    ///   - logVerbosity: The verbosity of the logs sent to the unified logging system.
+    ///   - receiveTimeout: The timeout to use when waiting to receive a message.
+    ///   - readyTimeout: The timeout to use waiting for a connection to be fully established.
+    ///   - readyCheckDelay: The timeout to use when iterating on a connection to be established.
     public init(
         to destination: NWEndpoint,
         passcode: String,
@@ -99,6 +105,7 @@ final class PeerToPeerConnection {
     ///   - receiveTimeout: The timeout for expecting new messages
     ///   - readyTimeout: The timeout for waiting for the network connection to move into the ready state
     ///   - readyCheckDelay: The delay while checking the network connections state
+    ///   - logVerbosity: The verbosity of the logs sent to the unified logging system.
     public init(
         connection: NWConnection,
         logVerbosity: LogVerbosity,
