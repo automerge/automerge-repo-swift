@@ -99,6 +99,7 @@ public final class WebSocketProvider: NetworkProvider {
 
     /// Disconnect and terminate any existing connection.
     public func disconnect() async {
+        peered = false
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         ongoingReceiveMessageTask?.cancel()
