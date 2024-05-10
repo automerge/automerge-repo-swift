@@ -404,21 +404,16 @@ public final class WebSocketProvider: NetworkProvider {
                 }
             }
 
-            guard let webSocketTask else {
-                Logger.websocket.warning("WEBSOCKET: Receive Handler: webSocketTask is nil, terminating handler loop")
-                break // terminates the while loop - no more reconnect attempts
-            }
-
             // co-operative cancellation
             if Task.isCancelled {
-                webSocketTask.cancel()
+                webSocketTask?.cancel()
                 peered = false
                 tryToReconnect = false
                 break
             }
 
             do {
-                msgFromWebSocket = try await webSocketTask.receive()
+                msgFromWebSocket = try await webSocketTask?.receive()
             } catch {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
