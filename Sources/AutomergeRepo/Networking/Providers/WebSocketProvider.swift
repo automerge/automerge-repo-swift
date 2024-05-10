@@ -398,6 +398,8 @@ public final class WebSocketProvider: NetworkProvider {
             } catch {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
+                peered = false
+                webSocketTask.cancel()
             }
 
             if let encodedMessage = msgFromWebSocket {
