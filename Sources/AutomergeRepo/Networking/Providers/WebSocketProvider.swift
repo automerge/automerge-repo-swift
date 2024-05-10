@@ -360,9 +360,14 @@ public final class WebSocketProvider: NetworkProvider {
         // - how many times have we reconnected (to compute backoff/delay between
         //   reconnect attempts)
         var reconnectAttempts: UInt = 0
+        var tryToReconnect = config.reconnectOnError
 
-        while true {
+        repeat {
             msgFromWebSocket = nil
+            if config.logLevel.canTrace() {
+                Logger.websocket.trace("WEBSOCKET: await receive()")
+            }
+
             try Task.checkCancellation()
 
             // if we're not currently peered, attempt to reconnect
@@ -400,11 +405,7 @@ public final class WebSocketProvider: NetworkProvider {
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
                 peered = false
                 msgFromWebSocket = nil
-                webSocketTask.cancel()
-                if !config.reconnectOnError {
-                    // if we don't want to attempt to reconnect on error, terminate the retry loop
-                    break
-                }
+                //webSocketTask.cancel()
             }
 
             if let encodedMessage = msgFromWebSocket {
@@ -423,7 +424,9 @@ public final class WebSocketProvider: NetworkProvider {
                         )
                 }
             }
-        }
+            
+            try await Task.sleep(for: .milliseconds(500))
+        } while (tryToReconnect)
         Logger.websocket.warning("WEBSOCKET: receive and reconnect loop terminated")
     }
 
