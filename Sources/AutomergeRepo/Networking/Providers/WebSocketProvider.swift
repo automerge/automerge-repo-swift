@@ -92,7 +92,12 @@ public final class WebSocketProvider: NetworkProvider {
         if ongoingReceiveMessageTask == nil {
             // infinitely loop and receive messages, but "out of band"
             ongoingReceiveMessageTask = Task.detached {
-                try await self.ongoingReceiveWebSocketMessages()
+                await self.ongoingReceiveWebSocketMessages()
+                if await self.config.logLevel.canTrace() {
+                    Logger.websocket.trace("Terminated background read loop - socket expected to be disconnected")
+                }
+                let peeredCopy = await self.peered
+                assert(peeredCopy == false)
             }
         }
     }
@@ -284,6 +289,7 @@ public final class WebSocketProvider: NetworkProvider {
                 .error(
                     "WEBSOCKET: Failed to peer with \(url.absoluteString, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
+            peered = false
             await disconnect()
             throw error
         }
@@ -345,7 +351,7 @@ public final class WebSocketProvider: NetworkProvider {
 
     /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
     /// received.
-    private func ongoingReceiveWebSocketMessages() async throws {
+    private func ongoingReceiveWebSocketMessages() async {
         // state needed for reconnect logic:
         // - should we reconnect on a receive() error/failure
         //   - let config.reconnectOnError: Bool
@@ -360,14 +366,23 @@ public final class WebSocketProvider: NetworkProvider {
         // - how many times have we reconnected (to compute backoff/delay between
         //   reconnect attempts)
         var reconnectAttempts: UInt = 0
+        var tryToReconnect = config.reconnectOnError
 
-        while true {
+        repeat {
             msgFromWebSocket = nil
-            try Task.checkCancellation()
+
+            // co-operative cancellation
+            if Task.isCancelled {
+                webSocketTask?.cancel()
+                webSocketTask = nil
+                peered = false
+                tryToReconnect = false
+                break
+            }
 
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
-            if !peered, config.reconnectOnError {
+            if !peered, tryToReconnect {
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
                     Logger.websocket
@@ -375,29 +390,36 @@ public final class WebSocketProvider: NetworkProvider {
                             "WEBSOCKET: Reconnect attempt #\(reconnectAttempts), waiting for \(waitBeforeReconnect) seconds."
                         )
                 }
-                try await Task.sleep(for: .seconds(waitBeforeReconnect))
-                // if endpoint is nil, this returns nil
-                if try await attemptConnect(to: endpoint) {
-                    reconnectAttempts += 1
-                    peered = true
-                } else {
+                reconnectAttempts += 1
+                do {
+                    try await Task.sleep(for: .seconds(waitBeforeReconnect))
+                    // if endpoint is nil, this returns nil
+                    if !(try await attemptConnect(to: endpoint)) {
+                        webSocketTask = nil
+                        peered = false
+                    }
+                } catch {
                     webSocketTask = nil
                     peered = false
                 }
             }
 
-            guard let webSocketTask else {
-                Logger.websocket.warning("WEBSOCKET: Receive Handler: webSocketTask is nil, terminating handler loop")
-                break // terminates the while loop - no more reconnect attempts
+            // co-operative cancellation
+            if Task.isCancelled {
+                webSocketTask?.cancel()
+                peered = false
+                tryToReconnect = false
+                break
             }
 
-            try Task.checkCancellation()
-
             do {
-                msgFromWebSocket = try await webSocketTask.receive()
+                msgFromWebSocket = try await webSocketTask?.receive()
             } catch {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
+                peered = false
+                msgFromWebSocket = nil
+                // webSocketTask.cancel()
             }
 
             if let encodedMessage = msgFromWebSocket {
@@ -416,7 +438,8 @@ public final class WebSocketProvider: NetworkProvider {
                         )
                 }
             }
-        }
+        } while tryToReconnect
+
         Logger.websocket.warning("WEBSOCKET: receive and reconnect loop terminated")
     }
 
