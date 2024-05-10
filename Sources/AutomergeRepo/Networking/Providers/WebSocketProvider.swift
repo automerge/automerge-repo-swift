@@ -400,6 +400,7 @@ public final class WebSocketProvider: NetworkProvider {
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
                 peered = false
                 webSocketTask.cancel()
+                try await Task.sleep(for: .seconds(1))
             }
 
             if let encodedMessage = msgFromWebSocket {
