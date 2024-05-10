@@ -92,7 +92,16 @@ public final class WebSocketProvider: NetworkProvider {
         if ongoingReceiveMessageTask == nil {
             // infinitely loop and receive messages, but "out of band"
             ongoingReceiveMessageTask = Task.detached {
-                try await self.ongoingReceiveWebSocketMessages()
+                do {
+                    try await self.ongoingReceiveWebSocketMessages()
+                } catch {
+                    Logger.websocket.error("EXCEPTION from background receive loop: \(error.localizedDescription)")
+                }
+                if await self.config.logLevel.canTrace() {
+                    Logger.websocket.trace("Terminated background read loop - socket expected to be disconnected")
+                }
+                let peeredCopy = await self.peered
+                assert(peeredCopy == false)
             }
         }
     }
