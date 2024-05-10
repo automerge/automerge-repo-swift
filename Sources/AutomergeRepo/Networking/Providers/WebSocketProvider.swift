@@ -399,12 +399,12 @@ public final class WebSocketProvider: NetworkProvider {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
                 peered = false
+                msgFromWebSocket = nil
                 webSocketTask.cancel()
                 if !config.reconnectOnError {
                     // if we don't want to attempt to reconnect on error, terminate the retry loop
                     break
                 }
-                try await Task.sleep(for: .seconds(1))
             }
 
             if let encodedMessage = msgFromWebSocket {
