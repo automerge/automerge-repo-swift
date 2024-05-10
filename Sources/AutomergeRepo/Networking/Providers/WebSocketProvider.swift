@@ -390,13 +390,13 @@ public final class WebSocketProvider: NetworkProvider {
                             "WEBSOCKET: Reconnect attempt #\(reconnectAttempts), waiting for \(waitBeforeReconnect) seconds."
                         )
                 }
+                reconnectAttempts += 1
                 do {
                     try await Task.sleep(for: .seconds(waitBeforeReconnect))
                     // if endpoint is nil, this returns nil
-                    if try await attemptConnect(to: endpoint) {
-                        reconnectAttempts += 1
-                    } else {
+                    if !(try await attemptConnect(to: endpoint)) {
                         webSocketTask = nil
+                        peered = false
                     }
                 } catch {
                     webSocketTask = nil
