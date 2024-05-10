@@ -367,7 +367,7 @@ public final class WebSocketProvider: NetworkProvider {
 
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
-            if !peered, config.reconnectOnError {
+            if !peered && config.reconnectOnError {
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
                     Logger.websocket
@@ -400,6 +400,10 @@ public final class WebSocketProvider: NetworkProvider {
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
                 peered = false
                 webSocketTask.cancel()
+                if !config.reconnectOnError {
+                    // if we don't want to attempt to reconnect on error, terminate the retry loop
+                    break
+                }
                 try await Task.sleep(for: .seconds(1))
             }
 
