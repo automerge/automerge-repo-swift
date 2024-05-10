@@ -93,4 +93,16 @@ public enum Errors: Sendable {
             self.msg = msg
         }
     }
+    
+    /// The ID of the document already exists within the repository
+    public struct DuplicateID: Sendable, LocalizedError {
+        public var id: DocumentId
+        public var errorDescription: String? {
+            "The ID of the document \(id) already exists within the repository."
+        }
+
+        public init(id: DocumentId) {
+            self.id = id
+        }
+    }
 }
