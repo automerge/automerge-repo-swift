@@ -1,3 +1,4 @@
+/// The state of a WebSocket connection
 public enum WebSocketProviderState: Sendable {
     /// WebSocket is connected, pending handshaking
     case connected

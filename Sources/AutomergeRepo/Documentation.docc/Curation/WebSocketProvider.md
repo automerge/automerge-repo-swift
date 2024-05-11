@@ -62,3 +62,7 @@ Button {
 
 - ``name``
 - ``peeredConnections``
+
+### Receiving state updates
+
+- ``statePublisher``
