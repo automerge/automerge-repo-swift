@@ -36,6 +36,7 @@ The peer-to-peer provider uses of Apple's Bonjour technology to connect to other
 ### WebSocket Network Adapter
 
 - ``AutomergeRepo/WebSocketProvider``
+- ``AutomergeRepo/WebSocketProviderState``
 
 ### Peer to Peer Network Adapter
 

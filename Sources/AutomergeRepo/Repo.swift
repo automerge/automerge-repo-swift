@@ -469,7 +469,7 @@ public final class Repo {
     /// - Returns: The Automerge document.
     /// - Parameter id: The Id of the Automerge document.
     public func create(id: DocumentId) async throws -> DocHandle {
-        if let existing = handles[id] {
+        if let _ = handles[id] {
             throw Errors.DuplicateID(id: id)
         }
         let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document())
@@ -483,7 +483,7 @@ public final class Repo {
     /// - Parameter doc: The Automerge document to use for the new, shared document
     /// - Returns: The Automerge document.
     public func create(doc: Document, id: DocumentId? = nil) async throws -> DocHandle {
-        if let providedId = id, let existing = handles[providedId] {
+        if let providedId = id, let _ = handles[providedId] {
             throw Errors.DuplicateID(id: providedId)
         }
         let creationId = id ?? DocumentId()
@@ -498,7 +498,7 @@ public final class Repo {
     /// - Parameter data: The data to load as an Automerge document for the new, shared document.
     /// - Returns: The Automerge document.
     public func create(data: Data, id: DocumentId? = nil) async throws -> DocHandle {
-        if let providedId = id, let existing = handles[providedId] {
+        if let providedId = id, let _ = handles[providedId] {
             throw Errors.DuplicateID(id: providedId)
         }
         let creationId = id ?? DocumentId()
