@@ -1,4 +1,5 @@
 import Automerge
+import Combine
 import OSLog
 
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
@@ -44,6 +45,9 @@ public final class WebSocketProvider: NetworkProvider {
     // reconnection logic variables
     var endpoint: URL?
     var peered: Bool
+
+    /// A publisher that provides state updates for the WebSocket connection.
+    public nonisolated let statePublisher: PassthroughSubject<WebSocketProviderState, Never> = PassthroughSubject()
 
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
@@ -110,6 +114,7 @@ public final class WebSocketProvider: NetworkProvider {
         ongoingReceiveMessageTask?.cancel()
         ongoingReceiveMessageTask = nil
         endpoint = nil
+        statePublisher.send(.disconnected)
 
         if let connectedPeer = peeredConnections.first {
             peeredConnections.removeAll()
@@ -211,9 +216,7 @@ public final class WebSocketProvider: NetworkProvider {
         }
     }
 
-    // Returns a new websocketTask to track (at which point, save the url as the endpoint)
-    // OR throws an error (log the error, but can retry)
-    // OR returns nil if we don't have the pieces needed to reconnect (cease further attempts)
+    // Returns a `true` on success OR throws an error (log the error, but can retry)
     func attemptConnect(to url: URL?) async throws -> Bool {
         precondition(peered == false)
         guard let url,
@@ -244,6 +247,7 @@ public final class WebSocketProvider: NetworkProvider {
         let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
         let data = try SyncV1Msg.encode(joinMessage)
         try await webSocketTask.send(.data(data))
+        statePublisher.send(.connected)
         do {
             // Race a timeout against receiving a Peer message from the other side
             // of the WebSocket connection. If we fail that race, shut down the connection
@@ -260,7 +264,6 @@ public final class WebSocketProvider: NetworkProvider {
             if config.logLevel.canTrace() {
                 Logger.websocket.trace("WEBSOCKET: RECV: \(peerMsg.debugDescription)")
             }
-
             peered = true
             let peerConnectionDetails = PeerConnectionInfo(
                 peerId: peerMsg.senderId,
@@ -276,21 +279,22 @@ public final class WebSocketProvider: NetworkProvider {
             self.webSocketTask = webSocketTask
 
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
+            statePublisher.send(.ready)
             if config.logLevel.canTrace() {
                 Logger.websocket.trace("WEBSOCKET: Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
             }
         } catch {
-            // if there's an error, disconnect anything that's lingering and cancel it down.
-            // an error here means we contacted the server successfully, but were unable to
-            // peer, so we don't want to continue to attempt to reconnect. Because the "should
-            // we reconnect" is a constant in the config, we can erase the URL endpoint instead
-            // which will force us to fail reconnects.
+            // if there's an error, cancel anything lingering to shut down the websocket,
+            // and set all the pieces to nil. Reconnection is decided outside this function, so
+            // we don't want to erase the endpoint or call self.disconnect() to tear everything down.
             Logger.websocket
                 .error(
                     "WEBSOCKET: Failed to peer with \(url.absoluteString, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
+            webSocketTask.cancel()
+            self.webSocketTask = nil
             peered = false
-            await disconnect()
+            statePublisher.send(.disconnected)
             throw error
         }
 
@@ -383,6 +387,7 @@ public final class WebSocketProvider: NetworkProvider {
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
             if !peered, tryToReconnect {
+                statePublisher.send(.reconnecting)
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
                     Logger.websocket
@@ -394,7 +399,7 @@ public final class WebSocketProvider: NetworkProvider {
                 do {
                     try await Task.sleep(for: .seconds(waitBeforeReconnect))
                     // if endpoint is nil, this returns nil
-                    if !(try await attemptConnect(to: endpoint)) {
+                    if try await !attemptConnect(to: endpoint) {
                         webSocketTask = nil
                         peered = false
                     }
