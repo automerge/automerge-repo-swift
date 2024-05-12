@@ -47,7 +47,10 @@ public final class WebSocketProvider: NetworkProvider {
     var peered: Bool
 
     /// A publisher that provides state updates for the WebSocket connection.
-    public nonisolated let statePublisher: PassthroughSubject<WebSocketProviderState, Never> = PassthroughSubject()
+    ///
+    /// The initial value provides the current state of the connecting in the WebSocket provider,
+    /// with updates published when the state changes.
+    public nonisolated let statePublisher: CurrentValueSubject<WebSocketProviderState, Never> = CurrentValueSubject(.disconnected)
 
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
