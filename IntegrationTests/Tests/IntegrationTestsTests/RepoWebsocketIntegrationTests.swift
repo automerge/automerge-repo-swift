@@ -13,9 +13,9 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     static let test = Logger(subsystem: subsystem, category: "WebSocketSyncIntegrationTests")
-//    let syncDestination = "ws://localhost:3030/"
+    let syncDestination = "ws://localhost:3030/"
     // Switch to the following line to run a test against the public hosted automerge-repo instance
-    let syncDestination = "wss://sync.automerge.org/"
+//    let syncDestination = "wss://sync.automerge.org/"
 
     override func setUp() async throws {
         let isWebSocketConnectable = await webSocketAvailable(destination: syncDestination)
