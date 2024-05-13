@@ -66,6 +66,7 @@ final class NetworkSubsystem {
             Logger.network.trace("REPONET: Initiating remote fetch for \(id)")
         }
         let newDocument = Document()
+        requestedDocuments[id] = []
         for adapter in adapters {
             for peerConnection in adapter.peeredConnections {
                 if loglevel.canTrace() {
@@ -78,8 +79,6 @@ final class NetworkSubsystem {
                 if var existingList = requestedDocuments[id] {
                     existingList.append(peerConnection.peerId)
                     requestedDocuments[id] = existingList
-                } else {
-                    requestedDocuments[id] = [peerConnection.peerId]
                 }
                 // get a current sync state (creating one if needed for a fresh sync)
                 let syncState = repo.syncState(id: id, peer: peerConnection.peerId)
@@ -93,6 +92,11 @@ final class NetworkSubsystem {
                     )), to: peerConnection.peerId)
                 }
             }
+        }
+        guard let allRequestedPeers = requestedDocuments[id], !allRequestedPeers.isEmpty else {
+            Logger.network
+                .error("Finishing remote fetch without any active network requests to peers, reporting Unavailable")
+            throw Errors.Unavailable(id: id)
         }
         if loglevel.canTrace() {
             Logger.network.trace("REPONET: remote fetch for \(id) finished")
