@@ -28,7 +28,7 @@ public enum Errors: Sendable {
 
     /// The document in unavailable.
     public struct Unavailable: Sendable, LocalizedError {
-        let id: DocumentId
+        public let id: DocumentId
         public var errorDescription: String? {
             "Unknown document Id: \(id)"
         }
@@ -40,7 +40,7 @@ public enum Errors: Sendable {
 
     /// The document is deleted.
     public struct DocDeleted: Sendable, LocalizedError {
-        let id: DocumentId
+        public let id: DocumentId
         public var errorDescription: String? {
             "Document with Id: \(id) has been deleted."
         }

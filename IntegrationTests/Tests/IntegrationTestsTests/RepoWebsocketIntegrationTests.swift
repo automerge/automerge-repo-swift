@@ -13,9 +13,9 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     static let test = Logger(subsystem: subsystem, category: "WebSocketSyncIntegrationTests")
-    let syncDestination = "ws://localhost:3030/"
+//    let syncDestination = "ws://localhost:3030/"
     // Switch to the following line to run a test against the public hosted automerge-repo instance
-//    let syncDestination = "wss://sync.automerge.org/"
+    let syncDestination = "wss://sync.automerge.org/"
 
     override func setUp() async throws {
         let isWebSocketConnectable = await webSocketAvailable(destination: syncDestination)
@@ -101,5 +101,24 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
         let foundDocHandle = try await repoTwo.find(id: handle.id)
         XCTAssertEqual(foundDocHandle.id, handle.id)
         XCTAssertTrue(RepoHelpers.equalContents(doc1: foundDocHandle.doc, doc2: handle.doc))
+    }
+
+    func testFindWithRandomId() async throws {
+        let repo = Repo(sharePolicy: SharePolicy.agreeable)
+        let websocket = WebSocketProvider(.init(reconnectOnError: false, loggingAt: .tracing))
+        await repo.addNetworkAdapter(adapter: websocket)
+
+        let url = try XCTUnwrap(URL(string: syncDestination))
+        try await websocket.connect(to: url)
+
+        let randomId = DocumentId()
+        do {
+            let _ = try await repo.find(id: randomId)
+            XCTFail("Repo shouldn't return a new, empty document for a random Document ID")
+        } catch let error as Errors.Unavailable {
+            XCTAssertEqual(error.id, randomId)
+        } catch {
+            XCTFail("Unknown error returned")
+        }
     }
 }

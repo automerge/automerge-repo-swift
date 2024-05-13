@@ -50,7 +50,8 @@ public final class WebSocketProvider: NetworkProvider {
     ///
     /// The initial value provides the current state of the connecting in the WebSocket provider,
     /// with updates published when the state changes.
-    public nonisolated let statePublisher: CurrentValueSubject<WebSocketProviderState, Never> = CurrentValueSubject(.disconnected)
+    public nonisolated let statePublisher: CurrentValueSubject<WebSocketProviderState, Never> =
+        CurrentValueSubject(.disconnected)
 
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
@@ -103,8 +104,6 @@ public final class WebSocketProvider: NetworkProvider {
                 if await self.config.logLevel.canTrace() {
                     Logger.websocket.trace("Terminated background read loop - socket expected to be disconnected")
                 }
-                let peeredCopy = await self.peered
-                assert(peeredCopy == false)
             }
         }
     }
@@ -402,10 +401,7 @@ public final class WebSocketProvider: NetworkProvider {
                 do {
                     try await Task.sleep(for: .seconds(waitBeforeReconnect))
                     // if endpoint is nil, this returns nil
-                    if try await !attemptConnect(to: endpoint) {
-                        webSocketTask = nil
-                        peered = false
-                    }
+                    _ = try await attemptConnect(to: endpoint)
                 } catch {
                     webSocketTask = nil
                     peered = false
@@ -414,8 +410,6 @@ public final class WebSocketProvider: NetworkProvider {
 
             // co-operative cancellation
             if Task.isCancelled {
-                webSocketTask?.cancel()
-                peered = false
                 tryToReconnect = false
                 break
             }
@@ -427,7 +421,6 @@ public final class WebSocketProvider: NetworkProvider {
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
                 peered = false
                 msgFromWebSocket = nil
-                // webSocketTask.cancel()
             }
 
             if let encodedMessage = msgFromWebSocket {
@@ -447,7 +440,9 @@ public final class WebSocketProvider: NetworkProvider {
                 }
             }
         } while tryToReconnect
-
+        self.peered = false
+        webSocketTask?.cancel()
+        webSocketTask = nil
         Logger.websocket.warning("WEBSOCKET: receive and reconnect loop terminated")
     }
 
