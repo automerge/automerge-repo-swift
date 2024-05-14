@@ -522,7 +522,35 @@ public final class Repo {
     ///
     /// This implementation is very likely incorrect, but a start at sketching out what
     /// a bundle loading might look like.
+    ///
+    /// Load is an alternative to providing ID params to the create method. The thinking
+    /// is if you already have an ID then the document has already been created. And in
+    /// that case we want different sementics then create. If the ID is unknown to repo
+    /// then should have same behavior as create. But if the ID is known to repo then
+    /// should merge document states.
+    ///
+    /// Load should be used for cases where you have created a DocumentId/Document pair
+    /// outside of an automerge repo, and you want to load that pair into the repo. It
+    /// should also be used for case where you have stored a DocumentId/Document pair
+    /// external to a repo and you want to load that pair back into the repo.
+    ///
+    /// Expected Behavior:
+    /// - Quick, shouldn't wait on any network communication to complete
+    /// - If existing document with same ID is known to repo then this will merge bundle.doc with existing
+    /// - If deleted document with same ID is know to the repo then this method will replace that state with new document handle
+    /// - If repo don't know the ID then will behave like create
     public func load(bundle: Bundle) async throws -> DocHandle {
+        // Questions:
+        // I don't know how to handle existing handle states. For example what if load is
+        // called with a document id that already has an assocated handle in requesting
+        // state? The desired behavior woul be that repo gets bundle document immediatly
+        // and when request finishes that document state is merged into loaded document.
+        // I'm not sure if that even makes sense, or how to accomplish it.
+        //
+        // Same question for many of the various handle states. Again the general goal with
+        // load is that it will leave this repo in a state where loaded document is
+        // immediatly availible. Any pending action (load, request, maybe other stuff) on
+        // that ID should be incorported into loaded document.
         if documentIds().contains(bundle.id) {
             let handle = try await find(id: bundle.id)
             try handle.doc.merge(other: bundle.doc)
