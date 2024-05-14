@@ -512,6 +512,10 @@ public final class Repo {
     public struct Bundle {
         public let id: DocumentId
         public let doc: Document
+        public init(id: DocumentId, doc: Document) {
+            self.id = id
+            self.doc = doc
+        }
     }
     
     /// Loads an external document/id pair into the repository.
