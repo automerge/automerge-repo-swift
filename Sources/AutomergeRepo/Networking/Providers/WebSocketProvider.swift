@@ -419,6 +419,7 @@ public final class WebSocketProvider: NetworkProvider {
             } catch {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
+                statePublisher.send(.disconnected)
                 peered = false
                 msgFromWebSocket = nil
             }
@@ -443,6 +444,7 @@ public final class WebSocketProvider: NetworkProvider {
         self.peered = false
         webSocketTask?.cancel()
         webSocketTask = nil
+        statePublisher.send(.disconnected)
         Logger.websocket.warning("WEBSOCKET: receive and reconnect loop terminated")
     }
 
