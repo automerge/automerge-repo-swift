@@ -508,6 +508,29 @@ public final class Repo {
         let resolved = try await resolveDocHandle(id: handle.id)
         return resolved
     }
+    
+    public struct Bundle {
+        public let id: DocumentId
+        public let doc: Document
+    }
+    
+    /// Loads an external document/id pair into the repository.
+    ///
+    /// This implementation is very likely incorrect, but a start at sketching out what
+    /// a bundle loading might look like.
+    public func load(bundle: Bundle) async throws -> DocHandle {
+        if documentIds().contains(bundle.id) {
+            let handle = try await find(id: bundle.id)
+            try handle.doc.merge(other: bundle.doc)
+            return handle
+        } else {
+            let handle = InternalDocHandle(id: bundle.id, isNew: true, initialValue: bundle.doc)
+            handles[handle.id] = handle
+            docHandlePublisher.send(handle.snapshot())
+            let resolved = try await resolveDocHandle(id: handle.id)
+            return resolved
+        }
+    }
 
     /// Clones a document the repo already knows to create a new, shared document.
     /// - Parameter id: The id of the document to clone.
