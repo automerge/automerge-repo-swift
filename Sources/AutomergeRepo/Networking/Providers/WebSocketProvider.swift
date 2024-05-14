@@ -1,5 +1,5 @@
 import Automerge
-import Combine
+@preconcurrency import Combine
 import OSLog
 
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
@@ -46,12 +46,15 @@ public final class WebSocketProvider: NetworkProvider {
     var endpoint: URL?
     var peered: Bool
 
+    private let _statePublisher: CurrentValueSubject<WebSocketProviderState, Never> =
+        CurrentValueSubject(.disconnected)
+
     /// A publisher that provides state updates for the WebSocket connection.
     ///
     /// The initial value provides the current state of the connecting in the WebSocket provider,
     /// with updates published when the state changes.
-    public nonisolated let statePublisher: CurrentValueSubject<WebSocketProviderState, Never> =
-        CurrentValueSubject(.disconnected)
+    public nonisolated lazy var statePublisher: AnyPublisher<WebSocketProviderState, Never> = _statePublisher
+        .removeDuplicates().eraseToAnyPublisher()
 
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
     /// - Parameter config: The configuration for the provider.
@@ -116,7 +119,7 @@ public final class WebSocketProvider: NetworkProvider {
         ongoingReceiveMessageTask?.cancel()
         ongoingReceiveMessageTask = nil
         endpoint = nil
-        statePublisher.send(.disconnected)
+        _statePublisher.send(.disconnected)
 
         if let connectedPeer = peeredConnections.first {
             peeredConnections.removeAll()
@@ -249,7 +252,7 @@ public final class WebSocketProvider: NetworkProvider {
         let joinMessage = SyncV1Msg.JoinMsg(senderId: peerId, metadata: peerMetadata)
         let data = try SyncV1Msg.encode(joinMessage)
         try await webSocketTask.send(.data(data))
-        statePublisher.send(.connected)
+        _statePublisher.send(.connected)
         do {
             // Race a timeout against receiving a Peer message from the other side
             // of the WebSocket connection. If we fail that race, shut down the connection
@@ -281,7 +284,7 @@ public final class WebSocketProvider: NetworkProvider {
             self.webSocketTask = webSocketTask
 
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
-            statePublisher.send(.ready)
+            _statePublisher.send(.ready)
             if config.logLevel.canTrace() {
                 Logger.websocket.trace("WEBSOCKET: Peered to targetId: \(peerMsg.senderId) \(peerMsg.debugDescription)")
             }
@@ -296,7 +299,7 @@ public final class WebSocketProvider: NetworkProvider {
             webSocketTask.cancel()
             self.webSocketTask = nil
             peered = false
-            statePublisher.send(.disconnected)
+            _statePublisher.send(.disconnected)
             throw error
         }
 
@@ -389,7 +392,7 @@ public final class WebSocketProvider: NetworkProvider {
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
             if !peered, tryToReconnect {
-                statePublisher.send(.reconnecting)
+                _statePublisher.send(.reconnecting)
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
                     Logger.websocket
@@ -419,7 +422,7 @@ public final class WebSocketProvider: NetworkProvider {
             } catch {
                 // error scenario with the WebSocket connection
                 Logger.websocket.warning("WEBSOCKET: Error reading websocket: \(error.localizedDescription)")
-                statePublisher.send(.disconnected)
+                _statePublisher.send(.disconnected)
                 peered = false
                 msgFromWebSocket = nil
             }
@@ -444,7 +447,7 @@ public final class WebSocketProvider: NetworkProvider {
         self.peered = false
         webSocketTask?.cancel()
         webSocketTask = nil
-        statePublisher.send(.disconnected)
+        _statePublisher.send(.disconnected)
         Logger.websocket.warning("WEBSOCKET: receive and reconnect loop terminated")
     }
 
