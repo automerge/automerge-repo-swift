@@ -11,29 +11,6 @@ public final class WebSocketProvider: NetworkProvider {
     /// A type that represents the configuration used to create the provider.
     public typealias ProviderConfiguration = WebSocketProviderConfiguration
 
-    /// The configuration options for a WebSocket network provider.
-    public struct WebSocketProviderConfiguration: Sendable {
-        /// A Boolean value that indicates if the provider should attempt to reconnect when it fails with an error.
-        public let reconnectOnError: Bool
-        /// The verbosity of the logs sent to the unified logging system.
-        public let logLevel: LogVerbosity
-        /// The default configuration for the WebSocket network provider.
-        ///
-        /// In the default configuration:
-        ///
-        /// - `reconnectOnError` is `true`
-        public static let `default` = WebSocketProviderConfiguration(reconnectOnError: true)
-
-        /// Creates a new WebSocket network provider configuration instance.
-        /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect
-        /// when it fails with an error.
-        /// - Parameter loggingAt: The verbosity of the logs sent to the unified logging system.
-        public init(reconnectOnError: Bool, loggingAt: LogVerbosity = .errorOnly) {
-            self.reconnectOnError = reconnectOnError
-            self.logLevel = loggingAt
-        }
-    }
-
     /// The active connection for this provider.
     public var peeredConnections: [PeerConnectionInfo]
     var delegate: (any NetworkEventReceiver)?
@@ -358,8 +335,17 @@ public final class WebSocketProvider: NetworkProvider {
         return websocketMsg
     }
 
-    /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
+    /// Loops over incoming messages from the websocket and updates the state machine based on the messages
     /// received.
+    ///
+    /// If the provider configuration (``WebSocketProviderConfiguration``) has `reconnectOnError`
+    /// set to `true`, this function attempts to re-establish a WebSocket connection on connection
+    /// failure or read error. If that value is false, the connection terminates on error and the provider
+    /// reports the connection as ``WebSocketProviderState/disconnected``.
+    ///
+    /// If `reconnectOnError`, and `maxNumberOfConnectRetries` has a positive value, a maximum number of retries
+    /// is enforced. After the provided maximum number of retries, the connection is fully reset and left in the
+    /// state ``WebSocketProviderState/disconnected``.
     private func ongoingReceiveWebSocketMessages() async {
         // state needed for reconnect logic:
         // - should we reconnect on a receive() error/failure
@@ -392,6 +378,13 @@ public final class WebSocketProvider: NetworkProvider {
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
             if !peered, tryToReconnect {
+                if let maxRetries = config.maxNumberOfConnectRetries, maxRetries > 0, maxRetries > reconnectAttempts {
+                    // maxNumber of connection retries is set, positive, and exceeds the
+                    // number of attempts already made...
+                    tryToReconnect = false
+                    break
+                }
+
                 _statePublisher.send(.reconnecting)
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
