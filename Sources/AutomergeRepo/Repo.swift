@@ -34,8 +34,8 @@ public final class Repo {
     /** @hidden */
     private var peerMetadataByPeerId: [PEER_ID: PeerMetadata] = [:]
 
-    private let maxRetriesForFetch: Int = 300
-    private let pendingRequestWaitDuration: Duration = .seconds(1)
+    private let maxRetriesForFetch: Int
+    private let pendingRequestWaitDuration: Duration
     private var pendingRequestReadAttempts: [DocumentId: Int] = [:]
 
     private var remoteHeadsGossipingEnabled = false
@@ -84,12 +84,21 @@ public final class Repo {
     /// - Parameter sharePolicy: The policy to use to determine if a repository shares a document.
     /// - Parameter saveDebounce: The delay time to accumulate changes to a document before initiating a network sync
     /// with available peers. The default is 2 seconds.
+    /// - Parameter maxResolveFetchIterations: The number of checks to make waiting for peers to provide a requested
+    /// document. The default value is 300, after which the repository throws an error from ``find(id:)`` that indicates
+    /// the document is unavailable.
+    /// - Parameter resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested
+    /// document. The default is 1 second.
     public nonisolated init(
         sharePolicy: SharePolicy,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
+        maxResolveFetchIterations: Int = 300,
+        resolveFetchIterationDelay: Duration = .seconds(1)
     ) {
         peerId = UUID().uuidString
         storage = nil
+        maxRetriesForFetch = maxResolveFetchIterations
+        pendingRequestWaitDuration = resolveFetchIterationDelay
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem(verbosity: .errorOnly)
@@ -101,12 +110,21 @@ public final class Repo {
     /// a document.
     /// - Parameter saveDebounce: The delay time to accumulate changes to a document before initiating a network sync
     /// with available peers. The default is 2 seconds.
+    /// - Parameter maxResolveFetchIterations: The number of checks to make waiting for peers to provide a requested
+    /// document. The default value is 300, after which the repository throws an error from ``find(id:)`` that indicates
+    /// the document is unavailable.
+    /// - Parameter resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested
+    /// document. The default is 1 second.
     public nonisolated init(
         sharePolicy: some ShareAuthorizing,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
+        maxResolveFetchIterations: Int = 300,
+        resolveFetchIterationDelay: Duration = .seconds(1)
     ) {
         peerId = UUID().uuidString
         storage = nil
+        maxRetriesForFetch = maxResolveFetchIterations
+        pendingRequestWaitDuration = resolveFetchIterationDelay
         localPeerMetadata = PeerMetadata(storageId: nil, isEphemeral: true)
         self.sharePolicy = sharePolicy
         network = NetworkSubsystem(verbosity: .errorOnly)
@@ -119,12 +137,21 @@ public final class Repo {
     ///   - storage: The storage provider for the repository.
     ///   - saveDebounce: The delay time to accumulate changes to a document before initiating a network sync with
     /// available peers. The default is 2 seconds.
+    ///   - maxResolveFetchIterations: The number of checks to make waiting for peers to provide a requested document.
+    /// The default value is 300, after which the repository throws an error from ``find(id:)`` that indicates the
+    /// document is unavailable.
+    ///   - resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested. The
+    /// default is 1 second.
     public nonisolated init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
+        maxResolveFetchIterations: Int = 300,
+        resolveFetchIterationDelay: Duration = .seconds(1)
     ) {
         peerId = UUID().uuidString
+        maxRetriesForFetch = maxResolveFetchIterations
+        pendingRequestWaitDuration = resolveFetchIterationDelay
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem(verbosity: .errorOnly)
         self.storage = DocumentStorage(storage, verbosity: .errorOnly)
@@ -140,14 +167,23 @@ public final class Repo {
     ///   - networks: A list of network providers to add.
     ///   - saveDebounce: The delay time to accumulate changes to a document before initiating a network sync with
     /// available peers. The default is 2 seconds.
+    ///   - maxResolveFetchIterations: The number of checks to make waiting for peers to provide a requested document.
+    /// The default value is 300, after which the repository throws an error from ``find(id:)`` that indicates the
+    /// document is unavailable.
+    ///   - resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested
+    /// document. The default is 1 second.
     public init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
         networks: [any NetworkProvider],
-        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10)
+        saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
+        maxResolveFetchIterations: Int = 300,
+        resolveFetchIterationDelay: Duration = .seconds(1)
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
+        maxRetriesForFetch = maxResolveFetchIterations
+        pendingRequestWaitDuration = resolveFetchIterationDelay
         self.storage = DocumentStorage(storage, verbosity: .errorOnly)
         self.saveDebounceDelay = saveDebounce
 

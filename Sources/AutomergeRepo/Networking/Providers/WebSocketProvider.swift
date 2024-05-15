@@ -335,8 +335,17 @@ public final class WebSocketProvider: NetworkProvider {
         return websocketMsg
     }
 
-    /// Infinitely loops over incoming messages from the websocket and updates the state machine based on the messages
+    /// Loops over incoming messages from the websocket and updates the state machine based on the messages
     /// received.
+    ///
+    /// If the provider configuration (``WebSocketProviderConfiguration``) has `reconnectOnError`
+    /// set to `true`, this function attempts to re-establish a WebSocket connection on connection
+    /// failure or read error. If that value is false, the connection terminates on error and the provider
+    /// reports the connection as ``WebSocketProviderState/disconnected``.
+    ///
+    /// If `reconnectOnError`, and `maxNumberOfConnectRetries` has a positive value, a maximum number of retries
+    /// is enforced. After the provided maximum number of retries, the connection is fully reset and left in the
+    /// state ``WebSocketProviderState/disconnected``.
     private func ongoingReceiveWebSocketMessages() async {
         // state needed for reconnect logic:
         // - should we reconnect on a receive() error/failure
@@ -369,6 +378,13 @@ public final class WebSocketProvider: NetworkProvider {
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
             if !peered, tryToReconnect {
+                if let maxRetries = config.maxNumberOfConnectRetries, maxRetries > 0, maxRetries > reconnectAttempts {
+                    // maxNumber of connection retries is set, positive, and exceeds the
+                    // number of attempts already made...
+                    tryToReconnect = false
+                    break
+                }
+
                 _statePublisher.send(.reconnecting)
                 let waitBeforeReconnect = Backoff.delay(reconnectAttempts, withJitter: true)
                 if config.logLevel.canTrace() {
