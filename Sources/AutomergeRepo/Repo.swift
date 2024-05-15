@@ -480,22 +480,32 @@ public final class Repo {
     }
 
     /// Imports an Automerge document with an option Id.
-    /// - Parameter doc: The Automerge document to use for the new, shared document
-    /// - Returns: The Automerge document.
+    /// - Parameter handle: The handle to the Automerge document to import
+    /// - Returns: A handle to the Automerge document
     ///
-    /// If the ID already exists in the local repository, the import attempts to merge the
-    /// document you provide with the existing document. This process does not request the
-    /// document from any connected network peers. To request a document by Id from network
-    /// peers, use ``find(id:)``.
-    public func `import`(doc: Document, id: DocumentId? = nil) async throws -> DocHandle {
-        if let providedId = id, let existingHandle = handles[providedId] {
+    /// If the ID you provide in the handle already exists in the local repository,
+    /// the import attempts to merge the document you provide with an existing document.
+    /// This process does not request the document from any connected network peers.
+    /// To request a document by Id from network peers, use ``find(id:)``.
+    ///
+    /// To import the raw bytes of an Automerge document, load it into an Automerge document
+    /// and create a new, random DocumentId:
+    ///
+    /// ```swift
+    /// let documentFromData = try Document(data)
+    /// let newHandle = DocHandle(id: DocumentId(), doc: documentFromData)
+    /// ```
+    ///
+    /// Use the handle you create with `import(handle:)` to load it into the repository.
+    public func `import`(handle: DocHandle) async throws -> DocHandle {
+        if let existingHandle = handles[handle.id] {
             if [.loading, .requesting].contains(existingHandle.state) {
                 // The state of the internal handle is in .requesting or .loading, meaning those
                 // processes are in place, or were in place and aborted. To resolve any potential
                 // concurrency issues, we'll resolve to a known state that we can handle and continue
                 // with merging from there.
                 do {
-                    let finalizedHandle = try await resolveDocHandle(id: providedId)
+                    let _ = try await resolveDocHandle(id: existingHandle.id)
                 } catch {
                     // intentionally catch errors to indicate that the state is resolved
                     // so that we can continue
@@ -504,38 +514,34 @@ public final class Repo {
             // verify that the document exists on the handle, and if so, merge
             // and save it
             if let existingDoc = existingHandle.doc {
-                try existingDoc.merge(other: doc)
-                existingHandle.doc = existingDoc
+                try existingDoc.merge(other: handle.doc)
                 // store the document if there's a storage provider available
-                try await storage?.saveDoc(id: providedId, doc: existingDoc)
+                try await storage?.saveDoc(id: existingHandle.id, doc: existingDoc)
             } else {
                 // if there isn't a document on the internal handle, use the document
                 // provided.
-                existingHandle.doc = doc
+                existingHandle.doc = handle.doc
                 // store the document if there's a storage provider available
-                try await storage?.saveDoc(id: providedId, doc: doc)
+                try await storage?.saveDoc(id: existingHandle.id, doc: handle.doc)
             }
             existingHandle.state = .ready
             docHandlePublisher.send(existingHandle.snapshot())
             // calling resolveDocHandle when we've just set the state to .ready
             // is tantamount to asking for a DocHandle from the internal variation
             // but with some extra checks to make sure nothing is awry with expected state.
-            return try await resolveDocHandle(id: providedId)
+            return try await resolveDocHandle(id: existingHandle.id)
         } else {
-            let creationId = id ?? DocumentId()
-            let handle = InternalDocHandle(id: creationId, isNew: true, initialValue: doc)
-            handles[handle.id] = handle
-            docHandlePublisher.send(handle.snapshot())
+            // Id from the handle provided does not yet exist within the repository
+            // establish a new internal doc handle
+            let internalHandle = InternalDocHandle(id: handle.id, isNew: true, initialValue: handle.doc)
+            // preset it to the state of ready and add it to the repositories collection of handles
+            internalHandle.state = .ready
+            handles[handle.id] = internalHandle
+            // explicitly save to persistent storage, if available, before returning
+            try await storage?.saveDoc(id: handle.id, doc: handle.doc)
+            docHandlePublisher.send(internalHandle.snapshot())
             return try await resolveDocHandle(id: handle.id)
         }
-    }
-
-    /// Creates a new Automerge document, storing it and sharing the creation with connected peers.
-    /// - Parameter data: The data to load as an Automerge document for the new, shared document.
-    /// - Returns: The Automerge document.
-    public func `import`(data: Data, id: DocumentId? = nil) async throws -> DocHandle {
-        let document = try Document(data)
-        return try await self.import(doc: document, id: id)
     }
 
     /// Clones a document the repo already knows to create a new, shared document.
