@@ -1,4 +1,5 @@
 import Automerge
+import Network
 @preconcurrency import Combine
 import OSLog
 
@@ -45,7 +46,7 @@ public final class WebSocketProvider: NetworkProvider {
         ongoingReceiveMessageTask = nil
         peered = false
     }
-
+    
     // MARK: NetworkProvider Methods
 
     /// Initiate an outgoing connection.
@@ -154,8 +155,6 @@ public final class WebSocketProvider: NetworkProvider {
         peerId = peer
         peerMetadata = metadata
     }
-
-    // MARK: utility methods
 
     private func attemptToDecode(_ msg: URLSessionWebSocketTask.Message, peerOnly: Bool = false) throws -> SyncV1Msg {
         // Now that we have the WebSocket message, figure out if we got what we expected.
@@ -362,7 +361,9 @@ public final class WebSocketProvider: NetworkProvider {
         //   reconnect attempts)
         var reconnectAttempts: UInt = 0
         var tryToReconnect = config.reconnectOnError
-
+        let networkMonitor = tryToReconnect ? NWPathMonitor() : nil
+        var currentStatus = networkMonitor?.currentPath.status ?? .unsatisfied
+        
         repeat {
             msgFromWebSocket = nil
 
@@ -374,6 +375,7 @@ public final class WebSocketProvider: NetworkProvider {
                 tryToReconnect = false
                 break
             }
+            
 
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
@@ -395,7 +397,25 @@ public final class WebSocketProvider: NetworkProvider {
                 }
                 reconnectAttempts += 1
                 do {
-                    try await Task.sleep(for: .seconds(waitBeforeReconnect))
+                    // Use NWPathMonitor.currentPath changes to inform waitBeforeReconnect timing. If
+                    // we see currentPath change from .unsatified to .satisfied then short circut
+                    // waitBeforeReconnect time and try immediatly.
+                    
+                    let endWait = Date.timeIntervalSinceReferenceDate + TimeInterval(waitBeforeReconnect)
+                    
+                    while 
+                        let nextStatus = networkMonitor?.currentPath.status,
+                        Date.timeIntervalSinceReferenceDate < endWait
+                    {
+                        if currentStatus != .satisfied && (nextStatus == .satisfied || nextStatus == .requiresConnection) {
+                            currentStatus = nextStatus
+                            break
+                        } else {
+                            try await Task.sleep(for: .seconds(1))
+                        }
+                    }
+                    
+                    //try await Task.sleep(for: .seconds(waitBeforeReconnect))
                     // if endpoint is nil, this returns nil
                     _ = try await attemptConnect(to: endpoint)
                 } catch {
