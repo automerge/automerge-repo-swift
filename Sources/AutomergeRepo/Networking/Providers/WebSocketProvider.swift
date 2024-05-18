@@ -361,8 +361,6 @@ public final class WebSocketProvider: NetworkProvider {
         //   reconnect attempts)
         var reconnectAttempts: UInt = 0
         var tryToReconnect = config.reconnectOnError
-        let networkMonitor = tryToReconnect ? NWPathMonitor() : nil
-        var currentStatus = networkMonitor?.currentPath.status ?? .unsatisfied
         
         repeat {
             msgFromWebSocket = nil
@@ -396,28 +394,50 @@ public final class WebSocketProvider: NetworkProvider {
                         )
                 }
                 reconnectAttempts += 1
+                                
                 do {
-                    // Use NWPathMonitor.currentPath changes to inform waitBeforeReconnect timing. If
-                    // we see currentPath change from .unsatified to .satisfied then short circut
-                    // waitBeforeReconnect time and try immediatly.
-                    
-                    let endWait = Date.timeIntervalSinceReferenceDate + TimeInterval(waitBeforeReconnect)
-                    
-                    while 
-                        let nextStatus = networkMonitor?.currentPath.status,
-                        Date.timeIntervalSinceReferenceDate < endWait
-                    {
-                        if currentStatus != .satisfied && (nextStatus == .satisfied || nextStatus == .requiresConnection) {
-                            currentStatus = nextStatus
-                            break
-                        } else {
-                            try await Task.sleep(for: .seconds(1))
+                    // Wait to reconnect. Wait for waitBeforeReconnect and networth path
+                    // transitioning from not satisfied to satisfied. Whichever comes first.
+                    let success = try await withThrowingTaskGroup(of: Void.self) { group in
+
+                        // Wait for timeout
+                        group.addTask {
+                            try await Task.sleep(for: .seconds(waitBeforeReconnect))
                         }
+                        
+                        // Wait for network becomming availible
+                        group.addTask {
+                            let monitor = NWPathMonitor()
+                            var last = monitor.currentPath
+                            for await each in monitor.paths() {
+                                if last.status != .satisfied && each.status == .satisfied {
+                                    Logger.websocket.info("WEBSOCKET: Network path satisfied while waiting to reconnect")
+                                    return
+                                } else {
+                                    last = each
+                                }
+                            }
+                        }
+                        
+                        // This is what I want, but warns of data races
+                        // _ = try await group.next()
+                        // group.cancelAll()
+                        // return true
+                        
+                        // This accomplishes same thing as previous comment, but doesn't warn of data races
+                        for try await _ in group {
+                            _ = try await attemptConnect(to: endpoint)
+                            group.cancelAll()
+                            return true
+                        }
+                        
+                        return false
                     }
                     
-                    //try await Task.sleep(for: .seconds(waitBeforeReconnect))
-                    // if endpoint is nil, this returns nil
-                    _ = try await attemptConnect(to: endpoint)
+                    if success {
+                        // On successful connection reset connection attemtps
+                        reconnectAttempts = 0
+                    }
                 } catch {
                     webSocketTask = nil
                     peered = false
@@ -457,6 +477,7 @@ public final class WebSocketProvider: NetworkProvider {
                 }
             }
         } while tryToReconnect
+        
         self.peered = false
         webSocketTask?.cancel()
         webSocketTask = nil
