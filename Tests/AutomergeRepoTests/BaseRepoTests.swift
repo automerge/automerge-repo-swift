@@ -38,16 +38,12 @@ final class BaseRepoTests: XCTestCase {
         XCTAssertEqual(knownIds[0], myId)
     }
 
-    func testCreateWithExistingDoc() async throws {
-        let handle = try await repo.create(doc: Document())
-        var knownIds = await repo.documentIds()
+    func testImportExistingDoc() async throws {
+        let newHandleWithDoc = DocHandle(id: DocumentId(), doc: Document())
+        let handle = try await repo.import(handle: newHandleWithDoc)
+        let knownIds = await repo.documentIds()
         XCTAssertEqual(knownIds.count, 1)
         XCTAssertEqual(knownIds[0], handle.id)
-
-        let myId = DocumentId()
-        let _ = try await repo.create(doc: Document(), id: myId)
-        knownIds = await repo.documentIds()
-        XCTAssertEqual(knownIds.count, 2)
     }
 
     func testFind() async throws {
