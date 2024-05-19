@@ -426,9 +426,9 @@ public final class WebSocketProvider: NetworkProvider {
                         
                         // This accomplishes same thing as previous comment, but doesn't warn of data races
                         for try await _ in group {
-                            _ = try await attemptConnect(to: endpoint)
+                            let success = try await attemptConnect(to: endpoint)
                             group.cancelAll()
-                            return true
+                            return success
                         }
                         
                         return false
