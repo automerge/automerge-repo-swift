@@ -47,8 +47,6 @@ public final class WebSocketProvider: NetworkProvider {
         peered = false
     }
     
-    // MARK: NetworkProvider Methods
-
     /// Initiate an outgoing connection.
     public func connect(to url: URL) async throws {
         if peered {
@@ -155,6 +153,8 @@ public final class WebSocketProvider: NetworkProvider {
         peerId = peer
         peerMetadata = metadata
     }
+
+    // MARK: utility methods
 
     private func attemptToDecode(_ msg: URLSessionWebSocketTask.Message, peerOnly: Bool = false) throws -> SyncV1Msg {
         // Now that we have the WebSocket message, figure out if we got what we expected.
