@@ -40,6 +40,13 @@ final class ObservingChangesTest: XCTestCase {
 
     override func tearDown() async throws {}
 
+//    func testCheckForFlake() async throws {
+//        for _ in 1...1000 {
+//            try await self.setUp()
+//            try await flakeCheck_testCreateAndObserveChange()
+//        }
+//    }
+
     func testCreateAndObserveChange() async throws {
         // initial conditions
         var knownOnTwo = await repoTwo.documentIds()
@@ -82,12 +89,18 @@ final class ObservingChangesTest: XCTestCase {
         try await adapterOne.connect(to: "EndpointTwo")
 
         await fulfillment(of: [twoSyncExpectation], timeout: 10)
+        // this verifies that repo two initiated a sync, but not that the sync is complete
+        // FIXME: FLAKY TEST
+        // verify that after sync, both repos have a copy of the document
         two_sink.cancel()
 
-        // verify that after sync, both repos have a copy of the document
         knownOnOne = await repoOne.documentIds()
-        XCTAssertEqual(knownOnOne.count, 1)
-        XCTAssertEqual(knownOnOne[0], newDocId)
+        if knownOnOne.count >= 1 {
+            XCTAssertEqual(knownOnOne.count, 1)
+            XCTAssertEqual(knownOnOne[0], newDocId)
+        } else {
+            XCTFail("Repo 1 doesn't have any known document Ids yet")
+        }
 
         // Now verify that Two will attempt to sync AGAIN when the content of the document has changed
         let twoSyncOnContentExpectation =
