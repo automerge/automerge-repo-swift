@@ -419,16 +419,10 @@ public final class WebSocketProvider: NetworkProvider {
                             }
                         }
                         
-                        // This is what I want, but warns of data races
-                        // _ = try await group.next()
-                        // group.cancelAll()
-                        // return true
-                        
-                        // This accomplishes same thing as previous comment, but doesn't warn of data races
+                        // After either task succeeds then cancel group and attempt connection
                         for try await _ in group {
-                            let success = try await attemptConnect(to: endpoint)
                             group.cancelAll()
-                            return success
+                            return try await attemptConnect(to: endpoint)
                         }
                         
                         return false
