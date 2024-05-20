@@ -1,4 +1,5 @@
 import Automerge
+import Network
 @preconcurrency import Combine
 import OSLog
 
@@ -45,9 +46,7 @@ public final class WebSocketProvider: NetworkProvider {
         ongoingReceiveMessageTask = nil
         peered = false
     }
-
-    // MARK: NetworkProvider Methods
-
+    
     /// Initiate an outgoing connection.
     public func connect(to url: URL) async throws {
         if peered {
@@ -362,7 +361,7 @@ public final class WebSocketProvider: NetworkProvider {
         //   reconnect attempts)
         var reconnectAttempts: UInt = 0
         var tryToReconnect = config.reconnectOnError
-
+        
         repeat {
             msgFromWebSocket = nil
 
@@ -374,6 +373,7 @@ public final class WebSocketProvider: NetworkProvider {
                 tryToReconnect = false
                 break
             }
+            
 
             // if we're not currently peered, attempt to reconnect
             // (if we're configured to do so)
@@ -394,10 +394,44 @@ public final class WebSocketProvider: NetworkProvider {
                         )
                 }
                 reconnectAttempts += 1
+                                
                 do {
-                    try await Task.sleep(for: .seconds(waitBeforeReconnect))
-                    // if endpoint is nil, this returns nil
-                    _ = try await attemptConnect(to: endpoint)
+                    // Wait to reconnect. Wait for waitBeforeReconnect and networth path
+                    // transitioning from not satisfied to satisfied. Whichever comes first.
+                    let success = try await withThrowingTaskGroup(of: Void.self) { group in
+
+                        // Wait for timeout
+                        group.addTask {
+                            try await Task.sleep(for: .seconds(waitBeforeReconnect))
+                        }
+                        
+                        // Wait for network becomming availible
+                        group.addTask {
+                            let monitor = NWPathMonitor()
+                            var last = monitor.currentPath
+                            for await each in monitor.paths() {
+                                if last.status != .satisfied && each.status == .satisfied {
+                                    Logger.websocket.info("WEBSOCKET: Network path satisfied while waiting to reconnect")
+                                    return
+                                } else {
+                                    last = each
+                                }
+                            }
+                        }
+                        
+                        // After either task succeeds then cancel group and attempt connection
+                        for try await _ in group {
+                            group.cancelAll()
+                            return try await attemptConnect(to: endpoint)
+                        }
+                        
+                        return false
+                    }
+                    
+                    if success {
+                        // On successful connection reset connection attemtps
+                        reconnectAttempts = 0
+                    }
                 } catch {
                     webSocketTask = nil
                     peered = false
@@ -437,6 +471,7 @@ public final class WebSocketProvider: NetworkProvider {
                 }
             }
         } while tryToReconnect
+        
         self.peered = false
         webSocketTask?.cancel()
         webSocketTask = nil
