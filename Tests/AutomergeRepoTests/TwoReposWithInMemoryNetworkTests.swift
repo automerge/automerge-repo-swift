@@ -271,35 +271,6 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
             print(errMsg)
         }
     }
-//
-//    func testDelete() async throws {
-//        let myId = DocumentId()
-//        let _ = try await repo.create(id: myId)
-//        var knownIds = await repo.documentIds()
-//        XCTAssertEqual(knownIds.count, 1)
-//
-//        try await repo.delete(id: myId)
-//        knownIds = await repo.documentIds()
-//        XCTAssertEqual(knownIds.count, 0)
-//
-//        do {
-//            let _ = try await repo.find(id: DocumentId())
-//            XCTFail()
-//        } catch {}
-//    }
-//
-//    func testClone() async throws {
-//        let myId = DocumentId()
-//        let handle = try await repo.create(id: myId)
-//        XCTAssertEqual(myId, handle.id)
-//
-//        let clonedHandle = try await repo.clone(id: myId)
-//        XCTAssertNotEqual(handle.id, clonedHandle.id)
-//        XCTAssertNotEqual(handle.doc.actor, clonedHandle.doc.actor)
-//
-//        let knownIds = await repo.documentIds()
-//        XCTAssertEqual(knownIds.count, 2)
-//    }
 
     // TBD:
     // - func storageIdForPeer(peerId) -> StorageId

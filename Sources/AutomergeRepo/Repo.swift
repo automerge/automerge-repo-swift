@@ -402,6 +402,11 @@ public final class Repo {
                 _ = try await resolveDocHandle(id: docId)
             }
             guard let handle = handles[docId] else { fatalError("HANDLE DOESN'T EXIST") }
+            if handle.state == .deleted {
+                // if the handle is marked as `deleted`, then the document has been removed from this
+                // repository and shouldn't be updated or re-created.
+                return
+            }
             if logLevel(.repo).canTrace() {
                 Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
             }
@@ -452,7 +457,7 @@ public final class Repo {
                 )
             return
         }
-        if handles[docId] != nil {
+        if let internalHandle = handles[docId], internalHandle.state != .deleted {
             // If we have the document, see if we're agreeable to sending a copy
             if await sharePolicy.share(peer: msg.senderId, docId: docId) {
                 do {
