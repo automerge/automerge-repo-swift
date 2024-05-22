@@ -41,7 +41,8 @@ final class ObservingChangesTest: XCTestCase {
     override func tearDown() async throws {}
 
 //    func testCheckForFlake() async throws {
-//        for _ in 1...1000 {
+//        for i in 1...1000 {
+//             Logger.testNetwork.error("\(i)")
 //            try await self.setUp()
 //            try await flakeCheck_testCreateAndObserveChange()
 //        }
@@ -73,26 +74,38 @@ final class ObservingChangesTest: XCTestCase {
         // await network.traceConnections(true)
         // await adapterTwo.logReceivedMessages(true)
 
-        var expectationTriggered = false
-        let twoSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
+        var sendExpectationTriggered = false
+        let twoSendSyncExpectation = expectation(description: "Repo Two should attempt to sync when repo one connects")
         let two_sink = repoTwo.syncRequestPublisher.sink { syncRequest in
             // Logger.testNetwork.error("SYNC PUB: \(syncRequest.id) peer: \(syncRequest.peer)")
             if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
-                if !expectationTriggered {
-                    expectationTriggered = true
-                    twoSyncExpectation.fulfill()
+                if !sendExpectationTriggered {
+                    sendExpectationTriggered = true
+                    twoSendSyncExpectation.fulfill()
                 }
             }
         }
-        XCTAssertNotNil(twoSyncExpectation)
+        XCTAssertNotNil(twoSendSyncExpectation)
+
+        var recvExpectationTriggered = false
+        let oneReceiveSyncExpectation =
+            expectation(description: "Repo One should receive a sync request when repo one connects")
+        let one_sink = repoOne.syncRequestPublisher.sink { syncRequest in
+            // Logger.testNetwork.error("SYNC PUB: \(syncRequest.id) peer: \(syncRequest.peer)")
+            if syncRequest.id == newDocId, syncRequest.peer == self.repoTwo.peerId {
+                if !recvExpectationTriggered {
+                    recvExpectationTriggered = true
+                    oneReceiveSyncExpectation.fulfill()
+                }
+            }
+        }
+        XCTAssertNotNil(oneReceiveSyncExpectation)
 
         try await adapterOne.connect(to: "EndpointTwo")
 
-        await fulfillment(of: [twoSyncExpectation], timeout: 10)
-        // this verifies that repo two initiated a sync, but not that the sync is complete
-        // FIXME: FLAKY TEST
-        // verify that after sync, both repos have a copy of the document
+        await fulfillment(of: [twoSendSyncExpectation, oneReceiveSyncExpectation], timeout: 10)
         two_sink.cancel()
+        one_sink.cancel()
 
         knownOnOne = await repoOne.documentIds()
         if knownOnOne.count >= 1 {
@@ -103,11 +116,16 @@ final class ObservingChangesTest: XCTestCase {
         }
 
         // Now verify that Two will attempt to sync AGAIN when the content of the document has changed
+        var contentChangeSyncTriggered = false
         let twoSyncOnContentExpectation =
             expectation(description: "Repo Two should attempt to sync when the content changes")
         let two_sink_content = repoTwo.syncRequestPublisher.sink { syncRequest in
             if syncRequest.id == newDocId, syncRequest.peer == self.repoOne.peerId {
-                twoSyncOnContentExpectation.fulfill()
+                // Logger.testNetwork.error("SYNC PUB: \(syncRequest.id) peer: \(syncRequest.peer)")
+                if !contentChangeSyncTriggered {
+                    contentChangeSyncTriggered = true
+                    twoSyncOnContentExpectation.fulfill()
+                }
             }
         }
         XCTAssertNotNil(twoSyncOnContentExpectation)

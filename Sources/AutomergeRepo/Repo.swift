@@ -51,6 +51,11 @@ public final class Repo {
         let peer: PEER_ID
     }
 
+    /// An internal publisher that triggers a message on sending, or receiving, a sync message (including
+    /// receiving, but not initiating, a request msg).
+    ///
+    /// On a sent request, the peer in the `SyncRequest` is the peer we're syncing towards.
+    /// On a received request, the peer in the `SyncRequest` is the peer from which we received the message.
     nonisolated let syncRequestPublisher: PassthroughSubject<SyncRequest, Never> =
         PassthroughSubject()
 
@@ -426,6 +431,9 @@ public final class Repo {
                 }
                 await network.send(message: syncMsg, to: msg.senderId)
             }
+            // testing hook to send an internal notification that a sync message has been received (and implies
+            // that it's also been processed)
+            syncRequestPublisher.send(SyncRequest(id: docId, peer: msg.senderId))
             // else no sync is needed, as the last sync state reports that it knows about
             // all the changes it needs - that it's up to date with the local document
         } catch {
@@ -465,6 +473,7 @@ public final class Repo {
                         ))
                         await network.send(message: syncMsg, to: msg.senderId)
                     } // else no sync is needed, syncstate reports that they have everything they need
+                    syncRequestPublisher.send(SyncRequest(id: docId, peer: msg.senderId))
                 } catch {
                     let err: SyncV1Msg =
                         .error(.init(message: "Unable to resolve document: \(error.localizedDescription)"))

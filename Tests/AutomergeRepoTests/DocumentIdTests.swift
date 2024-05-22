@@ -49,4 +49,14 @@ final class DocumentIdTests: XCTestCase {
         let compareFirstAndSecondDescription = first.description < second.description
         XCTAssertEqual(compareFirstAndSecond, compareFirstAndSecondDescription)
     }
+
+    func testStringConversionDocumentId() async throws {
+        // roughly 2 in 1000 are failing the conversion down and back
+        for i in 1 ... 1000 {
+            let new = DocumentId()
+            let stringOfDocumentId = new.id
+            let converted = DocumentId(stringOfDocumentId)
+            XCTAssertNotNil(converted, "id: \(new) doesn't back convert (try #\(i))")
+        }
+    }
 }
