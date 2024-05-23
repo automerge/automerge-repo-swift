@@ -56,7 +56,16 @@ final class DocumentIdTests: XCTestCase {
             let new = DocumentId()
             let stringOfDocumentId = new.id
             let converted = DocumentId(stringOfDocumentId)
-            XCTAssertNotNil(converted, "id: \(new) doesn't back convert (try #\(i))")
+            XCTAssertNotNil(converted, "id: \(new) [\(new.data.hexEncodedString())] doesn't back convert (try #\(i))")
         }
+    }
+
+    func testExploreFailedStringBackconvert() async throws {
+        // illustrates a specific example from https://github.com/automerge/automerge-repo-swift/issues/108
+        let data = "00cf851bc4f4441d86d127c26774145e".data(using: .hexadecimal)
+        let output = Base58.base58CheckEncode([UInt8](data!))
+        XCTAssertEqual(output, "1ezULPhgshBPYi4H2MTBoMKwc3S")
+        let checkDecode = Base58.base58CheckDecode(output)
+        XCTAssertNotNil(checkDecode)
     }
 }

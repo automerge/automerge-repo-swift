@@ -12,10 +12,10 @@
     {
       "identity" : "base58swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/keefertaylor/Base58Swift",
+      "location" : "https://github.com/heckj/Base58Swift",
       "state" : {
-        "revision" : "1c13ea6b07f1584660526f8bde3d4cc150e91acd",
-        "version" : "2.1.14"
+        "revision" : "3ba16c02089401c817b631ffc33ca8f022a41538",
+        "version" : "2.1.15"
       }
     },
     {
