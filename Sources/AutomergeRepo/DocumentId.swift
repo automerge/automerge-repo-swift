@@ -6,15 +6,19 @@ import struct Foundation.UUID
 public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
     /// A bs58 encoded string that represents the identifier
     public let id: String
+    let data: Data
 
     /// Creates a random document identifier.
     public init() {
-        id = UUID().bs58String
+        let uuid = UUID()
+        data = uuid.data
+        id = uuid.bs58String
     }
 
     /// Creates a document identifier from a UUID v4.
     /// - Parameter id: the v4 UUID to use as a document identifier.
     public init(_ id: UUID) {
+        self.data = id.data
         self.id = id.bs58String
     }
 
@@ -31,6 +35,7 @@ public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
             return nil
         }
         self.id = id
+        self.data = Data(uint_array)
     }
 
     /// Creates a document identifier or returns nil if the string you provide is not a valid DocumentID.
@@ -43,6 +48,7 @@ public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {
             return nil
         }
         self.id = id
+        self.data = Data(uint_array)
     }
 
     // Comparable conformance

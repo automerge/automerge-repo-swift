@@ -21,7 +21,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/automerge/automerge-swift", .upToNextMajor(from: "0.5.7")),
         .package(url: "https://github.com/outfoxx/PotentCodables", .upToNextMajor(from: "3.1.0")),
-        .package(url: "https://github.com/keefertaylor/Base58Swift", .upToNextMajor(from: "2.1.14")),
+        .package(url: "https://github.com/heckj/Base58Swift", .upToNextMajor(from: "2.1.14")),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         // Distributed Tracing support
         .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
