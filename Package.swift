@@ -11,7 +11,7 @@ if ProcessInfo.processInfo.environment["LOCAL_BUILD"] != nil {
 
 let package = Package(
     name: "automerge-repo",
-    platforms: [.iOS(.v16), .macOS(.v13)],
+    platforms: [.iOS(.v16), .macOS(.v13), .visionOS(.v1)],
     products: [
         .library(
             name: "AutomergeRepo",
