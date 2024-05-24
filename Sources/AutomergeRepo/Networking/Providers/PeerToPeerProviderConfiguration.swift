@@ -1,6 +1,6 @@
 import Automerge
 import Foundation
-#if os(iOS)
+#if os(iOS) || os(visionOS)
 import UIKit // for UIDevice.name access
 #endif
 
@@ -36,7 +36,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
         if let auto = autoconnect {
             self.autoconnect = auto
         } else {
-            #if os(iOS)
+            #if os(iOS) || os(visionOS)
             self.autoconnect = true
             #elseif os(macOS)
             self.autoconnect = false
@@ -53,7 +53,7 @@ public struct PeerToPeerProviderConfiguration: Sendable {
     /// Returns a default peer to peer sharing identity to broadcast as your human-readable peer name.
     public static func defaultSharingIdentity() async -> String {
         let defaultName: String
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         defaultName = await MainActor.run(body: {
             UIDevice().name
         })
