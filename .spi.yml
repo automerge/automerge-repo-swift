@@ -2,4 +2,4 @@ version: 1
 builder:
   configs:
     - documentation_targets: [AutomergeRepo]
-      scheme: AutomergeRepo
+      scheme: automerge-repo
