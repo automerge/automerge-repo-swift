@@ -1,7 +1,26 @@
 import struct Foundation.Data
 import struct Foundation.UUID
 
-/// An in-memory only storage provider.
+// Starting points from the Operating System (SwiftUI):
+// - ReferenceFileDocument (https://developer.apple.com/documentation/swiftui/referencefiledocument)
+//   - stores updates by calling `snapshot(contenttype:)` (https://developer.apple.com/documentation/swiftui/referencefiledocument/snapshot(contenttype:))
+//   - handles the resulting content with `filewrapper(snapshot:configuration:)` https://developer.apple.com/documentation/swiftui/referencefiledocument/filewrapper(snapshot:configuration:)
+//     asking you to provide a FileWrapper that it can use to shove the data into place
+//   - Reading a new document hands off a configuration with a FileWrapper embedded in it (https://developer.apple.com/documentation/swiftui/filedocumentreadconfiguration)
+//
+//   - FileWrapper (https://developer.apple.com/documentation/foundation/filewrapper)
+
+
+// AppKit uses NSDocument: https://developer.apple.com/documentation/appkit/nsdocument
+// - note: NSDocument is @MainActor, returned from NSDocumentController
+// - The developer is expected to subclass and override NSDocument to provide the expected functionality
+//
+
+// UIKit uses UIDocument: https://developer.apple.com/documentation/uikit/uidocument
+// - similar in subclass-and-override to NSDocument, but with a more limited set of options (evolved version?)
+// that focuses on `load()` and `save()` overrides for data in and out, reaching down to FileWrapper in some
+// instances (see https://developer.apple.com/documentation/uikit/uidocument#1658531)
+/// An ??? storage provider.
 @AutomergeRepo
 public final class DocumentRefStorage: StorageProvider {
     public nonisolated let id: STORAGE_ID = UUID().uuidString
