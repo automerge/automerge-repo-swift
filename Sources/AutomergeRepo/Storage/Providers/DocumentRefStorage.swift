@@ -3,13 +3,15 @@ import struct Foundation.UUID
 
 // Starting points from the Operating System (SwiftUI):
 // - ReferenceFileDocument (https://developer.apple.com/documentation/swiftui/referencefiledocument)
-//   - stores updates by calling `snapshot(contenttype:)` (https://developer.apple.com/documentation/swiftui/referencefiledocument/snapshot(contenttype:))
-//   - handles the resulting content with `filewrapper(snapshot:configuration:)` https://developer.apple.com/documentation/swiftui/referencefiledocument/filewrapper(snapshot:configuration:)
+//   - stores updates by calling `snapshot(contenttype:)`
+//   (https://developer.apple.com/documentation/swiftui/referencefiledocument/snapshot(contenttype:))
+//   - handles the resulting content with `filewrapper(snapshot:configuration:)`
+//   https://developer.apple.com/documentation/swiftui/referencefiledocument/filewrapper(snapshot:configuration:)
 //     asking you to provide a FileWrapper that it can use to shove the data into place
-//   - Reading a new document hands off a configuration with a FileWrapper embedded in it (https://developer.apple.com/documentation/swiftui/filedocumentreadconfiguration)
+//   - Reading a new document hands off a configuration with a FileWrapper embedded in it
+//   (https://developer.apple.com/documentation/swiftui/filedocumentreadconfiguration)
 //
 //   - FileWrapper (https://developer.apple.com/documentation/foundation/filewrapper)
-
 
 // AppKit uses NSDocument: https://developer.apple.com/documentation/appkit/nsdocument
 // - note: NSDocument is @MainActor, returned from NSDocumentController
