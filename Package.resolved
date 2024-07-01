@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/automerge/automerge-swift",
       "state" : {
-        "revision" : "f107c3bafc1d068252b65d3149729c11a50182d3",
-        "version" : "0.5.15"
+        "revision" : "52414f7910b1e0fcddec696ebb819c3a68b78901",
+        "version" : "0.5.17"
       }
     },
     {
@@ -41,8 +41,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/outfoxx/PotentCodables",
       "state" : {
-        "revision" : "583f1b04b89e36742255d05ef1d2e5961485811d",
-        "version" : "3.2.0"
+        "revision" : "660e33e84e00b9bf07bd41dd99ff800600e435e7",
+        "version" : "3.5.0"
+      }
+    },
+    {
+      "identity" : "regex",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sharplet/Regex.git",
+      "state" : {
+        "revision" : "76c2b73d4281d77fc3118391877efd1bf972f515",
+        "version" : "2.1.1"
       }
     },
     {
@@ -66,10 +75,10 @@
     {
       "identity" : "swift-distributed-tracing",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-distributed-tracing.git",
+      "location" : "https://github.com/apple/swift-distributed-tracing",
       "state" : {
-        "revision" : "7fbb8b23b77ee548b3d0686b6faf735c1b3c7cb8",
-        "version" : "1.1.0"
+        "revision" : "11c756c5c4d7de0eeed8595695cadd7fa107aa19",
+        "version" : "1.1.1"
       }
     },
     {
