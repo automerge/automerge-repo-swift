@@ -19,7 +19,7 @@ extension RepoPeer2PeerIntegrationTests {
         try await p2pBob.startListening(as: "Bob")
 
         // add the document to the Alice repo
-        let handle: DocHandle = try await repoAlice.create(doc: Document(), id: DocumentId())
+        let handle: DocHandle = try await repoAlice.create(id: DocumentId())
         try addContent(handle.doc)
 
         // With the websocket protocol, we don't get confirmation of a sync being complete -
