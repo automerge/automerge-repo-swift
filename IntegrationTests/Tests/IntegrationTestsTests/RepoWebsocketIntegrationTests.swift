@@ -68,7 +68,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
         await repo.addNetworkAdapter(adapter: websocket)
 
         // add the document to the repo
-        let handle: DocHandle = try await repo.create(doc: Document(), id: DocumentId())
+        let handle: DocHandle = try await repo.create(id: DocumentId())
 
         // initial setup and encoding of Automerge doc to sync it
         let encoder = AutomergeEncoder(doc: handle.doc)

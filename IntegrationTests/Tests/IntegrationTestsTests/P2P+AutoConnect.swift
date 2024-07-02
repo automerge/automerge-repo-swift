@@ -14,7 +14,7 @@ extension RepoPeer2PeerIntegrationTests {
         try await p2pAlice.startListening(as: "Alice")
 
         // add the document to the Alice repo
-        let handle: DocHandle = try await repoAlice.create(doc: Document(), id: DocumentId())
+        let handle: DocHandle = try await repoAlice.create(id: DocumentId())
         try addContent(handle.doc)
 
         let repoBob = Repo(sharePolicy: SharePolicy.agreeable)
