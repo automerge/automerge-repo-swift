@@ -629,9 +629,11 @@ public final class Repo {
         let handle: InternalDocHandle
         if let knownHandle = handles[id] {
             handle = knownHandle
+            // make handle as local to indicate it is already known in memory and wasn't created externally
             handle.remote = false
             docHandlePublisher.send(handle.snapshot())
         } else {
+            // mark handle as remote to indicate we don't have this locally
             let newHandle = InternalDocHandle(id: id, isNew: false)
             handles[id] = newHandle
             docHandlePublisher.send(newHandle.snapshot())
@@ -845,6 +847,9 @@ public final class Repo {
             case .loading:
                 // Do we have the document
                 if let docFromHandle = handle.doc {
+                    if loglevel.canTrace() {
+                        Logger.resolver.trace("RESOLVE: :: \(id) has a document in memory")
+                    }
                     // We have the document - so being in loading means "try to save this to
                     // a storage provider, if one exists", then hand it back as good.
                     if let storage {
@@ -866,7 +871,13 @@ public final class Repo {
                     // TODO: if we're allowed and prolific in gossip, notify any connected
                     // peers there's a new document before jumping to the 'ready' state
                     handle.state = .ready
+                    if loglevel.canTrace() {
+                        Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                    }
                     docHandlePublisher.send(handle.snapshot())
+                    if loglevel.canTrace() {
+                        Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                    }
                     return try await resolveDocHandle(id: id)
                 } else {
                     // We don't have the underlying Automerge document, so attempt
@@ -876,6 +887,13 @@ public final class Repo {
                     if let doc = try await loadFromStorage(id: id) {
                         handle.doc = doc
                         handle.state = .ready
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: loaded \(id) from storage provider")
+                            Logger.resolver.trace("RESOLVE: :: \(id) -> [\(String(describing: handle.state))]")
+                        }
+                        if loglevel.canTrace() {
+                            Logger.resolver.trace("RESOLVE: :: continuing to resolve")
+                        }
                         docHandlePublisher.send(handle.snapshot())
                         return try await resolveDocHandle(id: id)
                     } else {

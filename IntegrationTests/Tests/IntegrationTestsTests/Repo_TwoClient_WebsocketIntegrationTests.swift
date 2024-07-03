@@ -142,7 +142,13 @@ final class Repo_TwoClient_WebsocketIntegrationTests: XCTestCase {
         // now establish a new connection, representing a second peer, looking for the data
         let (repoB, websocketB) = try await newConnectedRepoWithStorageAdapter()
 
+//        await repoB.setLogLevel(.repo, to: .tracing)
+//        await repoB.setLogLevel(.storage, to: .tracing)
+//        await repoB.setLogLevel(.storage, to: .tracing)
+//        await repoB.setLogLevel(.resolver, to: .tracing)
+
         let handle = try await repoB.find(id: documentIdForTest)
+
         let historyFromFoundDoc = handle.doc.getHistory()
         XCTAssertEqual(historyFromCreatedDoc, historyFromFoundDoc)
 
@@ -210,8 +216,14 @@ final class Repo_TwoClient_WebsocketIntegrationTests: XCTestCase {
             expectation(
                 description: "Document handle from repo 'B' receives a change when the document handle from Repo 'A' is updated"
             )
+
+        // little hack to make this a single notification, the API complains if you call it twice...
+        var fulfilled = false
         let a = handle.doc.objectWillChange.receive(on: DispatchQueue.main).sink { _ in
-            documentChangePublisherExpectation.fulfill()
+            if fulfilled != true {
+                documentChangePublisherExpectation.fulfill()
+                fulfilled = true
+            }
         }
         XCTAssertNotNil(a)
         // This is loosely the equivalent of the code provided in the issue, but without the prepend
