@@ -373,7 +373,7 @@ public final class Repo {
             }
         }
     }
-    
+
     // MARK: Synchronization Pieces - For Network Subsystem Access
 
     func handleSync(msg: SyncV1Msg.SyncMsg) async {
@@ -619,7 +619,7 @@ public final class Repo {
         syncToAllPeers(id: resolved.id)
         return resolved
     }
-    
+
     /// Requests a document from any connected peers.
     /// - Parameter id: The id of the document to retrieve.
     /// - Returns: A handle to the Automerge document or throws an error if the document is unavailable.
