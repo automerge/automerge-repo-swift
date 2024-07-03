@@ -9,7 +9,7 @@ import XCTest
 // repository, run the `./scripts/interop.sh` script to start up a local instance to
 // respond.
 
-final class RepoWebsocketIntegrationTests: XCTestCase {
+final class Repo_OneClient_WebsocketIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     static let test = Logger(subsystem: subsystem, category: "WebSocketSyncIntegrationTests")
