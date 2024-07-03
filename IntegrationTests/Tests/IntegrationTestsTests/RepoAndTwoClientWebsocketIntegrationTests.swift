@@ -75,7 +75,19 @@ final class RepoAndTwoClientWebsocketIntegrationTests: XCTestCase {
         try await websocket.connect(to: url)
         return (repo, websocket)
     }
-    
+
+    func newConnectedRepoWithStorageAdapter() async throws -> (Repo, WebSocketProvider) {
+        // set up repo (with a client-websocket)
+        let repo = Repo(sharePolicy: SharePolicy.agreeable, storage: InMemoryStorage())
+        let websocket = WebSocketProvider()
+        await repo.addNetworkAdapter(adapter: websocket)
+        
+        // establish connection to remote automerge-repo instance over a websocket
+        let url = try XCTUnwrap(URL(string: syncDestination))
+        try await websocket.connect(to: url)
+        return (repo, websocket)
+    }
+
     func createAndStoreDocument(_ id: DocumentId, repo: Repo) async throws -> (DocHandle, [ChangeHash]) {
         // add the document to the repo
         let handle: DocHandle = try await repo.create(id: id)
@@ -99,7 +111,7 @@ final class RepoAndTwoClientWebsocketIntegrationTests: XCTestCase {
     
     // MARK: The Tests
     
-    func testIssue106_history() async throws {
+    func testIssue106_Repo_history() async throws {
         // stepping into details from https://github.com/automerge/automerge-repo-swift/issues/106
         // History on the document as soon as it's returned should be equivalent. There should be
         // no need to wait for any change notifications.
@@ -119,13 +131,72 @@ final class RepoAndTwoClientWebsocketIntegrationTests: XCTestCase {
         await websocketB.disconnect()
     }
 
-    func testIssue106_notificationOnChange() async throws {
+    func testIssue106_RepoWithStorage_history() async throws {
+        // stepping into details from https://github.com/automerge/automerge-repo-swift/issues/106
+        // History on the document as soon as it's returned should be equivalent. There should be
+        // no need to wait for any change notifications.
+        let documentIdForTest = DocumentId()
+        let (repoA, websocketA) = try await newConnectedRepoWithStorageAdapter()
+        let (_, historyFromCreatedDoc) = try await createAndStoreDocument(documentIdForTest, repo: repoA)
+        
+        // now establish a new connection, representing a second peer, looking for the data
+        let (repoB, websocketB) = try await newConnectedRepoWithStorageAdapter()
+
+        let handle = try await repoB.find(id: documentIdForTest)
+        let historyFromFoundDoc = handle.doc.getHistory()
+        XCTAssertEqual(historyFromCreatedDoc, historyFromFoundDoc)
+
+        // cleanup
+        await websocketA.disconnect()
+        await websocketB.disconnect()
+    }
+
+    func testIssue106_Repo_notificationOnChange() async throws {
         let documentIdForTest = DocumentId()
         let (repoA, websocketA) = try await newConnectedRepo()
         let (createdDocHandle, historyFromCreatedDoc) = try await createAndStoreDocument(documentIdForTest, repo: repoA)
         
         // now establish a new connection, representing a second peer, looking for the data
         let (repoB, websocketB) = try await newConnectedRepo()
+
+        let handle = try await repoB.find(id: documentIdForTest)
+        let historyFromFoundDoc = handle.doc.getHistory()
+        XCTAssertEqual(historyFromCreatedDoc, historyFromFoundDoc)
+
+        // set up expectation to await for trigger from the objectWillChange publisher on the "found" doc
+        let documentChangePublisherExpectation = expectation(description: "Document handle from repo 'B' receives a change when the document handle from Repo 'A' is updated")
+        let a = handle.doc.objectWillChange.receive(on: DispatchQueue.main).sink { peerList in
+            documentChangePublisherExpectation.fulfill()
+        }
+        XCTAssertNotNil(a)
+        // This is loosely the equivalent of the code provided in the issue, but without the prepend
+        //    handle.doc.objectWillChange.prepend(()).receive(on: DispatchQueue.main).sink {
+        //        print("\(id) history count: \(handle.doc.getHistory().count)")
+        //    }
+        //    .store(in: &subs)
+
+        // make a change
+        let encoder = AutomergeEncoder(doc: createdDocHandle.doc)
+        let model = ExampleStruct(title: "updated item", discussion: "editable text")
+        try encoder.encode(model)
+        // encoding writes into the document, which should initiate the change...
+        
+        await fulfillment(of: [documentChangePublisherExpectation], timeout: expectationTimeOut, enforceOrder: false)
+        
+        // and afterwards, their histories should be identical as well.
+        XCTAssertEqual(createdDocHandle.doc.getHistory(), handle.doc.getHistory())
+        // cleanup
+        await websocketA.disconnect()
+        await websocketB.disconnect()
+    }
+    
+    func testIssue106_RepoWithStorage_notificationOnChange() async throws {
+        let documentIdForTest = DocumentId()
+        let (repoA, websocketA) = try await newConnectedRepo()
+        let (createdDocHandle, historyFromCreatedDoc) = try await createAndStoreDocument(documentIdForTest, repo: repoA)
+        
+        // now establish a new connection, representing a second peer, looking for the data
+        let (repoB, websocketB) = try await newConnectedRepoWithStorageAdapter()
 
         let handle = try await repoB.find(id: documentIdForTest)
         let historyFromFoundDoc = handle.doc.getHistory()
