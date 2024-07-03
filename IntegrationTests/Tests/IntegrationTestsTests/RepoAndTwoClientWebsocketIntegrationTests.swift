@@ -228,4 +228,57 @@ final class RepoAndTwoClientWebsocketIntegrationTests: XCTestCase {
         await websocketA.disconnect()
         await websocketB.disconnect()
     }
+    
+    func testIssue106_import_after_connect_eventual_sync() async throws {
+        // code (nearly verbatim) from discussion in
+        // https://github.com/automerge/automerge-repo-swift/issues/106
+        
+        // switching to local automerge-repo instance to keep dependencies local
+        // let commonServerURL = URL(string: "wss://sync.automerge.org/")!
+        let commonServerURL = try XCTUnwrap(URL(string: syncDestination))
+        let commonDocumentId = DocumentId()
+        let commonDocumentStartData = Automerge.Document().save()
+
+        let repoA = Repo(sharePolicy: SharePolicy.agreeable)
+        let websocketA = WebSocketProvider(.init(reconnectOnError: true, loggingAt: .tracing))
+        await repoA.addNetworkAdapter(adapter: websocketA)
+        try await websocketA.connect(to: commonServerURL)
+        
+        // create first document ('A') with an initial value,
+        // then import it into RepoA
+        
+        let documentA = try Automerge.Document(commonDocumentStartData)
+        try documentA.put(obj: .ROOT, key: "test", value: .String("some value"))
+        _ = try await repoA.import(handle: .init(id: commonDocumentId, doc: documentA))
+
+        let repoB = Repo(sharePolicy: SharePolicy.agreeable)
+        let websocketB = WebSocketProvider(.init(reconnectOnError: true, loggingAt: .tracing))
+        await repoB.addNetworkAdapter(adapter: websocketB)
+        try await websocketB.connect(to: commonServerURL)
+        
+        // create a second document ('B') with an empty document and
+        // import it into RepoB with the same ID
+        
+        let documentB = try Automerge.Document(commonDocumentStartData)
+        _ = try await repoB.import(handle: .init(id: commonDocumentId, doc: documentB))
+
+        var count = 0
+        // this continues forever, heads never match
+        while documentA.getHistory() != documentB.getHistory() {
+        // while documentA.headsKey != documentB.headsKey {
+            if count > 5 {
+                XCTFail("Waited over 5 seconds for documents to sync")
+            }
+            count += 1
+            //print("waiting for sync...")
+            //print("document A: \(documentA.getHistory())")
+            //print("document B: \(documentB.getHistory())")
+            assert((try! documentA.get(obj: .ROOT, key: "test")) != nil)
+            assert((try! documentB.get(obj: .ROOT, key: "test")) == nil)
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+
+        XCTAssertEqual(documentA.getHistory(), documentB.getHistory())
+        //print("Sync success if reach this point!")
+    }
 }
