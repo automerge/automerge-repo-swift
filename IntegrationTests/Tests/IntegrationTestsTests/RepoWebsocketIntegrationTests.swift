@@ -100,7 +100,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
 
         let foundDocHandle = try await repoTwo.find(id: handle.id)
         XCTAssertEqual(foundDocHandle.id, handle.id)
-        XCTAssertTrue(RepoHelpers.equalContents(doc1: foundDocHandle.doc, doc2: handle.doc))
+        XCTAssertTrue(foundDocHandle.doc.equivalentContents(handle.doc))
     }
 
     func testFindWithRandomId() async throws {
