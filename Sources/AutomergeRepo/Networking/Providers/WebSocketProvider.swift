@@ -189,6 +189,7 @@ public final class WebSocketProvider: NetworkProvider {
             Logger.websocket
                 .warning("WEBSOCKET: Unknown message received: .string(\(string))")
             throw Errors.UnexpectedMsg(msg: string)
+
         @unknown default:
             // In the handshake phase and received anything other than a valid peer message
             Logger.websocket

@@ -93,7 +93,6 @@ public extension SyncV1Msg {
             if let remoteSubChangeMsg = attemptRemoteSubscriptionChange(data) {
                 return .remoteSubscriptionChange(remoteSubChangeMsg)
             }
-
         default:
             return .unknown(data)
         }

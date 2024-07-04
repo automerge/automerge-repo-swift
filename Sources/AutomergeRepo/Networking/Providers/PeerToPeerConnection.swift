@@ -143,6 +143,7 @@ final class PeerToPeerConnection {
                     .debug(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) ready."
                     )
+
             // Ideally, we don't start attempting to receive connections until AFTER we're in a .ready state
             // START RECEIVING MESSAGES HERE
             case let .failed(error):
@@ -184,6 +185,7 @@ final class PeerToPeerConnection {
                     .debug(
                         "NWConnection \(direction) \(self.connection.endpoint.debugDescription, privacy: .public) in setup."
                     )
+
             default:
                 break
             }

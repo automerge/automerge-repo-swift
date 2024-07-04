@@ -89,8 +89,8 @@ final class StorageSubsystemTests: XCTestCase {
         try await subsystem.saveDoc(id: newDocId, doc: newDoc)
 
         let loadedDoc = try await subsystem.loadDoc(id: newDocId)
-
-        XCTAssertTrue(RepoHelpers.equalContents(doc1: newDoc, doc2: loadedDoc))
+        let unwrappedDoc = try XCTUnwrap(loadedDoc)
+        XCTAssertTrue(newDoc.equivalentContents(unwrappedDoc))
     }
 
     func testSubsystemPurgeDoc() async throws {

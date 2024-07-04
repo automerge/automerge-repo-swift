@@ -9,7 +9,7 @@ import XCTest
 // repository, run the `./scripts/interop.sh` script to start up a local instance to
 // respond.
 
-final class RepoWebsocketIntegrationTests: XCTestCase {
+final class Repo_OneClient_WebsocketIntegrationTests: XCTestCase {
     private static let subsystem = Bundle.main.bundleIdentifier!
 
     static let test = Logger(subsystem: subsystem, category: "WebSocketSyncIntegrationTests")
@@ -100,7 +100,7 @@ final class RepoWebsocketIntegrationTests: XCTestCase {
 
         let foundDocHandle = try await repoTwo.find(id: handle.id)
         XCTAssertEqual(foundDocHandle.id, handle.id)
-        XCTAssertTrue(RepoHelpers.equalContents(doc1: foundDocHandle.doc, doc2: handle.doc))
+        XCTAssertTrue(foundDocHandle.doc.equivalentContents(handle.doc))
     }
 
     func testFindWithRandomId() async throws {

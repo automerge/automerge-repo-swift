@@ -204,24 +204,25 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
         // add some content to the new document
         try newDoc.doc.put(obj: .ROOT, key: "title", value: .String("INITIAL VALUE"))
 
-        // Introducing a doc _after_ connecting shouldn't share it automatically
-        knownOnTwo = await repoTwo.documentIds()
-        XCTAssertEqual(knownOnTwo.count, 1)
-        XCTAssertEqual(knownOnTwo[0], newDocId)
+        await repoOne.setLogLevel(.resolver, to: .tracing)
+        await repoOne.setLogLevel(.network, to: .tracing)
+        // We can _request_ the document, and should find it - but it won't YET be updated...
+        let foundDoc = try await repoOne.find(id: newDocId)
 
-        knownOnOne = await repoOne.documentIds()
-        XCTAssertEqual(knownOnOne.count, 0)
+        // set up expectation to await for trigger from the objectWillChange publisher on the "found" doc
+        let documentsEquivalent = expectation(
+            description: "The document should eventually become equivalent"
+        )
 
-        // We can _request_ the document, and should find it
-        do {
-            let foundDoc = try await repoOne.find(id: newDocId)
-            XCTAssertTrue(
-                RepoHelpers.equalContents(doc1: foundDoc.doc, doc2: newDoc.doc)
-            )
-        } catch {
-            let errMsg = error.localizedDescription
-            print(errMsg)
+        var fulfilledOnce = false
+        let a = foundDoc.doc.objectWillChange.receive(on: DispatchQueue.main).sink { _ in
+            if !fulfilledOnce, foundDoc.doc.getHistory() == newDoc.doc.getHistory() {
+                documentsEquivalent.fulfill()
+                fulfilledOnce = true
+            }
         }
+        XCTAssertNotNil(a)
+        await fulfillment(of: [documentsEquivalent], timeout: 10, enforceOrder: false)
     }
 
     func testFindFail() async throws {

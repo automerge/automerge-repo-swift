@@ -79,7 +79,7 @@ extension RepoPeer2PeerIntegrationTests {
 
         let requestedDoc = try await repoBob.find(id: handle.id)
         XCTAssertEqual(requestedDoc.id, handle.id)
-        XCTAssertTrue(RepoHelpers.equalContents(doc1: requestedDoc.doc, doc2: handle.doc))
+        XCTAssertTrue(requestedDoc.doc.equivalentContents(handle.doc))
 
         // MARK: cleanup and teardown
 

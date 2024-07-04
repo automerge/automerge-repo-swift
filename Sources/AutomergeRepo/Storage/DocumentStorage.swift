@@ -52,14 +52,14 @@ final class DocumentStorage {
         try await _storage.remove(id: id)
     }
 
-    /// Returns an existing, or creates a new, document for the document Id you provide.
+    /// Returns an existing document, or nil, for the document Id you provide.
     ///
     /// The method throws errors from the underlying storage system or Document errors if the
     /// loaded data was corrupt or incorrect.
     ///
     /// - Parameter id: The document Id
-    /// - Returns: An automerge document.
-    public func loadDoc(id: DocumentId) async throws -> Document {
+    /// - Returns: An automerge document or nil if the storage provider doesn't have a record of the document Id.
+    public func loadDoc(id: DocumentId) async throws -> Document? {
         var combined: Data
         let storageChunks = try await _storage.loadRange(id: id, prefix: chunkNamespace)
         if chunks[id] == nil {
@@ -72,6 +72,11 @@ final class DocumentStorage {
             combined = baseData
             storedDocSize[id] = baseData.count
         } else {
+            // no full document is available to be loaded by id, so if there were no storage chunks available
+            // either, return nil to indicate we don't know about this document
+            if storageChunks.isEmpty {
+                return nil
+            }
             // loading only incremental saves available, the base document doesn't exist in storage
             combined = Data()
             storedDocSize[id] = 0
