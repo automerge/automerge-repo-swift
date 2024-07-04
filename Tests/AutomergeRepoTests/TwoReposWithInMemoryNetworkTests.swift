@@ -250,7 +250,7 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
 
         await repo_nonsharing.setLogLevel(.resolver, to: .tracing)
         await repo_nonsharing.setLogLevel(.network, to: .tracing)
-        // We can _request_ the document, and should find it - but it won't YET be updated...
+        // We can _request_ the document, but a non-sharing repo won't provide it
         do {
             let _ = try await repo_sharing.find(id: newDocId)
             XCTFail("Expected unavailable response")
