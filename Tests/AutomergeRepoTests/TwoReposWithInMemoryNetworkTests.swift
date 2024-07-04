@@ -183,8 +183,8 @@ final class TwoReposWithInMemoryNetworkTests: XCTestCase {
 
     func testFind() async throws {
         // initial conditions
-        var knownOnTwo = await repoTwo.documentIds()
-        var knownOnOne = await repoOne.documentIds()
+        let knownOnTwo = await repoTwo.documentIds()
+        let knownOnOne = await repoOne.documentIds()
         XCTAssertEqual(knownOnOne.count, 0)
         XCTAssertEqual(knownOnTwo.count, 0)
 

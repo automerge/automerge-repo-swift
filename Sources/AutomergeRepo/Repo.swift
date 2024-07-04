@@ -292,24 +292,33 @@ public final class Repo {
     }
 
     func beginSync(docId: DocumentId, to peer: PEER_ID) async {
-        do {
-            let handle = try await resolveDocHandle(id: docId)
-            let syncState = syncState(id: docId, peer: peer)
-            if let syncData = handle.doc.generateSyncMessage(state: syncState) {
-                let syncMsg: SyncV1Msg = .sync(.init(
-                    documentId: docId.description,
-                    senderId: peerId,
-                    targetId: peer,
-                    sync_message: syncData
-                ))
-                syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
-                await network.send(message: syncMsg, to: peer)
+        if await sharePolicy.share(peer: peer, docId: docId) {
+            if logLevel(.repo).canTrace() {
+                Logger.repo.trace("REPO: \(self.peerId) starting a sync for document \(docId) to \(peer)")
             }
-        } catch {
-            Logger.repo
-                .error(
-                    "REPO: \(self.peerId) Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)"
-                )
+            do {
+                let handle = try await resolveDocHandle(id: docId)
+                let syncState = syncState(id: docId, peer: peer)
+                if let syncData = handle.doc.generateSyncMessage(state: syncState) {
+                    let syncMsg: SyncV1Msg = .sync(.init(
+                        documentId: docId.description,
+                        senderId: peerId,
+                        targetId: peer,
+                        sync_message: syncData
+                    ))
+                    syncRequestPublisher.send(SyncRequest(id: docId, peer: peer))
+                    await network.send(message: syncMsg, to: peer)
+                }
+            } catch {
+                Logger.repo
+                    .error(
+                        "REPO: \(self.peerId) Failed to generate sync on peer connection: \(error.localizedDescription, privacy: .public)"
+                    )
+            }
+        } else {
+            if logLevel(.repo).canTrace() {
+                Logger.repo.warning("REPO: \(self.peerId) SharePolicy DENIED sharing document \(docId) to \(peer)")
+            }
         }
     }
 
@@ -320,16 +329,7 @@ public final class Repo {
             Logger.repo.trace("REPO: \(self.peerId) adding peer \(peer)")
         }
         for docId in documentIds() {
-            if await sharePolicy.share(peer: peer, docId: docId) {
-                if logLevel(.repo).canTrace() {
-                    Logger.repo.trace("REPO: \(self.peerId) starting a sync for document \(docId) to \(peer)")
-                }
-                await beginSync(docId: docId, to: peer)
-            } else {
-                if logLevel(.repo).canTrace() {
-                    Logger.repo.trace("REPO: \(self.peerId) SharePolicy DENIED sharing document \(docId) to \(peer)")
-                }
-            }
+            await beginSync(docId: docId, to: peer)
         }
     }
 
@@ -366,6 +366,11 @@ public final class Repo {
         }
     }
 
+    /// Request a sync to all connected peers.
+    /// - Parameter id: The id of the document to sync.
+    ///
+    /// The repo only initiates a sync when the repository's ``SharePolicy/share(peer:docId:)``
+    /// method allows the document to be replicated to other peers.
     func syncToAllPeers(id: DocumentId) {
         for peer in self.peerMetadataByPeerId.keys {
             Task {
@@ -511,6 +516,9 @@ public final class Repo {
 
     /// Creates a new Automerge document, storing it and sharing the creation with connected peers.
     /// - Returns: The Automerge document.
+    ///
+    /// The repo only initiates a sync to connected peers when the repository's
+    ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     public func create() async throws -> DocHandle {
         let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document())
         handles[handle.id] = handle
@@ -523,6 +531,9 @@ public final class Repo {
     /// Creates a new Automerge document, storing it and sharing the creation with connected peers.
     /// - Returns: The Automerge document.
     /// - Parameter id: The Id of the Automerge document.
+    ///
+    /// The repo only initiates a sync to connected peers when the repository's
+    ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     public func create(id: DocumentId) async throws -> DocHandle {
         if let _ = handles[id] {
             throw Errors.DuplicateID(id: id)
@@ -535,7 +546,7 @@ public final class Repo {
         return resolved
     }
 
-    /// Imports an Automerge document with an option Id.
+    /// Imports an Automerge document with an option Id, and potentially share it with connected peers.
     /// - Parameter handle: The handle to the Automerge document to import.
     /// - Returns: A handle to the Automerge document.
     ///
@@ -553,6 +564,9 @@ public final class Repo {
     /// ```
     ///
     /// Use the handle you create with `import(handle:)` to load it into the repository.
+    ///
+    /// The repo only initiates a sync to connected peers when the repository's
+    ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     @discardableResult
     public func `import`(handle: DocHandle) async throws -> DocHandle {
         if let existingHandle = handles[handle.id] {
@@ -608,6 +622,10 @@ public final class Repo {
     /// Clones a document the repo already knows to create a new, shared document.
     /// - Parameter id: The id of the document to clone.
     /// - Returns: A handle to the Automerge document.
+    ///
+    /// The Repo treats the cloned document as a newly imported or created document and attempts to
+    /// automatically sync to connected peers when the repository's
+    ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     public func clone(id: DocumentId) async throws -> DocHandle {
         let handle = try await resolveDocHandle(id: id)
         let fork = handle.doc.fork()
