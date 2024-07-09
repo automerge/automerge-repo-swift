@@ -230,10 +230,7 @@ extension NetworkSubsystem: NetworkEventReceiver {
                     return
                 }
             case let .ephemeral(ephemeralMsg):
-                Logger.network
-                    .error(
-                        "REPONET: UNIMPLEMENTED EPHEMERAL MESSAGE PASSING: \(ephemeralMsg.debugDescription, privacy: .public)"
-                    )
+                await repo.handleEphemeralMessage(ephemeralMsg)
             case let .remoteSubscriptionChange(remoteSubscriptionChangeMsg):
                 Logger.network
                     .error(
