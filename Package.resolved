@@ -3,10 +3,10 @@
     {
       "identity" : "automerge-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/automerge/automerge-swift",
+      "location" : "https://github.com/untitled-in-brackets/automerge-swift",
       "state" : {
-        "revision" : "52414f7910b1e0fcddec696ebb819c3a68b78901",
-        "version" : "0.5.17"
+        "branch" : "develop",
+        "revision" : "ae707868d54192392fdd1a66126080a9e0b8f763"
       }
     },
     {
