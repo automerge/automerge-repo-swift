@@ -14,7 +14,7 @@ enum ProtocolState: String {
 }
 
 #if canImport(Network)
-public import class Network.NWConnection
+internal import class Network.NWConnection
 
 extension ProtocolState {
     /// Translates a Network connection state into a protocol state
