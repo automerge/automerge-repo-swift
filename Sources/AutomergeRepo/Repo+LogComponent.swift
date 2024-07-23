@@ -1,5 +1,5 @@
-import Automerge
-import OSLog
+internal import Automerge
+internal import OSLog
 
 public extension Repo {
     /// Represents the primary internal components of a repository

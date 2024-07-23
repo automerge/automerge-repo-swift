@@ -6,7 +6,7 @@
 //
 
 public import Foundation
-import PotentCBOR
+internal import PotentCBOR
 
 // Automerge Repo WebSocket sync details:
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo-network-websocket/README.md

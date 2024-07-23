@@ -19,9 +19,9 @@
  *
  */
 
-import Foundation
-import Network
-import OSLog
+internal import Foundation
+internal import Network
+internal import OSLog
 
 /// The type of sync message for the Automerge network sync protocol.
 enum P2PSyncMessageType: UInt32 {

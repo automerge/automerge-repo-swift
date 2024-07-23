@@ -1,4 +1,4 @@
-import Foundation
+internal import Foundation
 
 /// A type that provides a computation for a random back-off value based on an integer number of iterations.
 enum Backoff {

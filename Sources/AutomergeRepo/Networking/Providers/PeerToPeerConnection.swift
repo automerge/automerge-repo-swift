@@ -12,11 +12,11 @@
  - https://developer.apple.com/videos/play/wwdc2020/10110/
  */
 
-import Automerge
-@preconcurrency import Combine
-import Foundation
-import Network
-import OSLog
+internal import Automerge
+@preconcurrency internal import Combine
+internal import Foundation
+internal import Network
+internal import OSLog
 
 /// A peer-to-peer connection to receive and send sync messages.
 ///

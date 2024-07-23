@@ -1,8 +1,8 @@
-import AsyncAlgorithms
+internal import AsyncAlgorithms
 @preconcurrency public import Combine
-import Foundation
+internal import Foundation
 public import Network
-import OSLog
+internal import OSLog
 
 /// An Automerge-repo network provider that connects to other instances over a peer to peer network.
 ///

@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 /// Describes errors from the repository and providers.
 public enum Errors: Sendable {

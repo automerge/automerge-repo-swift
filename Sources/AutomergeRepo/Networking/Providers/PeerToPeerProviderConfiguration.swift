@@ -1,7 +1,7 @@
 public import Automerge
-import Foundation
+internal import Foundation
 #if os(iOS) || os(visionOS)
-import UIKit // for UIDevice.name access
+internal import UIKit // for UIDevice.name access
 #endif
 
 /// A type that represents a configuration for a Peer to Peer Network Provider
