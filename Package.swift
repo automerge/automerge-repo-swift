@@ -49,9 +49,7 @@ let package = Package(
                 .enableExperimentalFeature("StrictConcurrency"),
                 .enableUpcomingFeature("ExistentialAny"),
                 .enableExperimentalFeature("AccessLevelOnImport"),
-                // TODO: re-enable this and fix imports (aka add lots of `public import`)
-                // when building with Xcode 16
-                // .enableUpcomingFeature("InternalImportsByDefault"),
+                .enableUpcomingFeature("InternalImportsByDefault"),
             ]
         ),
         .testTarget(
