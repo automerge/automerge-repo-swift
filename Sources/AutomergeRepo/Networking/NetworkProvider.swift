@@ -1,7 +1,4 @@
-// import AsyncAlgorithms
-
-// import protocol Combine.Publisher
-import Automerge
+internal import Automerge
 
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/network/NetworkAdapterInterface.ts
 

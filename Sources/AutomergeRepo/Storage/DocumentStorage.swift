@@ -1,6 +1,6 @@
-import Automerge
-import Combine
-import Foundation
+internal import Automerge
+internal import Combine
+internal import Foundation
 
 // inspired from automerge-repo:
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/storage/StorageSubsystem.ts

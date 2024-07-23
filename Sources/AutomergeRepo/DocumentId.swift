@@ -1,6 +1,6 @@
-import Base58Swift
-import struct Foundation.Data
-import struct Foundation.UUID
+internal import Base58Swift
+public import struct Foundation.Data
+public import struct Foundation.UUID
 
 /// A unique identifier for an Automerge document.
 public struct DocumentId: Sendable, Hashable, Comparable, Identifiable {

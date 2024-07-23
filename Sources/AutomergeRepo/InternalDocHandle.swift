@@ -1,7 +1,7 @@
-import struct Automerge.ChangeHash
-import class Automerge.Document
-import struct Automerge.SyncState
-import struct Foundation.Data
+internal import struct Automerge.ChangeHash
+internal import class Automerge.Document
+internal import struct Automerge.SyncState
+internal import struct Foundation.Data
 
 final class InternalDocHandle {
     enum DocHandleState {

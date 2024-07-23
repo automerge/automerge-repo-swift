@@ -1,5 +1,4 @@
-import Foundation
-import PotentCBOR
+public import PotentCBOR
 
 /// A type that provides concurrency-safe access to a CBOR encoder and decoder.
 public actor CBORCoder {

@@ -1,8 +1,8 @@
-import Automerge
-import AutomergeUtilities
-import Combine
-import Foundation
-import OSLog
+public import Automerge
+internal import AutomergeUtilities
+@preconcurrency internal import Combine
+public import Foundation
+internal import OSLog
 
 /// A repository for Automerge documents that coordinates storage and synchronization.
 @AutomergeRepo
