@@ -1,8 +1,8 @@
 // import AsyncAlgorithms
-import Automerge
-import struct Foundation.Data
-import OSLog
-import PotentCBOR
+internal import Automerge
+internal import struct Foundation.Data
+internal import OSLog
+internal import PotentCBOR
 
 // riff
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/network/NetworkSubsystem.ts

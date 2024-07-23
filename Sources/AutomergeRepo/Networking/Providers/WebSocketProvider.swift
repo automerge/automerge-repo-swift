@@ -1,7 +1,8 @@
-import Automerge
-@preconcurrency import Combine
-import Network
-import OSLog
+internal import Automerge
+@preconcurrency public import Combine
+public import Foundation
+internal import Network
+internal import OSLog
 
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
 @AutomergeRepo

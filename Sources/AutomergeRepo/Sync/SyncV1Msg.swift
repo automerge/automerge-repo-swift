@@ -5,8 +5,8 @@
 //  Created by Joseph Heck on 1/24/24.
 //
 
-import Foundation
-import PotentCBOR
+public import Foundation
+internal import PotentCBOR
 
 // Automerge Repo WebSocket sync details:
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo-network-websocket/README.md

@@ -1,4 +1,4 @@
-import Foundation
+internal import Foundation
 
 // ; Metadata sent in either the join or peer message types
 // peer_metadata = {

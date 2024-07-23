@@ -1,4 +1,4 @@
-import Automerge
+public import Automerge
 
 /// The configuration options for a WebSocket network provider.
 public struct WebSocketProviderConfiguration: Sendable {

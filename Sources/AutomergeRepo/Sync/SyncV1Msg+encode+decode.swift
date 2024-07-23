@@ -1,6 +1,6 @@
-import Foundation // Data
-import OSLog
-import PotentCBOR
+public import Foundation // Data
+internal import OSLog
+internal import PotentCBOR
 
 public extension SyncV1Msg {
     /// Attempts to decode the data you provide as a peer message.

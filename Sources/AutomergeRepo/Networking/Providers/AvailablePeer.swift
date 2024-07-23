@@ -1,4 +1,4 @@
-import Network
+public import Network
 
 /// A type that represents a peer available on the Peer to Peer (Bonjour) network.
 public struct AvailablePeer: Identifiable, Sendable {

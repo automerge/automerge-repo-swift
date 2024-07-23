@@ -1,5 +1,4 @@
-import struct Foundation.Data
-import struct Foundation.UUID
+public import struct Foundation.Data
 
 /// A type that represents a peer.
 ///

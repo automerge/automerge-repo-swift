@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 /// A type that represents a snapshot of the current state of a peer-to-peer network connection.
 public struct PeerConnectionInfo: Sendable, Identifiable, CustomStringConvertible {

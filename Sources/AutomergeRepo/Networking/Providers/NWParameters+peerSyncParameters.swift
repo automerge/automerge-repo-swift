@@ -13,8 +13,8 @@
   - https://developer.apple.com/videos/play/wwdc2020/10110/
   */
 
-import CryptoKit
-import Network
+internal import CryptoKit
+internal import Network
 
 extension NWParameters {
     /// Returns listener and connection network parameters using default TLS for peer to peer connections.

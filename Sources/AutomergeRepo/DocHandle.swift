@@ -1,4 +1,4 @@
-import class Automerge.Document
+public import class Automerge.Document
 
 /// A type that represents an Automerge Document with its identifier.
 public struct DocHandle: Sendable {
