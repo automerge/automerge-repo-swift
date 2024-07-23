@@ -1,5 +1,5 @@
 internal import Automerge
-public import Combine
+@preconcurrency public import Combine
 public import Foundation
 internal import Network
 internal import OSLog
