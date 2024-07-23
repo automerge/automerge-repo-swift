@@ -1,4 +1,4 @@
-import Automerge
+public import Automerge
 import Foundation
 #if os(iOS) || os(visionOS)
 import UIKit // for UIDevice.name access

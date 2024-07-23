@@ -1,4 +1,4 @@
-import struct Foundation.Data
+public import struct Foundation.Data
 
 // loose adaptation from automerge-repo storage interface
 // https://github.com/automerge/automerge-repo/blob/main/packages/automerge-repo/src/storage/StorageAdapter.ts

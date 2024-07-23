@@ -5,7 +5,7 @@
 //  Created by Joseph Heck on 1/24/24.
 //
 
-import Foundation
+public import Foundation
 import PotentCBOR
 
 // Automerge Repo WebSocket sync details:

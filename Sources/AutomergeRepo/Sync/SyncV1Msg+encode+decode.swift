@@ -1,4 +1,4 @@
-import Foundation // Data
+public import Foundation // Data
 import OSLog
 import PotentCBOR
 
