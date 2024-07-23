@@ -1,4 +1,4 @@
-import Network
+internal import Network
 
 extension NWPathMonitor {
     func paths() -> AsyncStream<NWPath> {

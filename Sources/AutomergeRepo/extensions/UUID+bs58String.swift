@@ -1,4 +1,4 @@
-import Base58Swift
+internal import Base58Swift
 public import struct Foundation.Data
 public import struct Foundation.UUID
 
