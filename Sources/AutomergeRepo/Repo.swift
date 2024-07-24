@@ -23,6 +23,8 @@ public final class Repo {
 
     let defaultVerbosity: LogVerbosity = .errorOnly
     private var levels: [LogComponent: LogVerbosity] = [:]
+    /// LogVerbosity of Documents created from the Repo
+    public var documentLogVerbosity: LogVerbosity = .errorOnly
 
     // MARK: log filtering
 
@@ -402,7 +404,7 @@ public final class Repo {
                 }
                 // There is no in-memory handle for the document being synced, so this is a request
                 // to create a local copy of the document encapsulated in the sync message.
-                let newDocument = Document()
+                let newDocument = Document(logLevel: documentLogVerbosity)
                 let newHandle = InternalDocHandle(id: docId, isNew: true, initialValue: newDocument, remote: true)
                 docHandlePublisher.send(newHandle.snapshot())
                 // must update the repo with the new handle and empty document _before_
@@ -419,7 +421,7 @@ public final class Repo {
             if logLevel(.repo).canTrace() {
                 Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
             }
-            let docFromHandle = handle.doc ?? Document()
+            let docFromHandle = handle.doc ?? Document(logLevel: documentLogVerbosity)
             let syncState = syncState(id: docId, peer: msg.senderId)
             // Apply the request message as a sync update
             try docFromHandle.receiveSyncMessage(state: syncState, message: msg.data)
@@ -520,7 +522,7 @@ public final class Repo {
     /// The repo only initiates a sync to connected peers when the repository's
     ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     public func create() async throws -> DocHandle {
-        let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document())
+        let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document(logLevel: documentLogVerbosity))
         handles[handle.id] = handle
         docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
@@ -538,7 +540,7 @@ public final class Repo {
         if let _ = handles[id] {
             throw Errors.DuplicateID(id: id)
         }
-        let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document())
+        let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document(logLevel: documentLogVerbosity))
         handles[handle.id] = handle
         docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
