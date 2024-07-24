@@ -24,7 +24,11 @@ public final class Repo {
     let defaultVerbosity: LogVerbosity = .errorOnly
     private var levels: [LogComponent: LogVerbosity] = [:]
     /// LogVerbosity of Documents created from the Repo
-    public var documentLogVerbosity: LogVerbosity = .errorOnly
+    public var documentLogVerbosity: LogVerbosity = .errorOnly {
+        didSet {
+            self.storage?.documentLogLevel = documentLogVerbosity
+        }
+    }
 
     // MARK: log filtering
 
@@ -161,7 +165,7 @@ public final class Repo {
         pendingRequestWaitDuration = resolveFetchIterationDelay
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem(verbosity: .errorOnly)
-        self.storage = DocumentStorage(storage, verbosity: .errorOnly)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogVerbosity)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         saveDebounceDelay = saveDebounce
         Task { await self.setupSaveHandler() }
@@ -191,7 +195,7 @@ public final class Repo {
         peerId = UUID().uuidString
         maxRetriesForFetch = maxResolveFetchIterations
         pendingRequestWaitDuration = resolveFetchIterationDelay
-        self.storage = DocumentStorage(storage, verbosity: .errorOnly)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogVerbosity)
         self.saveDebounceDelay = saveDebounce
 
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
