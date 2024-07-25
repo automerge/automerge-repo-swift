@@ -32,7 +32,7 @@ public final class WebSocketProvider: NetworkProvider {
     ///
     /// The initial value provides the current state of the connecting in the WebSocket provider,
     /// with updates published when the state changes.
-    public nonisolated lazy var statePublisher: AnyPublisher<WebSocketProviderState, Never> = _statePublisher
+    public lazy var statePublisher: AnyPublisher<WebSocketProviderState, Never> = _statePublisher
         .removeDuplicates().eraseToAnyPublisher()
 
     /// Creates a new instance of a WebSocket network provider with the configuration you provide.
