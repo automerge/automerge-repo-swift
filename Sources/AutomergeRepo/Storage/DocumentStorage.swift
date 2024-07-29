@@ -24,7 +24,7 @@ final class DocumentStorage {
 
     /// Creates a new concurrency safe document storage instance to manage changes to Automerge documents.
     /// - Parameter storage: The storage provider
-    public nonisolated init(_ storage: some StorageProvider, verbosity: LogVerbosity, documentLogVerbosity: LogVerbosity) {
+    public nonisolated init(_ storage: some StorageProvider, verbosity: LogVerbosity, documentLogVerbosity: LogVerbosity = .errorOnly) {
         compacting = false
         _storage = storage
         latestHeads = [:]

@@ -23,12 +23,8 @@ public final class Repo {
 
     let defaultVerbosity: LogVerbosity = .errorOnly
     private var levels: [LogComponent: LogVerbosity] = [:]
-    /// LogVerbosity of Documents created from the Repo
-    public var documentLogVerbosity: LogVerbosity = .errorOnly {
-        didSet {
-            self.storage?.documentLogLevel = documentLogVerbosity
-        }
-    }
+    /// LogVerbosity of Documents created from this Repo
+    private var documentLogLevel: LogVerbosity
 
     // MARK: log filtering
 
@@ -100,11 +96,13 @@ public final class Repo {
     /// the document is unavailable.
     /// - Parameter resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested
     /// document. The default is 1 second.
+    /// - Parameter documentLogLevel: LogVerbosity `Document`s are created with.
     public nonisolated init(
         sharePolicy: SharePolicy,
         saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
         maxResolveFetchIterations: Int = 300,
-        resolveFetchIterationDelay: Duration = .seconds(1)
+        resolveFetchIterationDelay: Duration = .seconds(1),
+        documentLogLevel: LogVerbosity = .errorOnly
     ) {
         peerId = UUID().uuidString
         storage = nil
@@ -114,6 +112,7 @@ public final class Repo {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem(verbosity: .errorOnly)
         saveDebounceDelay = saveDebounce
+        self.documentLogLevel = documentLogLevel
     }
 
     /// Create a new repository with the custom share policy type you provide
@@ -126,11 +125,13 @@ public final class Repo {
     /// the document is unavailable.
     /// - Parameter resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested
     /// document. The default is 1 second.
+    /// - Parameter documentLogLevel: LogVerbosity `Document`s are created with.
     public nonisolated init(
         sharePolicy: some ShareAuthorizing,
         saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
         maxResolveFetchIterations: Int = 300,
-        resolveFetchIterationDelay: Duration = .seconds(1)
+        resolveFetchIterationDelay: Duration = .seconds(1),
+        documentLogLevel: LogVerbosity = .errorOnly
     ) {
         peerId = UUID().uuidString
         storage = nil
@@ -140,6 +141,7 @@ public final class Repo {
         self.sharePolicy = sharePolicy
         network = NetworkSubsystem(verbosity: .errorOnly)
         saveDebounceDelay = saveDebounce
+        self.documentLogLevel = documentLogLevel
     }
 
     /// Create a new repository with the share policy and storage provider that you provide.
@@ -153,21 +155,24 @@ public final class Repo {
     /// document is unavailable.
     ///   - resolveFetchIterationDelay: The delay between checks while waiting for peers to provide a requested. The
     /// default is 1 second.
+    /// - Parameter documentLogLevel: LogVerbosity `Document`s are created with.
     public nonisolated init(
         sharePolicy: SharePolicy,
         storage: some StorageProvider,
         saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
         maxResolveFetchIterations: Int = 300,
-        resolveFetchIterationDelay: Duration = .seconds(1)
+        resolveFetchIterationDelay: Duration = .seconds(1),
+        documentLogLevel: LogVerbosity = .errorOnly
     ) {
         peerId = UUID().uuidString
         maxRetriesForFetch = maxResolveFetchIterations
         pendingRequestWaitDuration = resolveFetchIterationDelay
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         network = NetworkSubsystem(verbosity: .errorOnly)
-        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogVerbosity)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogLevel)
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         saveDebounceDelay = saveDebounce
+        self.documentLogLevel = documentLogLevel
         Task { await self.setupSaveHandler() }
     }
 
@@ -189,14 +194,16 @@ public final class Repo {
         networks: [any NetworkProvider],
         saveDebounce: RunLoop.SchedulerTimeType.Stride = .seconds(10),
         maxResolveFetchIterations: Int = 300,
-        resolveFetchIterationDelay: Duration = .seconds(1)
+        resolveFetchIterationDelay: Duration = .seconds(1),
+        documentLogLevel: LogVerbosity = .errorOnly
     ) {
         self.sharePolicy = sharePolicy as any ShareAuthorizing
         peerId = UUID().uuidString
         maxRetriesForFetch = maxResolveFetchIterations
         pendingRequestWaitDuration = resolveFetchIterationDelay
-        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogVerbosity)
+        self.storage = DocumentStorage(storage, verbosity: .errorOnly, documentLogVerbosity: documentLogLevel)
         self.saveDebounceDelay = saveDebounce
+        self.documentLogLevel = documentLogLevel
 
         localPeerMetadata = PeerMetadata(storageId: storage.id, isEphemeral: false)
         network = NetworkSubsystem(verbosity: .errorOnly)
@@ -408,7 +415,7 @@ public final class Repo {
                 }
                 // There is no in-memory handle for the document being synced, so this is a request
                 // to create a local copy of the document encapsulated in the sync message.
-                let newDocument = Document(logLevel: documentLogVerbosity)
+                let newDocument = Document(logLevel: documentLogLevel)
                 let newHandle = InternalDocHandle(id: docId, isNew: true, initialValue: newDocument, remote: true)
                 docHandlePublisher.send(newHandle.snapshot())
                 // must update the repo with the new handle and empty document _before_
@@ -425,7 +432,7 @@ public final class Repo {
             if logLevel(.repo).canTrace() {
                 Logger.repo.trace("REPO:  - working on handle for \(docId), state: \(String(describing: handle.state))")
             }
-            let docFromHandle = handle.doc ?? Document(logLevel: documentLogVerbosity)
+            let docFromHandle = handle.doc ?? Document(logLevel: documentLogLevel)
             let syncState = syncState(id: docId, peer: msg.senderId)
             // Apply the request message as a sync update
             try docFromHandle.receiveSyncMessage(state: syncState, message: msg.data)
@@ -526,7 +533,7 @@ public final class Repo {
     /// The repo only initiates a sync to connected peers when the repository's
     ///  ``SharePolicy/share(peer:docId:)`` method allows the document to be replicated the peer.
     public func create() async throws -> DocHandle {
-        let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document(logLevel: documentLogVerbosity))
+        let handle = InternalDocHandle(id: DocumentId(), isNew: true, initialValue: Document(logLevel: documentLogLevel))
         handles[handle.id] = handle
         docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
@@ -544,7 +551,7 @@ public final class Repo {
         if let _ = handles[id] {
             throw Errors.DuplicateID(id: id)
         }
-        let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document(logLevel: documentLogVerbosity))
+        let handle = InternalDocHandle(id: id, isNew: true, initialValue: Document(logLevel: documentLogLevel))
         handles[handle.id] = handle
         docHandlePublisher.send(handle.snapshot())
         let resolved = try await resolveDocHandle(id: handle.id)
