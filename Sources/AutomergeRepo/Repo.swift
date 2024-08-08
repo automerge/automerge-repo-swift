@@ -729,6 +729,17 @@ public final class Repo {
         ))
         await network.send(message: msg, to: peer)
     }
+    
+    public func savePendingChanges(id: DocumentId) async throws {
+        guard let storage = self.storage,
+              let docHandle = self.handles[id],
+              let docFromHandle = docHandle.doc
+        else {
+            return
+        }
+        
+        try await storage.saveDoc(id: id, doc: docFromHandle)
+    }
 
     // MARK: Methods to expose retrieving DocHandles to the subsystems
 
