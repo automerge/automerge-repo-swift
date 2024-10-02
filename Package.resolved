@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/automerge/automerge-swift",
       "state" : {
-        "revision" : "52414f7910b1e0fcddec696ebb819c3a68b78901",
-        "version" : "0.5.17"
+        "revision" : "410b1d1b8bec078227dbb4fe8c16e1a4541d01cb",
+        "version" : "0.5.18"
       }
     },
     {
@@ -57,7 +57,7 @@
     {
       "identity" : "swift-async-algorithms",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-async-algorithms.git",
+      "location" : "https://github.com/apple/swift-async-algorithms",
       "state" : {
         "revision" : "da4e36f86544cdf733a40d59b3a2267e3a7bbf36",
         "version" : "1.0.0"
@@ -86,14 +86,14 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-docc-plugin",
       "state" : {
-        "revision" : "26ac5758409154cc448d7ab82389c520fa8a8247",
-        "version" : "1.3.0"
+        "revision" : "85e4bb4e1cd62cec64a4b8e769dcefdf0c5b9d64",
+        "version" : "1.4.3"
       }
     },
     {
       "identity" : "swift-docc-symbolkit",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-docc-symbolkit",
+      "location" : "https://github.com/swiftlang/swift-docc-symbolkit",
       "state" : {
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
@@ -113,8 +113,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-service-context.git",
       "state" : {
-        "revision" : "ce0141c8f123132dbd02fd45fea448018762df1b",
-        "version" : "1.0.0"
+        "revision" : "0c62c5b4601d6c125050b5c3a97f20cce881d32b",
+        "version" : "1.1.0"
       }
     }
   ],
