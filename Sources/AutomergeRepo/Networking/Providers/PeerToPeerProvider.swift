@@ -194,7 +194,7 @@ public final class PeerToPeerProvider: NetworkProvider {
 
     /// Requests the network transport to send a message.
     /// - Parameter message: The message to send.
-    /// - Parameter to: An option peerId to identify the recipient for the message. If nil, the message is sent to all
+    /// - Parameter peer: An option peerId to identify the recipient for the message. If nil, the message is sent to all
     /// connected peers.
     public func send(message: SyncV1Msg, to peer: PEER_ID?) async {
         if let peerId = peer {

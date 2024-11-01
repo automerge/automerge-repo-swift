@@ -25,7 +25,7 @@ struct MeetingNotesApp: App {
 }
 ```
 
-To connect the repository to a remote endpoint, make an async call to ``connect(to:)``, passing the WebSocket URL:
+To connect the repository to a remote endpoint, make an async call to ``connect(to:)-32her``, passing the WebSocket URL:
 
 ```swift
 Button {    
@@ -44,6 +44,7 @@ Button {
 - ``init(_:)``
 - ``WebSocketProviderConfiguration``
 - ``ProviderConfiguration``
+- ``NetworkConnectionEndpoint``
 
 ### Configuring the provider
 
@@ -51,7 +52,8 @@ Button {
 
 ### Establishing Connections
 
-- ``connect(to:)``
+- ``connect(to:)-32her``
+- ``connect(to:)-5y82b``
 - ``disconnect()``
 
 ### Sending messages

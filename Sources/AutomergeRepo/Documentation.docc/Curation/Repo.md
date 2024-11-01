@@ -13,10 +13,10 @@ When network providers are active, the repository attempts to sync documents wit
 
 ### Creating a repository
 
-- ``init(sharePolicy:saveDebounce:)-9tksd``
-- ``init(sharePolicy:saveDebounce:)-8umfb``
-- ``init(sharePolicy:storage:saveDebounce:)``
-- ``init(sharePolicy:storage:networks:saveDebounce:)``
+- ``init(sharePolicy:saveDebounce:maxResolveFetchIterations:resolveFetchIterationDelay:)-3j0z7``
+- ``init(sharePolicy:saveDebounce:maxResolveFetchIterations:resolveFetchIterationDelay:)-18my9``
+- ``init(sharePolicy:storage:saveDebounce:maxResolveFetchIterations:resolveFetchIterationDelay:)``
+- ``init(sharePolicy:storage:networks:saveDebounce:maxResolveFetchIterations:resolveFetchIterationDelay:)``
 
 ### Configuring a repository
 
@@ -29,8 +29,10 @@ When network providers are active, the repository attempts to sync documents wit
 
 - ``create()``
 - ``create(id:)``
-- ``create(data:id:)``
-- ``create(doc:id:)``
+
+### Importing a document
+
+- ``import(handle:)``
 
 ### Cloning a document
 

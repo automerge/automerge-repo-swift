@@ -1,4 +1,4 @@
-# ``AutomergeRepo/WebSocketProvider/WebSocketProviderConfiguration``
+# ``AutomergeRepo/WebSocketProviderConfiguration``
 
 ## Topics
 
@@ -8,9 +8,10 @@
 
 ### Creating a configuration
 
-- ``init(_:)``
-- ``init(reconnectOnError:loggingAt:)``
+- ``init(reconnectOnError:loggingAt:maxNumberOfConnectRetries:)``
 
 ### Inspecting a configuration 
 
 - ``reconnectOnError``
+- ``maxNumberOfConnectRetries``
+- ``logLevel``
