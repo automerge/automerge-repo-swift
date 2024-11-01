@@ -7,6 +7,8 @@ internal import OSLog
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
 @AutomergeRepo
 public final class WebSocketProvider: NetworkProvider {
+    public typealias NetworkConnectionEndpoint = URL
+
     /// The name of this provider.
     public let name = "WebSocket"
 
@@ -22,7 +24,7 @@ public final class WebSocketProvider: NetworkProvider {
     var ongoingReceiveMessageTask: Task<Void, any Error>?
     var config: WebSocketProviderConfiguration
     // reconnection logic variables
-    var endpoint: URL?
+    var endpoint: URLRequest?
     var peered: Bool
 
     private let _statePublisher: CurrentValueSubject<WebSocketProviderState, Never> =
@@ -49,7 +51,16 @@ public final class WebSocketProvider: NetworkProvider {
     }
 
     /// Initiate an outgoing connection.
+    ///
+    /// Create a default `URLRequest` and create a WebSocket connection with it.
     public func connect(to url: URL) async throws {
+        try await connect(to: URLRequest(url: url))
+    }
+
+    /// Initiate an outgoing connection.
+    ///
+    /// Create a WebSocket connection with the provided `URLRequest`.
+    public func connect(to request: URLRequest) async throws {
         if peered {
             Logger.websocket.error("Attempting to connect while already peered")
             throw Errors.NetworkProviderError(msg: "Attempting to connect while already peered")
@@ -60,13 +71,13 @@ public final class WebSocketProvider: NetworkProvider {
             throw Errors.NetworkProviderError(msg: "Attempting to connect before connected to a delegate")
         }
 
-        if try await attemptConnect(to: url) {
-            if config.logLevel.canTrace() {
+        if try await attemptConnect(to: request) {
+            if config.logLevel.canTrace(), let url = request.url {
                 Logger.websocket.trace("WEBSOCKET: connected to \(url)")
             }
-            endpoint = url
+            endpoint = request
         } else {
-            if config.logLevel.canTrace() {
+            if config.logLevel.canTrace(), let url = request.url {
                 Logger.websocket.trace("WEBSOCKET: failed to connect to \(url)")
             }
             return
@@ -200,15 +211,16 @@ public final class WebSocketProvider: NetworkProvider {
     }
 
     // Returns a `true` on success OR throws an error (log the error, but can retry)
-    func attemptConnect(to url: URL?) async throws -> Bool {
+    private func attemptConnect(to request: URLRequest?) async throws -> Bool {
         precondition(peered == false)
-        guard let url,
+        guard let request,
+              let url = request.url,
               let peerId,
               let delegate
         else {
             if config.logLevel.canTrace() {
                 Logger.websocket.trace("Pre-requisites not available for attemptConnect, returning nil")
-                Logger.websocket.trace("URL: \(String(describing: url))")
+                Logger.websocket.trace("URL: \(String(describing: request?.url))")
                 Logger.websocket.trace("PeerID: \(String(describing: self.peerId))")
                 Logger.websocket.trace("Delegate: \(String(describing: self.delegate))")
             }
@@ -217,7 +229,6 @@ public final class WebSocketProvider: NetworkProvider {
 
         // establish the WebSocket connection
 
-        let request = URLRequest(url: url)
         let webSocketTask = URLSession.shared.webSocketTask(with: request)
         if config.logLevel.canTrace() {
             Logger.websocket.trace("WEBSOCKET: Activating websocket to \(url, privacy: .public)")
@@ -258,7 +269,7 @@ public final class WebSocketProvider: NetworkProvider {
             peeredConnections = [peerConnectionDetails]
             // these need to be set _before_ we send the delegate message that we're
             // peered, because that process in turn (can trigger/triggers) a sync
-            endpoint = url
+            endpoint = request
             self.webSocketTask = webSocketTask
 
             await delegate.receiveEvent(event: .ready(payload: peerConnectionDetails))
