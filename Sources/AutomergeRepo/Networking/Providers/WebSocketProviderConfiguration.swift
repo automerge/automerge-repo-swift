@@ -23,6 +23,7 @@ public struct WebSocketProviderConfiguration: Sendable {
     /// - Parameter reconnectOnError: A Boolean value that indicates if the provider should attempt to reconnect
     /// when it fails with an error.
     /// - Parameter loggingAt: The verbosity of the logs sent to the unified logging system.
+    /// - Parameter maxNumberOfConnectRetries: The maximum number of reconnections allowed before the WebSocket provider disconnects. If `nil`, the default, retries continue forever.
     public init(reconnectOnError: Bool, loggingAt: LogVerbosity = .errorOnly, maxNumberOfConnectRetries: Int? = nil) {
         self.reconnectOnError = reconnectOnError
         self.maxNumberOfConnectRetries = maxNumberOfConnectRetries

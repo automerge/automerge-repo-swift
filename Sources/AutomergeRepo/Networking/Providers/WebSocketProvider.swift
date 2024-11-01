@@ -7,6 +7,7 @@ internal import OSLog
 /// An Automerge-repo network provider that connects to other repositories using WebSocket.
 @AutomergeRepo
 public final class WebSocketProvider: NetworkProvider {
+    /// The type that represents the endpoint that this provider connects with.
     public typealias NetworkConnectionEndpoint = URL
 
     /// The name of this provider.
@@ -50,16 +51,16 @@ public final class WebSocketProvider: NetworkProvider {
         peered = false
     }
 
-    /// Initiate an outgoing connection.
+    /// Initiate an outgoing connection to a URL.
     ///
-    /// Create a default `URLRequest` and create a WebSocket connection with it.
+    /// Creates a default `URLRequest` from the `URL` you provide and creates a WebSocket connection with it.
     public func connect(to url: URL) async throws {
         try await connect(to: URLRequest(url: url))
     }
 
-    /// Initiate an outgoing connection.
+    /// Initiate an outgoing connection to a URL Request.
     ///
-    /// Create a WebSocket connection with the provided `URLRequest`.
+    /// Create a WebSocket connection with the `URLRequest` you provide.
     public func connect(to request: URLRequest) async throws {
         if peered {
             Logger.websocket.error("Attempting to connect while already peered")
@@ -150,7 +151,7 @@ public final class WebSocketProvider: NetworkProvider {
     /// Set the delegate for the peer to peer provider.
     /// - Parameters:
     ///   - delegate: The delegate instance.
-    ///   - peerId: The peer ID to use for the peer to peer provider.
+    ///   - peer: The peer ID to use for the peer to peer provider.
     ///   - metadata: The peer metadata, if any, to use for the peer to peer provider.
     ///
     /// This is typically called when the delegate adds the provider, and provides this network

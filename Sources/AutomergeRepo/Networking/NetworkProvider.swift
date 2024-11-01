@@ -71,7 +71,7 @@ public protocol NetworkProvider: Sendable {
     /// Set the delegate for the peer to peer provider.
     /// - Parameters:
     ///   - delegate: The delegate instance.
-    ///   - peerId: The peer ID to use for the peer to peer provider.
+    ///   - peer: The peer ID to use for the peer to peer provider.
     ///   - metadata: The peer metadata, if any, to use for the peer to peer provider.
     ///
     /// This is typically called when the delegate adds the provider, and provides this network

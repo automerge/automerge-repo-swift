@@ -15,7 +15,7 @@ public protocol ShareAuthorizing: Sendable {
 ///
 /// If you need a type that supports more state and logic to determine authorization to share,
 ///  initialize a ``Repo`` with your own type that conforms to ``ShareAuthorizing`` with
-/// ``Repo/init(sharePolicy:saveDebounce:)-8umfb``.
+/// ``Repo/init(sharePolicy:saveDebounce:maxResolveFetchIterations:resolveFetchIterationDelay:)-3j0z7``.
 public struct SharePolicy: ShareAuthorizing, Sendable {
     /// Returns a Boolean value that indicates whether a document may be shared.
     /// - Parameters:

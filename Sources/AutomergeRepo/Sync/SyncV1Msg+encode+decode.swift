@@ -33,14 +33,9 @@ public extension SyncV1Msg {
     ///
     /// - Parameters:
     ///   - data: The data to decode.
-    ///   - withGossip: A Boolean value that indicates whether to include decoding of handshake messages.
-    ///   - withHandshake: A Boolean value that indicates whether to include decoding of gossip messages.
     /// - Returns: The decoded message, or ``SyncV1Msg/unknown(_:)`` if the previous decoding attempts failed.
     ///
     /// The decoding is ordered from the perspective of an initiating client expecting a response to minimize attempts.
-    /// Enable `withGossip` to attempt to decode head gossip messages, and `withHandshake` to include handshake phase
-    /// messages.
-    /// With both `withGossip` and `withHandshake` set to `true`, the decoding is exhaustive over all V1 messages.
     static func decode(_ data: Data) -> SyncV1Msg {
         var cborMsg: CBOR? = nil
 

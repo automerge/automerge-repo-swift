@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/automerge/automerge-swift",
       "state" : {
-        "revision" : "410b1d1b8bec078227dbb4fe8c16e1a4541d01cb",
-        "version" : "0.5.18"
+        "revision" : "c8daf47b5cb77ae5eec451a4e4b77ad6f6db8f5e",
+        "version" : "0.5.19"
       }
     },
     {
@@ -77,8 +77,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-distributed-tracing",
       "state" : {
-        "revision" : "11c756c5c4d7de0eeed8595695cadd7fa107aa19",
-        "version" : "1.1.1"
+        "revision" : "6483d340853a944c96dbcc28b27dd10b6c581703",
+        "version" : "1.1.2"
       }
     },
     {
